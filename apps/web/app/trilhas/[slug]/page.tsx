@@ -1,8 +1,10 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, MapPin, Route, Clock, Heart, Eye, ExternalLink } from 'lucide-react';
+import { getImageUrl } from '../../../lib/image-url';
 import TrailDetailTabs from '../../../components/trilhas/TrailDetailTabs';
 import TrailActions from '../../../components/trilhas/TrailActions';
+import { TrailGallery } from '../../../components/trilhas/TrailGallery';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -15,7 +17,7 @@ const DIFFICULTY_LABELS: Record<string, { label: string; color: string }> = {
 async function getTrail(slug: string) {
   try {
     const res = await fetch(`${API_URL}/trails/${slug}`, {
-      next: { revalidate: 60 }, // Cache for 60 seconds
+      next: { revalidate: 0 }, // Always fetch fresh data
     });
     if (!res.ok) return null;
     return res.json();
@@ -57,7 +59,7 @@ export default async function TrailDetailPage({ params }: { params: Promise<{ sl
       <div className="relative rounded-2xl overflow-hidden h-72 sm:h-96 bg-beige mb-6">
         {trail.coverImage ? (
           <img
-            src={trail.coverImage}
+            src={getImageUrl(trail.coverImage)}
             alt={trail.title}
             className="w-full h-full object-cover"
           />
@@ -120,6 +122,9 @@ export default async function TrailDetailPage({ params }: { params: Promise<{ sl
 
       {/* Tabs (Client Component) */}
       <TrailDetailTabs trail={trail} />
+
+      {/* Gallery Section */}
+      <TrailGallery trailId={trail.id} photos={trail.photos || []} />
     </div>
   );
 }

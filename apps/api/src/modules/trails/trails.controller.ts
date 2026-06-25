@@ -10,7 +10,13 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 import { TrailsService } from './trails.service';
 import { CreateTrailDto } from './dto/create-trail.dto';
 import { UpdateTrailDto } from './dto/update-trail.dto';
@@ -18,6 +24,15 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+
+const storage = diskStorage({
+  destination: './uploads',
+  filename: (req, file, callback) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = extname(file.originalname);
+    callback(null, `${uniqueSuffix}${ext}`);
+  },
+});
 
 @Controller('trails')
 export class TrailsController {
@@ -77,7 +92,15 @@ export class TrailsController {
   @Roles('ADMIN', 'SCHOOL_MANAGER')
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() createTrailDto: CreateTrailDto, @CurrentUser() user: any) {
+  @UseInterceptors(FileInterceptor('coverImage', { storage }))
+  create(
+    @Body() createTrailDto: CreateTrailDto,
+    @CurrentUser() user: any,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    if (file) {
+      createTrailDto.coverImage = `/uploads/${file.filename}`;
+    }
     return this.trailsService.create(createTrailDto, {
       id: user.id,
       role: user.role,
@@ -89,11 +112,16 @@ export class TrailsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SCHOOL_MANAGER')
   @Patch(':id')
+  @UseInterceptors(FileInterceptor('coverImage', { storage }))
   update(
     @Param('id') id: string,
     @Body() updateTrailDto: UpdateTrailDto,
     @CurrentUser() user: any,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
+    if (file) {
+      updateTrailDto.coverImage = `/uploads/${file.filename}`;
+    }
     return this.trailsService.update(id, updateTrailDto, {
       id: user.id,
       role: user.role,
@@ -133,5 +161,39 @@ export class TrailsController {
   @Get(':id/status')
   getStatus(@Param('id') id: string, @CurrentUser() user: any) {
     return this.trailsService.getStatus(id, user.id);
+  }
+
+  /** POST /trails/:id/photos - Add a photo to a trail */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SCHOOL_MANAGER')
+  @Post(':id/photos')
+  @UseInterceptors(FileInterceptor('image', { storage }))
+  async addPhoto(
+    @Param('id') id: string,
+    @CurrentUser() user: any,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Imagem não fornecida');
+    }
+    const imagePath = `/uploads/${file.filename}`;
+    return this.trailsService.addPhoto(id, imagePath, {
+      id: user.id,
+      role: user.role,
+      schoolId: user.schoolId,
+    });
+  }
+
+  /** DELETE /trails/photos/:photoId - Delete a photo from a trail */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SCHOOL_MANAGER')
+  @Delete('photos/:photoId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removePhoto(@Param('photoId') photoId: string, @CurrentUser() user: any) {
+    return this.trailsService.removePhoto(photoId, {
+      id: user.id,
+      role: user.role,
+      schoolId: user.schoolId,
+    });
   }
 }

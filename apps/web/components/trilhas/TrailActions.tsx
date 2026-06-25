@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Heart, ExternalLink } from 'lucide-react';
+import { Heart, ExternalLink, Pencil } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import Link from 'next/link';
 import ShareModal from './ShareModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -11,6 +12,8 @@ interface TrailActionsProps {
   trail: {
     id: string;
     title: string;
+    slug?: string;
+    schoolId?: string;
     coverImage?: string;
     wikilocUrl?: string;
     likesCount?: number;
@@ -29,7 +32,8 @@ export default function TrailActions({ trail }: TrailActionsProps) {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [currentUrl, setCurrentUrl] = useState('');
 
-  const token = (session?.user as any)?.accessToken;
+  const user = session?.user as any;
+  const token = user?.accessToken;
 
   useEffect(() => {
     setCurrentUrl(window.location.href);
@@ -137,12 +141,21 @@ export default function TrailActions({ trail }: TrailActionsProps) {
             Wikiloc
           </a>
         )}
+        {(user?.role === 'ADMIN' || (user?.role === 'SCHOOL_MANAGER' && user?.schoolId === trail.schoolId)) && trail.slug && (
+          <Link
+            href={`/trilhas/${trail.slug}/editar`}
+            className="flex items-center gap-1.5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-all shadow-md hover:shadow-lg active:scale-95"
+          >
+            <Pencil className="w-4 h-4" />
+            Editar Trilha
+          </Link>
+        )}
       </div>
 
       <ShareModal 
         isOpen={isShareModalOpen} 
         onClose={() => setIsShareModalOpen(false)} 
-        trail={trail}
+        trail={trail as any}
         url={currentUrl}
       />
     </>

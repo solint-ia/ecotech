@@ -8,13 +8,11 @@ import {
   MinLength,
   Min,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 export enum PointTypeEnum {
-  ARVORE = 'ARVORE',
-  PLANTA = 'PLANTA',
+  FLORA = 'FLORA',
   RIO = 'RIO',
-  MANGUEZAL = 'MANGUEZAL',
   FAUNA = 'FAUNA',
   ESPACO_CULTURAL = 'ESPACO_CULTURAL',
   AREA_VERDE = 'AREA_VERDE',
@@ -76,6 +74,6 @@ export class CreateEducationalPointDto {
 
   @IsBoolean()
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => value === 'true' || value === true)
   status?: boolean;
 }

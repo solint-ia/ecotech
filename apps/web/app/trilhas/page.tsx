@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { MapPin, Clock, Route, Heart, Eye, Plus, Search, Leaf } from 'lucide-react';
+import { getImageUrl } from '../../lib/image-url';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -191,7 +192,7 @@ export default function TrilhasPage() {
                 <div className="relative h-48 overflow-hidden bg-beige">
                   {trail.coverImage ? (
                     <img
-                      src={trail.coverImage}
+                      src={getImageUrl(trail.coverImage)}
                       alt={trail.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
@@ -215,9 +216,6 @@ export default function TrilhasPage() {
                   <p className="text-xs text-foreground/60 mb-1 flex items-center gap-1">
                     <MapPin className="w-3 h-3 shrink-0" />
                     {trail.city}
-                    {trail.school?.name && (
-                      <span className="truncate"> • {trail.school.name}</span>
-                    )}
                   </p>
                   {trail.biome && (
                     <p className="text-xs text-secondary font-medium mb-2">{trail.biome}</p>
