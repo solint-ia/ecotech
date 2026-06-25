@@ -2,7 +2,11 @@
   "name": "edu-platform",
   "version": "1.0.0",
   "private": true,
-  "packageManager": "pnpm@11.9.0",
+  "packageManager": "npm@10.8.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
@@ -15,15 +19,5 @@
     "prettier": "^3.0.0",
     "typescript": "^5.0.0",
     "eslint": "^8.0.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@prisma/client",
-      "@prisma/engines",
-      "bcrypt",
-      "prisma",
-      "sharp",
-      "unrs-resolver"
-    ]
   }
 }
