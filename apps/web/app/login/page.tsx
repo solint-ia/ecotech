@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 import { Leaf, Camera, UploadCloud } from 'lucide-react';
 import {
   validateCPF,
@@ -13,6 +15,7 @@ import {
 } from '@/lib/validation';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
 
   // Base fields
@@ -117,17 +120,25 @@ export default function LoginPage() {
     setErrors({});
 
     try {
-      const endpoint = isLogin ? '/auth/login' : '/auth/register';
-      let res;
+      let userData: any = null;
 
       if (isLogin) {
-        res = await fetch(`http://localhost:4000${endpoint}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-          credentials: 'include',
+        // Use NextAuth signIn so the session is established client-side
+        const result = await signIn('credentials', {
+          email,
+          password,
+          redirect: false,
         });
+
+        if (result?.error) {
+          throw new Error('E-mail ou senha incorretos.');
+        }
+
+        // Redirect to trilhas
+        router.push('/trilhas');
+        return;
       } else {
+        // Register via API directly, then use signIn to establish session
         const formData = new FormData();
         formData.append('name', name);
         formData.append('email', email);
@@ -148,46 +159,34 @@ export default function LoginPage() {
           if (schoolId) formData.append('schoolId', schoolId);
         }
 
-        res = await fetch(`http://localhost:4000${endpoint}`, {
+        const res = await fetch(`http://localhost:4000/auth/register`, {
           method: 'POST',
           body: formData,
           credentials: 'include',
         });
-      }
 
-      const data = await res.json();
+        const data = await res.json();
 
-      if (!res.ok) {
-        let errorMsg = data.message || 'Erro ao processar a solicitação';
-        if (Array.isArray(data.message)) {
-          errorMsg = data.message.join(', ');
+        if (!res.ok) {
+          let errorMsg = data.message || 'Erro ao processar a solicitação';
+          if (Array.isArray(data.message)) {
+            errorMsg = data.message.join(', ');
+          }
+          throw new Error(errorMsg);
         }
-        throw new Error(errorMsg);
-      }
 
-      setMessage({
-        type: 'success',
-        text: isLogin ? 'Login realizado com sucesso!' : 'Cadastro realizado com sucesso!',
-      });
+        userData = data.user;
 
-      // Clear form on register
-      if (!isLogin) {
-        setName('');
-        setEmail('');
-        setPhone('');
-        setPassword('');
-        setConfirmPassword('');
-        setRole('STUDENT');
-        setSchoolId('');
-        setSchoolName('');
-        setCity('');
-        setLocation('');
-        setCnpj('');
-        setManagerName('');
-        setCpfManager('');
-        setProfileImage(null);
-        setPreviewImage(null);
-        setErrors({});
+        // After successful register, use signIn to establish NextAuth session
+        await signIn('credentials', {
+          email,
+          password,
+          redirect: false,
+        });
+
+        // Redirect to trilhas
+        router.push('/trilhas');
+        return;
       }
     } catch (error: any) {
       setMessage({
