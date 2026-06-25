@@ -9,7 +9,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 export enum DifficultyEnum {
   FACIL = 'FACIL',
@@ -37,7 +37,8 @@ export class CreateTrailDto {
   fullDescription?: string;
 
   @IsString()
-  schoolId: string;
+  @IsOptional()
+  schoolId?: string;
 
   @IsString()
   @IsOptional()
@@ -71,6 +72,6 @@ export class CreateTrailDto {
 
   @IsBoolean()
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => value === 'true' || value === true)
   status?: boolean;
 }

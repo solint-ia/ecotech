@@ -4,15 +4,14 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, Save, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, ChevronDown, ChevronUp, Edit2 } from 'lucide-react';
+import { getImageUrl } from '../../../../lib/image-url';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 const POINT_TYPES = [
-  { value: 'ARVORE', label: 'Árvore' },
-  { value: 'PLANTA', label: 'Planta' },
+  { value: 'FLORA', label: 'Flora' },
   { value: 'RIO', label: 'Rio' },
-  { value: 'MANGUEZAL', label: 'Manguezal' },
   { value: 'FAUNA', label: 'Fauna' },
   { value: 'ESPACO_CULTURAL', label: 'Espaço Cultural' },
   { value: 'AREA_VERDE', label: 'Área Verde' },
@@ -48,9 +47,11 @@ export default function PontosPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  // New point form state
-  const [showNewForm, setShowNewForm] = useState(false);
-  const [newPoint, setNewPoint] = useState({
+  // Form state
+  const [showForm, setShowForm] = useState(false);
+  const [editingPointId, setEditingPointId] = useState<string | null>(null);
+  const [pointImage, setPointImage] = useState<File | null>(null);
+  const [formData, setFormData] = useState({
     title: '',
     type: 'FAUNA',
     order: 1,
@@ -101,41 +102,95 @@ export default function PontosPage() {
     fetchData();
   }, [trailSlug, status]);
 
-  const handleCreatePoint = async (e: React.FormEvent) => {
+  const resetForm = () => {
+    setShowForm(false);
+    setEditingPointId(null);
+    setPointImage(null);
+    setFormData({
+      title: '',
+      type: 'FAUNA',
+      order: points.length + 1,
+      shortDescription: '',
+      fullDescription: '',
+      curiosities: '',
+      environmentalImportance: '',
+      preservationCare: '',
+      mainImage: '',
+      offlineSummary: '',
+      status: false,
+    });
+    setOfflineSummaryLeft(250);
+  };
+
+  const handleEditClick = (point: Point) => {
+    setEditingPointId(point.id);
+    setFormData({
+      title: point.title,
+      type: point.type,
+      order: point.order,
+      shortDescription: point.shortDescription || '',
+      fullDescription: point.fullDescription || '',
+      curiosities: point.curiosities || '',
+      environmentalImportance: point.environmentalImportance || '',
+      preservationCare: point.preservationCare || '',
+      mainImage: point.mainImage || '',
+      offlineSummary: point.offlineSummary || '',
+      status: point.status,
+    });
+    setPointImage(null);
+    setOfflineSummaryLeft(250 - (point.offlineSummary?.length || 0));
+    setShowForm(true);
+    setExpandedPointId(null);
+  };
+
+  const handleSavePoint = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setError('');
+    
     try {
-      const res = await fetch(`${API_URL}/educational-points`, {
-        method: 'POST',
+      const payload = new FormData();
+      payload.append('title', formData.title);
+      payload.append('type', formData.type);
+      payload.append('order', String(formData.order));
+      payload.append('status', String(formData.status));
+      payload.append('trailId', trail.id);
+      
+      if (formData.shortDescription) payload.append('shortDescription', formData.shortDescription);
+      if (formData.fullDescription) payload.append('fullDescription', formData.fullDescription);
+      if (formData.curiosities) payload.append('curiosities', formData.curiosities);
+      if (formData.environmentalImportance) payload.append('environmentalImportance', formData.environmentalImportance);
+      if (formData.preservationCare) payload.append('preservationCare', formData.preservationCare);
+      if (formData.offlineSummary) payload.append('offlineSummary', formData.offlineSummary);
+      if (pointImage) payload.append('mainImage', pointImage);
+
+      const url = editingPointId ? `${API_URL}/educational-points/${editingPointId}` : `${API_URL}/educational-points`;
+      const method = editingPointId ? 'PATCH' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: { 
-          'Content-Type': 'application/json',
           ...(user?.accessToken ? { Authorization: `Bearer ${user.accessToken}` } : {})
         },
-        body: JSON.stringify({ ...newPoint, trailId: trail.id }),
+        body: payload,
       });
+
       if (!res.ok) {
         const data = await res.json();
         throw new Error(Array.isArray(data.message) ? data.message.join(', ') : data.message);
       }
-      const created = await res.json();
-      setPoints((prev) => [...prev, created].sort((a, b) => a.order - b.order));
-      setShowNewForm(false);
-      setNewPoint({
-        title: '',
-        type: 'FAUNA',
-        order: points.length + 2,
-        shortDescription: '',
-        fullDescription: '',
-        curiosities: '',
-        environmentalImportance: '',
-        preservationCare: '',
-        mainImage: '',
-        offlineSummary: '',
-        status: false,
-      });
+      
+      const savedPoint = await res.json();
+      
+      if (editingPointId) {
+        setPoints(prev => prev.map(p => p.id === editingPointId ? savedPoint : p).sort((a, b) => a.order - b.order));
+      } else {
+        setPoints(prev => [...prev, savedPoint].sort((a, b) => a.order - b.order));
+      }
+
+      resetForm();
     } catch (err: any) {
-      setError(err.message || 'Erro ao criar ponto.');
+      setError(err.message || 'Erro ao salvar ponto.');
     } finally {
       setSaving(false);
     }
@@ -189,7 +244,7 @@ export default function PontosPage() {
 
       {/* Existing points list */}
       <div className="space-y-3 mb-4">
-        {points.length === 0 && !showNewForm && (
+        {points.length === 0 && !showForm && (
           <div className="text-center py-10 text-foreground/50 text-sm bg-white rounded-xl border border-border-custom">
             Nenhum ponto educativo ainda. Clique em "Novo Ponto" para adicionar.
           </div>
@@ -214,19 +269,57 @@ export default function PontosPage() {
                   <ChevronDown className="w-4 h-4 text-foreground/40 shrink-0 ml-auto" />
                 )}
               </button>
-              <button
-                onClick={() => handleDeletePoint(point.id)}
-                className="ml-3 p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                title="Excluir ponto"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              <div className="flex items-center ml-2">
+                {!point.status && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        const formData = new FormData();
+                        formData.append('status', 'true');
+                        const res = await fetch(`${API_URL}/educational-points/${point.id}`, {
+                          method: 'PATCH',
+                          headers: user?.accessToken ? { Authorization: `Bearer ${user.accessToken}` } : {},
+                          body: formData,
+                        });
+                        if (!res.ok) throw new Error('Falha ao publicar ponto.');
+                        setPoints(prev => prev.map(p => p.id === point.id ? { ...p, status: true } : p));
+                      } catch (err: any) {
+                        setError(err.message);
+                      }
+                    }}
+                    className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors mr-1"
+                    title="Publicar ponto"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  </button>
+                )}
+                <button
+                  onClick={() => handleEditClick(point)}
+                  className="p-1.5 text-primary/60 hover:text-primary hover:bg-beige rounded-lg transition-colors"
+                  title="Editar ponto"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleDeletePoint(point.id)}
+                  className="ml-1 p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Excluir ponto"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
             {expandedPointId === point.id && (
               <div className="px-4 pb-4 border-t border-border-custom pt-3 space-y-2 text-sm text-foreground/70">
                 {point.shortDescription && <p><strong>Descrição:</strong> {point.shortDescription}</p>}
                 {point.offlineSummary && (
                   <p><strong>Resumo offline:</strong> {point.offlineSummary}</p>
+                )}
+                {point.mainImage && (
+                  <div className="mt-2">
+                    <strong>Imagem principal:</strong>
+                    <img src={getImageUrl(point.mainImage)} alt={point.title} className="mt-2 w-32 h-32 object-cover rounded-lg border border-border-custom" />
+                  </div>
                 )}
               </div>
             )}
@@ -235,12 +328,12 @@ export default function PontosPage() {
       </div>
 
       {/* Add new point button or form */}
-      {!showNewForm ? (
+      {!showForm ? (
         <button
           id="btn-novo-ponto"
           onClick={() => {
-            setShowNewForm(true);
-            setNewPoint((p) => ({ ...p, order: points.length + 1 }));
+            resetForm();
+            setShowForm(true);
           }}
           className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-border-custom rounded-xl text-sm font-medium text-foreground/60 hover:border-secondary hover:text-secondary transition-colors"
         >
@@ -249,10 +342,12 @@ export default function PontosPage() {
         </button>
       ) : (
         <form
-          onSubmit={handleCreatePoint}
+          onSubmit={handleSavePoint}
           className="bg-white rounded-2xl border border-border-custom p-5 space-y-4"
         >
-          <h2 className="text-base font-bold text-primary">Novo Ponto Educativo</h2>
+          <h2 className="text-base font-bold text-primary">
+            {editingPointId ? 'Editar Ponto Educativo' : 'Novo Ponto Educativo'}
+          </h2>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -264,8 +359,8 @@ export default function PontosPage() {
                 type="text"
                 required
                 minLength={3}
-                value={newPoint.title}
-                onChange={(e) => setNewPoint({ ...newPoint, title: e.target.value })}
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 className="w-full px-3 py-2 rounded-lg border border-border-custom bg-background text-sm focus:outline-none focus:ring-2 focus:ring-secondary"
               />
             </div>
@@ -278,8 +373,8 @@ export default function PontosPage() {
                 type="number"
                 min={1}
                 required
-                value={newPoint.order}
-                onChange={(e) => setNewPoint({ ...newPoint, order: parseInt(e.target.value) })}
+                value={formData.order}
+                onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })}
                 className="w-full px-3 py-2 rounded-lg border border-border-custom bg-background text-sm focus:outline-none focus:ring-2 focus:ring-secondary"
               />
             </div>
@@ -291,8 +386,8 @@ export default function PontosPage() {
             </label>
             <select
               id="point-type"
-              value={newPoint.type}
-              onChange={(e) => setNewPoint({ ...newPoint, type: e.target.value })}
+              value={formData.type}
+              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
               className="w-full px-3 py-2 rounded-lg border border-border-custom bg-background text-sm focus:outline-none focus:ring-2 focus:ring-secondary appearance-none"
             >
               {POINT_TYPES.map((t) => (
@@ -310,8 +405,8 @@ export default function PontosPage() {
             <input
               id="point-short-desc"
               type="text"
-              value={newPoint.shortDescription}
-              onChange={(e) => setNewPoint({ ...newPoint, shortDescription: e.target.value })}
+              value={formData.shortDescription}
+              onChange={(e) => setFormData({ ...formData, shortDescription: e.target.value })}
               className="w-full px-3 py-2 rounded-lg border border-border-custom bg-background text-sm focus:outline-none focus:ring-2 focus:ring-secondary"
             />
           </div>
@@ -329,9 +424,9 @@ export default function PontosPage() {
               id="point-offline-summary"
               rows={3}
               maxLength={250}
-              value={newPoint.offlineSummary}
+              value={formData.offlineSummary}
               onChange={(e) => {
-                setNewPoint({ ...newPoint, offlineSummary: e.target.value });
+                setFormData({ ...formData, offlineSummary: e.target.value });
                 setOfflineSummaryLeft(250 - e.target.value.length);
               }}
               placeholder="Resumo de até 250 caracteres para leitura sem internet"
@@ -341,13 +436,13 @@ export default function PontosPage() {
 
           <div>
             <label className="block text-xs font-medium mb-1 text-foreground" htmlFor="point-image">
-              Imagem (URL)
+              Imagem de capa
             </label>
             <input
               id="point-image"
-              type="url"
-              value={newPoint.mainImage}
-              onChange={(e) => setNewPoint({ ...newPoint, mainImage: e.target.value })}
+              type="file"
+              accept="image/*"
+              onChange={(e) => setPointImage(e.target.files?.[0] || null)}
               className="w-full px-3 py-2 rounded-lg border border-border-custom bg-background text-sm focus:outline-none focus:ring-2 focus:ring-secondary"
             />
           </div>
@@ -356,8 +451,8 @@ export default function PontosPage() {
             <input
               id="point-publish"
               type="checkbox"
-              checked={newPoint.status}
-              onChange={(e) => setNewPoint({ ...newPoint, status: e.target.checked })}
+              checked={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.checked })}
               className="rounded border-border-custom"
             />
             <label htmlFor="point-publish" className="text-xs font-medium text-foreground">
@@ -368,7 +463,7 @@ export default function PontosPage() {
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={() => setShowNewForm(false)}
+              onClick={resetForm}
               className="flex-1 py-2.5 border border-border-custom rounded-xl text-sm font-medium text-foreground/70 hover:bg-beige transition-colors"
             >
               Cancelar

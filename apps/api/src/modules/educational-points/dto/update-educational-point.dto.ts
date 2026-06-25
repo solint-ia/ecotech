@@ -8,7 +8,7 @@ import {
   MinLength,
   Min,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { PointTypeEnum } from './create-educational-point.dto';
 
 export class UpdateEducationalPointDto {
@@ -66,6 +66,6 @@ export class UpdateEducationalPointDto {
 
   @IsBoolean()
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => value === 'true' || value === true)
   status?: boolean;
 }

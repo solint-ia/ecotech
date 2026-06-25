@@ -1,8 +1,20 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Download, Leaf, TreePine } from 'lucide-react';
+import QrCodeDownloadBtn from '../../../components/pontos/QrCodeDownloadBtn';
+import { getImageUrl } from '../../../lib/image-url';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+const POINT_TYPE_LABELS: Record<string, string> = {
+  FLORA: 'Flora',
+  RIO: 'Rio',
+  FAUNA: 'Fauna',
+  ESPACO_CULTURAL: 'Espaço Cultural',
+  AREA_VERDE: 'Área Verde',
+  OUTRO: 'Outro',
+};
 
 async function getPoint(slug: string) {
   try {
@@ -33,12 +45,14 @@ export default async function PointDetailPage({ params }: { params: Promise<{ sl
   if (!point) notFound();
 
   const qrCode = point.qrCodes?.[0];
+  const trailSlug = point.trail?.slug;
+  const pdfUrl = point.pdfUrl ? `${API_URL}${point.pdfUrl}` : null;
 
   return (
     <div className="max-w-3xl mx-auto">
       {/* Back link */}
       <Link
-        href={point.trail ? `/trilhas/${point.trail.slug ?? ''}` : '/trilhas'}
+        href={trailSlug ? `/trilhas/${trailSlug}` : '/trilhas'}
         className="inline-flex items-center gap-1.5 text-sm text-primary/70 hover:text-primary transition-colors mb-4 font-medium"
       >
         <ArrowLeft className="w-4 h-4" />
@@ -48,26 +62,62 @@ export default async function PointDetailPage({ params }: { params: Promise<{ sl
       {/* Hero */}
       {point.mainImage && (
         <div className="relative rounded-2xl overflow-hidden h-64 sm:h-80 bg-beige mb-6">
-          <img src={point.mainImage} alt={point.title} className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+          <img src={getImageUrl(point.mainImage)} alt={point.title} className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+          {/* Overlay badge */}
+          <div className="absolute bottom-4 left-5">
+            <span className="text-xs font-bold uppercase tracking-wide bg-secondary/90 text-white px-2.5 py-1 rounded-full">
+              {POINT_TYPE_LABELS[point.type] ?? point.type}
+            </span>
+          </div>
         </div>
       )}
 
       {/* Header */}
-      <div className="mb-6">
-        <span className="text-xs font-bold uppercase tracking-wide text-secondary">{point.type}</span>
+      <div className="mb-5">
+        {!point.mainImage && (
+          <span className="text-xs font-bold uppercase tracking-wide text-secondary">
+            {POINT_TYPE_LABELS[point.type] ?? point.type}
+          </span>
+        )}
         <h1 className="text-2xl font-bold text-primary mt-1">{point.title}</h1>
         {point.trail && (
-          <p className="text-sm text-foreground/60 mt-1">
-            Trilha:{' '}
-            <span className="text-secondary font-medium">{point.trail.title}</span>
-            {point.trail.school && ` • ${point.trail.school.name}`}
+          <p className="text-sm text-foreground/60 mt-1 flex flex-wrap gap-1 items-center">
+            <span>Trilha:</span>
+            <Link
+              href={trailSlug ? `/trilhas/${trailSlug}` : '/trilhas'}
+              className="text-secondary font-medium hover:underline"
+            >
+              {point.trail.title}
+            </Link>
           </p>
         )}
       </div>
 
-      {/* Actions */}
-      <div className="flex flex-wrap gap-3 mb-6">
+      {/* Action buttons */}
+      <div className="flex flex-wrap gap-3 mb-7">
+        {trailSlug && (
+          <Link
+            href={`/trilhas/${trailSlug}`}
+            id="btn-ver-trilha"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-primary text-primary text-sm font-medium hover:bg-primary/5 transition-colors"
+          >
+            <Leaf className="w-4 h-4" />
+            Ver trilha completa
+          </Link>
+        )}
+        {pdfUrl && (
+          <a
+            href={pdfUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            id="btn-download-pdf"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Baixar PDF
+          </a>
+        )}
         {point.trail?.wikilocUrl && (
           <a
             href={point.trail.wikilocUrl}
@@ -78,17 +128,6 @@ export default async function PointDetailPage({ params }: { params: Promise<{ sl
           >
             <ExternalLink className="w-4 h-4" />
             Ver no Wikiloc
-          </a>
-        )}
-        {point.pdfUrl && (
-          <a
-            href={point.pdfUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            id="btn-download-pdf"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            📄 Baixar PDF
           </a>
         )}
       </div>
@@ -103,7 +142,7 @@ export default async function PointDetailPage({ params }: { params: Promise<{ sl
 
         {point.fullDescription && (
           <section>
-            <h2 className="text-base font-bold text-primary mb-2">Descrição</h2>
+            <h2 className="text-base font-bold text-primary mb-2">Descrição Educativa</h2>
             <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line">
               {point.fullDescription}
             </p>
@@ -111,15 +150,15 @@ export default async function PointDetailPage({ params }: { params: Promise<{ sl
         )}
 
         {point.curiosities && (
-          <section>
-            <h2 className="text-base font-bold text-primary mb-2">Curiosidades</h2>
-            <p className="text-sm text-foreground/80 leading-relaxed">{point.curiosities}</p>
+          <section className="bg-amber-50 border border-amber-100 rounded-xl p-4">
+            <h2 className="text-base font-bold text-amber-800 mb-2">💡 Curiosidades</h2>
+            <p className="text-sm text-amber-900 leading-relaxed">{point.curiosities}</p>
           </section>
         )}
 
         {point.environmentalImportance && (
           <section>
-            <h2 className="text-base font-bold text-primary mb-2">Importância Ambiental</h2>
+            <h2 className="text-base font-bold text-primary mb-2">🌱 Importância Ambiental</h2>
             <p className="text-sm text-foreground/80 leading-relaxed">
               {point.environmentalImportance}
             </p>
@@ -128,9 +167,9 @@ export default async function PointDetailPage({ params }: { params: Promise<{ sl
 
         {point.preservationCare && (
           <section>
-            <h2 className="text-base font-bold text-primary mb-2">Cuidados de Preservação</h2>
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <p className="text-sm text-amber-800 leading-relaxed">{point.preservationCare}</p>
+            <h2 className="text-base font-bold text-primary mb-2">🛡️ Cuidados e Preservação</h2>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <p className="text-sm text-green-800 leading-relaxed">{point.preservationCare}</p>
             </div>
           </section>
         )}
@@ -138,23 +177,33 @@ export default async function PointDetailPage({ params }: { params: Promise<{ sl
         {/* QR Code section */}
         {qrCode && (
           <section>
-            <h2 className="text-base font-bold text-primary mb-3">QR Code Offline</h2>
-            <div className="flex flex-col sm:flex-row gap-4 items-start bg-white border border-border-custom rounded-xl p-4">
-              {qrCode.image && (
-                <img
-                  src={qrCode.image}
-                  alt="QR Code do ponto educativo"
-                  id="qrcode-image"
-                  className="w-32 h-32 object-contain rounded"
-                />
+            <h2 className="text-base font-bold text-primary mb-3">QR Code Híbrido</h2>
+            <div className="flex flex-col sm:flex-row gap-5 items-start bg-white border border-border-custom rounded-xl p-5">
+              {/* QR image */}
+              {qrCode.qrImage && (
+                <div className="flex-shrink-0 text-center">
+                  <img
+                    src={qrCode.qrImage.startsWith('http') ? qrCode.qrImage : `${API_URL}${qrCode.qrImage}`}
+                    alt="QR Code do ponto educativo"
+                    id="qrcode-image"
+                    className="w-36 h-36 object-contain rounded border border-border-custom"
+                  />
+                  <QrCodeDownloadBtn
+                    pointTitle={point.title}
+                    pointSlug={point.slug}
+                    qrImage={qrCode.qrImage}
+                    qrTextContent={qrCode.qrTextContent}
+                    apiUrl={API_URL}
+                  />
+                </div>
               )}
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="text-xs text-foreground/60 mb-2">
-                  Escaneie o QR Code com sua câmera para ler o conteúdo deste ponto sem internet.
+                  Escaneie com a câmera do celular. Mesmo sem internet, o conteúdo resumido estará disponível. Com internet, você acessa a página completa.
                 </p>
-                {qrCode.textContent && (
-                  <pre className="text-xs bg-beige rounded-lg p-3 whitespace-pre-wrap text-foreground/70 font-mono">
-                    {qrCode.textContent}
+                {qrCode.qrTextContent && (
+                  <pre className="text-xs bg-beige rounded-lg p-3 whitespace-pre-wrap text-foreground/70 font-mono leading-relaxed overflow-x-auto">
+                    {qrCode.qrTextContent}
                   </pre>
                 )}
               </div>

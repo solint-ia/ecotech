@@ -74,8 +74,20 @@ export class TrailsService {
       this.prisma.trail.count({ where }),
     ]);
 
+    const mappedData = data.map((item) => {
+      const { _count, ...rest } = item;
+      return {
+        ...rest,
+        _count: {
+          likes: _count.likes,
+          points: _count.points,
+          educationalPoints: _count.points,
+        },
+      };
+    });
+
     return {
-      data,
+      data: mappedData,
       meta: {
         total,
         page,
@@ -91,6 +103,7 @@ export class TrailsService {
       include: {
         school: { select: { id: true, name: true, city: true } },
         biodiversity: true,
+        photos: { orderBy: { createdAt: 'desc' } },
         points: {
           where: { status: true },
           orderBy: { order: 'asc' },
@@ -117,7 +130,12 @@ export class TrailsService {
       .update({ where: { id: trail.id }, data: { viewsCount: { increment: 1 } } })
       .catch(() => {}); // Fail silently
 
-    return trail;
+    const { points, ...rest } = trail;
+    return {
+      ...rest,
+      points,
+      educationalPoints: points,
+    };
   }
 
   async findAllForAdmin(query: { page?: number; limit?: number; schoolId?: string }) {
@@ -160,10 +178,12 @@ export class TrailsService {
       }
     }
 
-    // Validate that the school exists
-    const school = await this.prisma.school.findUnique({ where: { id: dto.schoolId } });
-    if (!school) {
-      throw new BadRequestException('Escola não encontrada.');
+    // Validate that the school exists if provided
+    if (dto.schoolId) {
+      const school = await this.prisma.school.findUnique({ where: { id: dto.schoolId } });
+      if (!school) {
+        throw new BadRequestException('Escola não encontrada.');
+      }
     }
 
     // Generate unique slug from title
@@ -182,7 +202,7 @@ export class TrailsService {
         city: dto.city,
         shortDescription: dto.shortDescription ?? '',
         fullDescription: dto.fullDescription ?? '',
-        schoolId: dto.schoolId,
+        schoolId: dto.schoolId || null,
         biome: dto.biome ?? '',
         distanceKm: dto.distanceKm ?? 0,
         duration: dto.duration ?? '',
@@ -303,6 +323,39 @@ export class TrailsService {
       isLiked: !!like,
       isSaved: !!saved,
     };
+  }
+
+  async addPhoto(trailId: string, imagePath: string, user: { id: string; role: string; schoolId?: string }) {
+    const trail = await this.prisma.trail.findUnique({ where: { id: trailId } });
+    if (!trail) throw new NotFoundException('Trilha não encontrada.');
+
+    // Authorize: Admin or owning School Manager
+    if (user.role !== 'ADMIN' && trail.schoolId !== user.schoolId) {
+      throw new ForbiddenException('Não autorizado a adicionar fotos nesta trilha.');
+    }
+
+    return this.prisma.trailPhoto.create({
+      data: {
+        trailId,
+        image: imagePath,
+      },
+    });
+  }
+
+  async removePhoto(photoId: string, user: { id: string; role: string; schoolId?: string }) {
+    const photo = await this.prisma.trailPhoto.findUnique({
+      where: { id: photoId },
+      include: { trail: true },
+    });
+
+    if (!photo) throw new NotFoundException('Foto não encontrada.');
+
+    // Authorize: Admin or owning School Manager
+    if (user.role !== 'ADMIN' && photo.trail.schoolId !== user.schoolId) {
+      throw new ForbiddenException('Não autorizado a remover esta foto.');
+    }
+
+    return this.prisma.trailPhoto.delete({ where: { id: photoId } });
   }
 }
 

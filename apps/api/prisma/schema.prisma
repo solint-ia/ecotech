@@ -14,10 +14,8 @@ enum Role {
 }
 
 enum PointType {
-  ARVORE
-  PLANTA
+  FLORA
   RIO
-  MANGUEZAL
   FAUNA
   ESPACO_CULTURAL
   AREA_VERDE
@@ -113,7 +111,7 @@ model SchoolFollower {
 
 model Trail {
   id               String             @id @default(uuid())
-  schoolId         String
+  schoolId         String?
   title            String
   slug             String             @unique
   shortDescription String
@@ -131,7 +129,7 @@ model Trail {
   likesCount       Int                @default(0)
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
-  school           School             @relation(fields: [schoolId], references: [id])
+  school           School?            @relation(fields: [schoolId], references: [id])
   photos           TrailPhoto[]
   likes            TrailLike[]
   savedBy          SavedTrail[]
@@ -183,6 +181,7 @@ model EducationalPoint {
   preservationCare        String
   mainImage               String
   offlineSummary          String
+  pdfUrl                  String?
   status                  Boolean          @default(false)
   createdAt               DateTime         @default(now())
   updatedAt               DateTime         @updatedAt

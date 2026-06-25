@@ -51,7 +51,8 @@ export default function LoginPage() {
   useEffect(() => {
     const fetchSchools = async () => {
       try {
-        const res = await fetch('http://localhost:4000/schools');
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const res = await fetch(`${apiBaseUrl}/schools`);
         if (res.ok) {
           const data = await res.json();
           setSchools(data);
@@ -159,7 +160,8 @@ export default function LoginPage() {
           if (schoolId) formData.append('schoolId', schoolId);
         }
 
-        const res = await fetch(`http://localhost:4000/auth/register`, {
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const res = await fetch(`${apiBaseUrl}/auth/register`, {
           method: 'POST',
           body: formData,
           credentials: 'include',

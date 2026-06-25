@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X, Copy, QrCode, Share as ShareIcon, ArrowLeft } from 'lucide-react';
 import QRCode from 'react-qr-code';
+import { getImageUrl } from '../../lib/image-url';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -98,7 +99,7 @@ export default function ShareModal({ isOpen, onClose, trail, url }: ShareModalPr
             {/* Link Preview Card */}
             <div className="flex items-center gap-4 bg-[#2a2a2a] p-3 rounded-xl mb-6">
               {trail.coverImage ? (
-                <img src={trail.coverImage} alt="Cover" className="w-12 h-12 object-cover rounded-lg bg-black/20" />
+                <img src={getImageUrl(trail.coverImage)} alt="Cover" className="w-12 h-12 object-cover rounded-lg bg-black/20" />
               ) : (
                 <div className="w-12 h-12 rounded-lg bg-green-900 flex items-center justify-center text-xl">🌿</div>
               )}

@@ -9,7 +9,13 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  UseInterceptors,
+  UploadedFiles,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor, AnyFilesInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 import { EducationalPointsService } from './educational-points.service';
 import { CreateEducationalPointDto } from './dto/create-educational-point.dto';
 import { UpdateEducationalPointDto } from './dto/update-educational-point.dto';
@@ -17,6 +23,15 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+
+const storage = diskStorage({
+  destination: './uploads',
+  filename: (req, file, callback) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = extname(file.originalname);
+    callback(null, `${uniqueSuffix}${ext}`);
+  },
+});
 
 @Controller('educational-points')
 export class EducationalPointsController {
@@ -47,7 +62,18 @@ export class EducationalPointsController {
   @Roles('ADMIN', 'SCHOOL_MANAGER')
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() dto: CreateEducationalPointDto, @CurrentUser() user: any) {
+  @UseInterceptors(AnyFilesInterceptor({ storage }))
+  create(
+    @Body() dto: CreateEducationalPointDto,
+    @CurrentUser() user: any,
+    @UploadedFiles() files?: Array<Express.Multer.File>,
+  ) {
+    console.log('DTO RECEIVED:', dto);
+    console.log('FILES RECEIVED:', files);
+    const file = files?.find(f => f.fieldname === 'mainImage');
+    if (file) {
+      dto.mainImage = `/uploads/${file.filename}`;
+    }
     return this.educationalPointsService.create(dto, {
       id: user.id,
       role: user.role,
@@ -59,11 +85,17 @@ export class EducationalPointsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SCHOOL_MANAGER')
   @Patch(':id')
+  @UseInterceptors(AnyFilesInterceptor({ storage }))
   update(
     @Param('id') id: string,
     @Body() dto: UpdateEducationalPointDto,
     @CurrentUser() user: any,
+    @UploadedFiles() files?: Array<Express.Multer.File>,
   ) {
+    const file = files?.find(f => f.fieldname === 'mainImage');
+    if (file) {
+      dto.mainImage = `/uploads/${file.filename}`;
+    }
     return this.educationalPointsService.update(id, dto, {
       id: user.id,
       role: user.role,

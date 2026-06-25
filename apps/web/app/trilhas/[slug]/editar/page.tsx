@@ -1,20 +1,25 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { ArrowLeft, Save } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-
-export default function CriarTrilhaPage() {
+export default function EditarTrilhaPage() {
   const router = useRouter();
+  const params = useParams();
+  const slug = params?.slug as string;
   const { data: session, status } = useSession();
   const user = session?.user as any;
 
-  const [coverImage, setCoverImage] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [trailId, setTrailId] = useState('');
+
+  // Form state
   const [title, setTitle] = useState('');
   const [city, setCity] = useState('');
   const [shortDescription, setShortDescription] = useState('');
@@ -23,11 +28,34 @@ export default function CriarTrilhaPage() {
   const [distanceKm, setDistanceKm] = useState('');
   const [duration, setDuration] = useState('');
   const [difficulty, setDifficulty] = useState('FACIL');
+  const [coverImage, setCoverImage] = useState<File | null>(null);
   const [wikilocUrl, setWikilocUrl] = useState('');
   const [safetyWarnings, setSafetyWarnings] = useState('');
   const [publishNow, setPublishNow] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (slug) {
+      fetch(`${API_URL}/trails/${slug}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && data.id) {
+            setTrailId(data.id);
+            setTitle(data.title);
+            setCity(data.city);
+            setShortDescription(data.shortDescription || '');
+            setFullDescription(data.fullDescription || '');
+            setBiome(data.biome || '');
+            setDistanceKm(data.distanceKm || '');
+            setDuration(data.duration || '');
+            setDifficulty(data.difficulty || 'FACIL');
+            setWikilocUrl(data.wikilocUrl || '');
+            setSafetyWarnings(data.safetyWarnings || '');
+            setPublishNow(data.status);
+          }
+        })
+        .catch(() => setError('Erro ao carregar os dados da trilha.'));
+    }
+  }, [slug]);
 
   // Redirect if not authorized
   useEffect(() => {
@@ -59,8 +87,8 @@ export default function CriarTrilhaPage() {
       if (wikilocUrl) formData.append('wikilocUrl', wikilocUrl);
       if (safetyWarnings) formData.append('safetyWarnings', safetyWarnings);
 
-      const res = await fetch(`${API_URL}/trails`, {
-        method: 'POST',
+      const res = await fetch(`${API_URL}/trails/${trailId}`, {
+        method: 'PATCH',
         headers: { 
           ...(user?.accessToken ? { Authorization: `Bearer ${user.accessToken}` } : {})
         },
@@ -70,7 +98,7 @@ export default function CriarTrilhaPage() {
       if (!res.ok) {
         const data = await res.json();
         const msg = Array.isArray(data.message) ? data.message.join(', ') : data.message;
-        throw new Error(msg || 'Erro ao criar trilha.');
+        throw new Error(msg || 'Erro ao atualizar trilha.');
       }
 
       const trail = await res.json();
@@ -101,7 +129,7 @@ export default function CriarTrilhaPage() {
         >
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <h1 className="text-xl font-bold text-primary">Nova Trilha</h1>
+        <h1 className="text-xl font-bold text-primary">Editar Trilha</h1>
       </div>
 
       {error && (
