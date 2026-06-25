@@ -23,10 +23,23 @@ export class AuthController {
       },
     }),
   }))
-  async register(@Body() registerDto: RegisterDto, @UploadedFile() file?: Express.Multer.File) {
-    // Para logs: console.log(registerDto, file);
+  async register(
+    @Body() registerDto: RegisterDto,
+    @Res({ passthrough: true }) response: express.Response,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
     const user = await this.authService.register(registerDto, file?.filename);
-    return { message: 'Cadastro realizado com sucesso.', user };
+    // Auto-login: issue JWT cookie immediately after registration
+    const result = await this.authService.login(user);
+
+    response.cookie('token', result.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000, // 24 horas
+    });
+
+    return { user: result.user, accessToken: result.access_token };
   }
 
   @Post('login')
@@ -43,7 +56,7 @@ export class AuthController {
       maxAge: 24 * 60 * 60 * 1000, // 24 horas
     });
 
-    return { user: result.user };
+    return { user: result.user, accessToken: result.access_token };
   }
 
   @Post('logout')
