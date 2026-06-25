@@ -1,29 +1,3 @@
-# Ecotech Platform
-
-Ecotech é uma plataforma educativa desenvolvida com NestJS (Backend) e Next.js (Frontend), estruturada em um Monorepo usando Turborepo. O projeto tem o objetivo de promover o conhecimento ambiental, catalogação de trilhas e pontos educativos, gerando inclusive PDFs e QR Codes offline.
-
-## 🚀 Tecnologias Principais
-
-- **Monorepo**: Turborepo (com PNPM Workspaces)
-- **Frontend**: Next.js 15 (App Router), React, TailwindCSS, NextAuth.js (Auth.js v5)
-- **Backend**: NestJS, Prisma ORM, PostgreSQL
-- **Infraestrutura**: Docker e Docker Compose
-
----
-
-## 🛠 Pré-requisitos
-
-Certifique-se de ter os seguintes softwares instalados na sua máquina:
-
-1. **Node.js** (Versão 20+)
-2. **PNPM** (Gerenciador de pacotes rápido e eficiente)
-   ```bash
-   npm install -g pnpm
-   ```
-3. **Docker** e **Docker Compose** (Para rodar o banco de dados e outros serviços)
-
----
-
 ## 🏗 Setup e Instalação
 
 Siga este passo a passo para rodar o projeto localmente:
@@ -93,8 +67,3 @@ npm run dev
 
 ---
 
-## 🔒 Permissões e Rotas Protegidas
-
-A plataforma utiliza **NextAuth** em conjunto com **JWT do NestJS**.
-- Rotas como `/trilhas`, `/dashboard` e ações de curtir/salvar exigem autenticação.
-- Caso o usuário tente acessar sem token, será automaticamente redirecionado pelo Middleware para a tela de Login.

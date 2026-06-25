@@ -26,7 +26,7 @@ interface Trail {
   difficulty: string;
   school: { id: string; name: string };
   likesCount: number;
-  _count: { educationalPoints: number };
+  _count: { points: number };
   viewsCount: number;
 }
 
@@ -258,7 +258,7 @@ export default function TrilhasPage() {
                       {trail.viewsCount ?? 0}
                     </span>
                     <span className="flex items-center gap-1 ml-auto">
-                      {trail._count?.educationalPoints ?? 0} pontos
+                      {trail._count?.points ?? 0} pontos
                     </span>
                   </div>
                 </div>

@@ -111,9 +111,9 @@ export default async function TrailDetailPage({ params }: { params: Promise<{ sl
             {trail.duration}
           </span>
         )}
-        {trail.educationalPoints && (
+        {trail.points && (
           <span className="inline-flex items-center gap-1.5 text-xs bg-beige text-foreground/70 font-medium px-3 py-1.5 rounded-full">
-            📍 {trail.educationalPoints.length} pontos educativos
+            📍 {trail.points.length} pontos educativos
           </span>
         )}
       </div>

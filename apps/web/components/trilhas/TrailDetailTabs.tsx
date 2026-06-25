@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { MapPin } from 'lucide-react';
+import { MapPin, Plus } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 
 const TABS = [
   { id: 'sobre', label: 'Sobre' },
@@ -17,6 +18,8 @@ interface TrailDetailTabsProps {
 
 export default function TrailDetailTabs({ trail }: TrailDetailTabsProps) {
   const [activeTab, setActiveTab] = useState('sobre');
+  const { data: session } = useSession();
+  const user = session?.user as any;
 
   return (
     <div className="bg-white rounded-xl border border-border-custom overflow-hidden">
@@ -122,14 +125,26 @@ export default function TrailDetailTabs({ trail }: TrailDetailTabsProps) {
 
         {activeTab === 'pontos' && (
           <div>
-            <h2 className="text-base font-bold text-primary mb-4">Pontos Educativos</h2>
-            {!trail.educationalPoints || trail.educationalPoints.length === 0 ? (
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-base font-bold text-primary">Pontos Educativos</h2>
+              {(user?.role === 'ADMIN' || user?.role === 'SCHOOL_MANAGER') && (
+                <Link
+                  href={`/trilhas/${trail.slug}/pontos`}
+                  id="btn-gerenciar-pontos"
+                  className="inline-flex items-center gap-1.5 text-xs bg-primary text-white hover:bg-primary/90 font-semibold px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Gerenciar Pontos
+                </Link>
+              )}
+            </div>
+            {!trail.points || trail.points.length === 0 ? (
               <p className="text-sm text-foreground/60 text-center py-8">
                 Nenhum ponto educativo cadastrado ainda.
               </p>
             ) : (
               <div className="space-y-3">
-                {trail.educationalPoints.map((point: any, index: number) => (
+                {trail.points.map((point: any, index: number) => (
                   <Link
                     key={point.id}
                     href={`/pontos/${point.slug}`}
