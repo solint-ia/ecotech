@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+.next/
+coverage/
+Dockerfile*
+.dockerignore
+.git/
+.github/
+pnpm-lock.yaml
+pnpm-workspace.yaml
+turbo.json

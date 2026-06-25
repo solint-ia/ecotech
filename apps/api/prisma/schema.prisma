@@ -1,0 +1,317 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  SCHOOL_MANAGER
+  TEACHER
+  STUDENT
+}
+
+enum PointType {
+  ARVORE
+  PLANTA
+  RIO
+  MANGUEZAL
+  FAUNA
+  ESPACO_CULTURAL
+  AREA_VERDE
+  OUTRO
+}
+
+enum Difficulty {
+  FACIL
+  MODERADA
+  DIFICIL
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum ContentType {
+  GUIA
+  FAUNA
+  FLORA
+  CARTILHA
+  PROTOCOLO
+  ODS
+  CURIOSIDADE
+  ARTIGO
+  VIDEO
+}
+
+enum ApprovalStatus {
+  PENDENTE
+  APROVADO
+  REPROVADO
+}
+
+model User {
+  id              String           @id @default(uuid())
+  name            String
+  email           String           @unique
+  phone           String?
+  password        String
+  role            Role             @default(STUDENT)
+  schoolId        String?
+  profileImage    String?
+  status          Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  school          School?          @relation(fields: [schoolId], references: [id])
+  followers       SchoolFollower[]
+  trailLikes      TrailLike[]
+  savedTrails     SavedTrail[]
+  feedPosts       FeedPost[]
+  feedLikes       FeedLike[]
+  feedComments    FeedComment[]
+  stories         Story[]
+  libraryContents LibraryContent[]
+}
+
+model School {
+  id              String           @id @default(uuid())
+  name            String
+  city            String
+  location        String
+  territory       String
+  cnpj            String?
+  responsibleName String
+  cpfManager      String?
+  email           String
+  phone           String
+  description     String
+  coverImage      String?
+  status          Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  users           User[]
+  followers       SchoolFollower[]
+  trails          Trail[]
+  feedPosts       FeedPost[]
+  stories         Story[]
+  libraryContents LibraryContent[]
+}
+
+model SchoolFollower {
+  id        String   @id @default(uuid())
+  schoolId  String
+  userId    String
+  createdAt DateTime @default(now())
+  school    School   @relation(fields: [schoolId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([schoolId, userId])
+}
+
+model Trail {
+  id               String             @id @default(uuid())
+  schoolId         String
+  title            String
+  slug             String             @unique
+  shortDescription String
+  fullDescription  String
+  city             String
+  coverImage       String
+  biome            String
+  distanceKm       Float
+  duration         String
+  difficulty       Difficulty         @default(FACIL)
+  wikilocUrl       String?
+  safetyWarnings   String?
+  status           Boolean            @default(false)
+  viewsCount       Int                @default(0)
+  likesCount       Int                @default(0)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  school           School             @relation(fields: [schoolId], references: [id])
+  photos           TrailPhoto[]
+  likes            TrailLike[]
+  savedBy          SavedTrail[]
+  points           EducationalPoint[]
+  biodiversity     BiodiversityItem[]
+}
+
+model TrailPhoto {
+  id        String   @id @default(uuid())
+  trailId   String
+  image     String
+  createdAt DateTime @default(now())
+  trail     Trail    @relation(fields: [trailId], references: [id])
+}
+
+model TrailLike {
+  id        String   @id @default(uuid())
+  trailId   String
+  userId    String
+  createdAt DateTime @default(now())
+  trail     Trail    @relation(fields: [trailId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([trailId, userId])
+}
+
+model SavedTrail {
+  id        String   @id @default(uuid())
+  trailId   String
+  userId    String
+  createdAt DateTime @default(now())
+  trail     Trail    @relation(fields: [trailId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([trailId, userId])
+}
+
+model EducationalPoint {
+  id                      String           @id @default(uuid())
+  trailId                 String
+  title                   String
+  slug                    String           @unique
+  type                    PointType        @default(OUTRO)
+  order                   Int
+  shortDescription        String
+  fullDescription         String
+  curiosities             String?
+  environmentalImportance String
+  preservationCare        String
+  mainImage               String
+  offlineSummary          String
+  status                  Boolean          @default(false)
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+  trail                   Trail            @relation(fields: [trailId], references: [id])
+  qrCodes                 QrCode[]
+}
+
+model QrCode {
+  id                 String           @id @default(uuid())
+  educationalPointId String
+  qrTextContent      String
+  qrImage            String
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  point              EducationalPoint @relation(fields: [educationalPointId], references: [id])
+}
+
+model BiodiversityItem {
+  id                      String   @id @default(uuid())
+  trailId                 String
+  groupType               String
+  popularName             String
+  scientificName          String?
+  description             String
+  image                   String
+  curiosities             String?
+  environmentalImportance String
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  trail                   Trail    @relation(fields: [trailId], references: [id])
+}
+
+model FeedPost {
+  id            String        @id @default(uuid())
+  userId        String
+  schoolId      String?
+  title         String
+  description   String
+  mediaType     MediaType     @default(IMAGE)
+  mediaUrl      String?
+  status        Boolean       @default(true)
+  likesCount    Int           @default(0)
+  commentsCount Int           @default(0)
+  sharesCount   Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  user          User          @relation(fields: [userId], references: [id])
+  school        School?       @relation(fields: [schoolId], references: [id])
+  likes         FeedLike[]
+  comments      FeedComment[]
+}
+
+model FeedLike {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+  post      FeedPost @relation(fields: [postId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([postId, userId])
+}
+
+model FeedComment {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  comment   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  post      FeedPost @relation(fields: [postId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Story {
+  id        String    @id @default(uuid())
+  userId    String
+  schoolId  String?
+  mediaType MediaType @default(IMAGE)
+  mediaUrl  String
+  expiresAt DateTime
+  status    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id])
+  school    School?   @relation(fields: [schoolId], references: [id])
+}
+
+model LibraryContent {
+  id             String         @id @default(uuid())
+  title          String
+  description    String
+  contentType    ContentType    @default(GUIA)
+  coverImage     String
+  fileUrl        String?
+  videoUrl       String?
+  userId         String
+  schoolId       String?
+  approvalStatus ApprovalStatus @default(PENDENTE)
+  publishedAt    DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  user           User           @relation(fields: [userId], references: [id])
+  school         School?        @relation(fields: [schoolId], references: [id])
+}
+
+model Partner {
+  id           String         @id @default(uuid())
+  name         String
+  category     String
+  description  String
+  coverImage   String
+  address      String
+  city         String
+  phone        String
+  whatsapp     String?
+  instagram    String?
+  website      String?
+  openingHours String
+  status       Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  photos       PartnerPhoto[]
+}
+
+model PartnerPhoto {
+  id        String   @id @default(uuid())
+  partnerId String
+  image     String
+  createdAt DateTime @default(now())
+  partner   Partner  @relation(fields: [partnerId], references: [id])
+}

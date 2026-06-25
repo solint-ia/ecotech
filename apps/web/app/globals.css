@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fdfcf9; /* Bege claro de fundo/apoio */
+  --foreground: #142f1f; /* Verde bem escuro para textos */
+
+  --primary-green: #0a3d25; /* Verde escuro principal (natureza/institucional) */
+  --secondary-green: #489b6e; /* Verde claro secundário */
+  --bg-beige: #f5f0e6; /* Bege de apoio visual */
+
+  --card: #ffffff;
+  --card-foreground: #142f1f;
+
+  --border: #e2d9c8;
+}
+
+@theme {
+  --color-primary: var(--primary-green);
+  --color-secondary: var(--secondary-green);
+  --color-beige: var(--bg-beige);
+  --color-border-custom: var(--border);
+  --color-card-bg: var(--card);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
