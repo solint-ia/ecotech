@@ -124,11 +124,11 @@
 **Independent Test**: Visualizar a lista de escolas, filtrar suas rotas associadas, seguir uma escola e navegar pela lista de parceiros locais.
 
 ### Implementation for User Story 5
-- [ ] T036 [P] [US5] Implement Partner CRUD and category filtering in apps/api/src/modules/partners/
+- [x] T036 [P] [US5] Implement Partner CRUD and category filtering in apps/api/src/modules/partners/
 - [ ] T037 [P] [US5] Implement Follower toggle logic for schools in apps/api/src/modules/schools/followers.service.ts
 - [ ] T038 [US5] Build Schools list cards and profile details page in apps/web/app/escolas/page.tsx and apps/web/app/escolas/[id]/page.tsx
 - [ ] T039 [US5] Build dynamic sidebar filter component on School detail page in apps/web/components/escolas/FilterSidebar.tsx
-- [ ] T040 [US5] Build local partners directory with category tabs and WhatsApp action buttons in apps/web/app/rede/page.tsx
+- [x] T040 [US5] Build local partners directory with category tabs and WhatsApp action buttons in apps/web/app/rede/page.tsx
 
 **Checkpoint**: All user stories should now be independently functional.
 
