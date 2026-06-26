@@ -66,6 +66,7 @@ export class AuthService {
   async validateUser(loginDto: LoginDto) {
     const user = await this.prisma.user.findUnique({
       where: { email: loginDto.email },
+      include: { school: true },
     });
 
     if (!user || !user.status) {
@@ -87,10 +88,11 @@ export class AuthService {
       access_token: this.jwtService.sign(payload),
       user: {
         id: user.id,
-        name: user.name,
+        name: user.role === 'SCHOOL_MANAGER' && user.school ? user.school.name : user.name,
         email: user.email,
         role: user.role,
         schoolId: user.schoolId,
+        profileImage: user.role === 'SCHOOL_MANAGER' && user.school ? user.school.coverImage : user.profileImage,
       },
     };
   }

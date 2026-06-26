@@ -99,7 +99,7 @@ export class TrailsService {
 
   async findBySlug(slug: string) {
     const trail = await this.prisma.trail.findFirst({
-      where: { slug, status: true },
+      where: { slug },
       include: {
         school: { select: { id: true, name: true, city: true } },
         biodiversity: true,
@@ -135,6 +135,55 @@ export class TrailsService {
       ...rest,
       points,
       educationalPoints: points,
+    };
+  }
+
+  async findDrafts(schoolId?: string) {
+    const where: any = { status: false };
+    if (schoolId) where.schoolId = schoolId;
+
+    const data = await this.prisma.trail.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        shortDescription: true,
+        city: true,
+        coverImage: true,
+        biome: true,
+        distanceKm: true,
+        duration: true,
+        difficulty: true,
+        status: true,
+        school: { select: { id: true, name: true } },
+        _count: { select: { likes: true, points: true } },
+        viewsCount: true,
+        likesCount: true,
+      },
+    });
+
+    const mappedData = data.map((item) => {
+      const { _count, ...rest } = item;
+      return {
+        ...rest,
+        _count: {
+          likes: _count.likes,
+          points: _count.points,
+          educationalPoints: _count.points,
+        },
+      };
+    });
+
+    return {
+      data: mappedData,
+      meta: {
+        total: mappedData.length,
+        page: 1,
+        limit: 100,
+        lastPage: 1,
+      },
     };
   }
 

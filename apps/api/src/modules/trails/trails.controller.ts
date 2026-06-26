@@ -64,6 +64,14 @@ export class TrailsController {
     return this.trailsService.getBiomes();
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SCHOOL_MANAGER')
+  @Get('my-drafts')
+  findMyDrafts(@CurrentUser() user: any) {
+    const schoolId = user.role === 'SCHOOL_MANAGER' ? user.schoolId : undefined;
+    return this.trailsService.findDrafts(schoolId);
+  }
+
   /** GET /trails/admin - All trails (admin/school view, requires auth) */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SCHOOL_MANAGER')

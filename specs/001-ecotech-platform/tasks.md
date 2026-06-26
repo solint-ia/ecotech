@@ -91,10 +91,10 @@
 **Independent Test**: Fazer um post no feed, criar um story no topo do feed e verificar que o story desaparece automaticamente após 24h.
 
 ### Implementation for User Story 3
-- [ ] T027 [P] [US3] Implement Feed Post service, controllers and likes/comments endpoints in apps/api/src/modules/feed/
+- [x] T027 [P] [US3] Implement Feed Post service, controllers and likes/comments endpoints in apps/api/src/modules/feed/
 - [ ] T028 [P] [US3] Implement Story service with expiresAt logic in apps/api/src/modules/feed/story.service.ts
 - [ ] T029 [US3] Implement cron job schedule for story logical cleanups in apps/api/src/modules/feed/story-cleanup.cron.ts
-- [ ] T030 [US3] Build feed layout view, post list, and comments modal in apps/web/app/feed/page.tsx
+- [x] T030 [US3] Build feed layout view, post list, and comments modal in apps/web/app/feed/page.tsx
 - [ ] T031 [US3] Build Story reel carousel and creation upload component in apps/web/components/feed/StoryReel.tsx
 
 **Checkpoint**: At this point, User Stories 1, 2, and 3 should work independently.

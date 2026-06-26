@@ -20,6 +20,7 @@ interface TrailActionsProps {
     _count?: {
       likes?: number;
     };
+    status?: boolean;
   };
 }
 
@@ -97,6 +98,29 @@ export default function TrailActions({ trail }: TrailActionsProps) {
     }
   };
 
+  const handlePublish = async () => {
+    if (!token) return;
+    if (!confirm('Deseja realmente publicar esta trilha?')) return;
+    try {
+      const res = await fetch(`${API_URL}/trails/${trail.id}`, {
+        method: 'PATCH',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({ status: true })
+      });
+      if (res.ok) {
+        alert('Trilha publicada com sucesso!');
+        window.location.reload();
+      } else {
+        alert('Erro ao publicar trilha.');
+      }
+    } catch {
+      alert('Erro ao publicar trilha.');
+    }
+  };
+
   return (
     <>
       <div className="flex items-center gap-4">
@@ -142,13 +166,26 @@ export default function TrailActions({ trail }: TrailActionsProps) {
           </a>
         )}
         {(user?.role === 'ADMIN' || (user?.role === 'SCHOOL_MANAGER' && user?.schoolId === trail.schoolId)) && trail.slug && (
-          <Link
-            href={`/trilhas/${trail.slug}/editar`}
-            className="flex items-center gap-1.5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-all shadow-md hover:shadow-lg active:scale-95"
-          >
-            <Pencil className="w-4 h-4" />
-            Editar Trilha
-          </Link>
+          <>
+            <Link
+              href={`/trilhas/${trail.slug}/editar`}
+              className="flex items-center gap-1.5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-all shadow-md hover:shadow-lg active:scale-95"
+            >
+              <Pencil className="w-4 h-4" />
+              Editar Trilha
+            </Link>
+            {trail.status === false && (
+              <button
+                onClick={handlePublish}
+                className="flex items-center gap-1.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all shadow-md hover:shadow-lg active:scale-95"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Publicar Trilha
+              </button>
+            )}
+          </>
         )}
       </div>
 
