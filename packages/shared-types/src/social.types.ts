@@ -17,10 +17,15 @@ export interface FeedPostDTO {
   id: string;
   userId: string;
   schoolId?: string;
+  trailId?: string;
   title: string;
   description: string;
   mediaType: MediaType;
-  mediaUrl?: string;
+  images?: {
+    id: string;
+    url: string;
+    order: number;
+  }[];
   status: boolean;
   likesCount: number;
   commentsCount: number;

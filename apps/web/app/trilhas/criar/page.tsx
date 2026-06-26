@@ -26,8 +26,22 @@ export default function CriarTrilhaPage() {
   const [wikilocUrl, setWikilocUrl] = useState('');
   const [safetyWarnings, setSafetyWarnings] = useState('');
   const [publishNow, setPublishNow] = useState(false);
+  const [schoolId, setSchoolId] = useState('');
+  const [schools, setSchools] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Fetch schools if admin
+  useEffect(() => {
+    if (user?.role === 'ADMIN' && user?.accessToken) {
+      fetch(`${API_URL}/schools`, {
+        headers: { Authorization: `Bearer ${user.accessToken}` },
+      })
+      .then(res => res.json())
+      .then(data => setSchools(data))
+      .catch(console.error);
+    }
+  }, [user]);
 
   // Redirect if not authorized
   useEffect(() => {
@@ -58,6 +72,7 @@ export default function CriarTrilhaPage() {
       if (coverImage) formData.append('coverImage', coverImage);
       if (wikilocUrl) formData.append('wikilocUrl', wikilocUrl);
       if (safetyWarnings) formData.append('safetyWarnings', safetyWarnings);
+      if (schoolId) formData.append('schoolId', schoolId);
 
       const res = await fetch(`${API_URL}/trails`, {
         method: 'POST',
@@ -141,6 +156,26 @@ export default function CriarTrilhaPage() {
             />
           </div>
         </div>
+
+        {/* Seleção de Escola (Somente Admin) */}
+        {user?.role === 'ADMIN' && (
+          <div>
+            <label htmlFor="trail-school" className="block text-sm font-medium mb-1.5 text-foreground">
+              Escola Vinculada (Opcional)
+            </label>
+            <select
+              id="trail-school"
+              value={schoolId}
+              onChange={(e) => setSchoolId(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border border-border-custom bg-background focus:outline-none focus:ring-2 focus:ring-secondary text-sm"
+            >
+              <option value="">-- Nenhuma escola --</option>
+              {schools.map(school => (
+                <option key={school.id} value={school.id}>{school.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Descrição curta */}
         <div>

@@ -1,0 +1,64 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  Request,
+  HttpCode,
+  HttpStatus,
+  Delete,
+  Param,
+  BadRequestException,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { StoriesService } from './stories.service';
+import { CreateStoryDto } from './dto/create-story.dto';
+
+const storage = diskStorage({
+  destination: './uploads',
+  filename: (req, file, callback) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = extname(file.originalname);
+    callback(null, `story-${uniqueSuffix}${ext}`);
+  },
+});
+
+@Controller('stories')
+export class StoriesController {
+  constructor(private readonly storiesService: StoriesService) {}
+
+  @UseGuards(JwtAuthGuard)
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  @UseInterceptors(FileInterceptor('image', { storage }))
+  async create(
+    @Request() req: any,
+    @Body() createStoryDto: CreateStoryDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('A imagem do story é obrigatória.');
+    }
+    const mediaUrl = `/uploads/${file.filename}`;
+    return this.storiesService.createStory(req.user.id, createStoryDto, mediaUrl);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get()
+  async findActive() {
+    return this.storiesService.findActiveStories();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(@Param('id') id: string, @Request() req: any) {
+    await this.storiesService.deleteStory(id, req.user.id, req.user.role);
+  }
+}

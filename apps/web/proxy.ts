@@ -5,13 +5,16 @@ export default auth((req) => {
   const { nextUrl } = req;
   const isLoggedIn = !!req.auth;
 
+  const isApiRoute = nextUrl.pathname.startsWith('/api');
   const isAuthRoute =
     nextUrl.pathname.startsWith('/login') || nextUrl.pathname.startsWith('/recovery');
   const isDashboardRoute =
-    nextUrl.pathname.startsWith('/admin') || nextUrl.pathname.startsWith('/escola');
+    nextUrl.pathname.startsWith('/admin') || 
+    nextUrl.pathname === '/escola' || 
+    nextUrl.pathname.startsWith('/escola/');
 
-  // Se for rota de autenticação, deixa passar
-  if (isAuthRoute) {
+  // Se for API ou rota de autenticação, deixa passar
+  if (isApiRoute || isAuthRoute) {
     return NextResponse.next();
   }
 
@@ -26,7 +29,7 @@ export default auth((req) => {
     if (nextUrl.pathname.startsWith('/admin') && role !== 'ADMIN') {
       return NextResponse.redirect(new URL('/feed', nextUrl));
     }
-    if (nextUrl.pathname.startsWith('/escola') && role !== 'SCHOOL_MANAGER' && role !== 'ADMIN') {
+    if ((nextUrl.pathname === '/escola' || nextUrl.pathname.startsWith('/escola/')) && role !== 'SCHOOL_MANAGER' && role !== 'ADMIN') {
       return NextResponse.redirect(new URL('/feed', nextUrl));
     }
   }

@@ -1,0 +1,202 @@
+'use client';
+
+import { useEffect, useState, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { CheckCircle2, XCircle, Clock, BookOpen, ExternalLink, ArrowLeft } from 'lucide-react';
+import { getImageUrl } from '../../../lib/image-url';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+interface Submission {
+  id: string;
+  title: string;
+  contentType: string;
+  approvalStatus: 'PENDENTE' | 'APROVADO' | 'REPROVADO';
+  createdAt: string;
+  coverImage: string;
+  user: { id: string; name: string };
+  school?: { id: string; name: string } | null;
+}
+
+export default function AdminBibliotecaPage() {
+  const router = useRouter();
+  const { data: session, status } = useSession();
+  const user = session?.user as any;
+
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchSubmissions = useCallback(async () => {
+    if (!user?.accessToken) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/library/admin/submissions?limit=50`, {
+        headers: { Authorization: `Bearer ${user.accessToken}` }
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setSubmissions(data.data);
+    } catch {
+      console.error('Failed to load submissions');
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.accessToken]);
+
+  useEffect(() => {
+    if (status === 'unauthenticated' || (status === 'authenticated' && user?.role !== 'ADMIN')) {
+      router.push('/biblioteca');
+    }
+    if (status === 'authenticated' && user?.role === 'ADMIN') {
+      fetchSubmissions();
+    }
+  }, [status, user, router, fetchSubmissions]);
+
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    try {
+      const res = await fetch(`${API_URL}/library/${id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${user.accessToken}`,
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (res.ok) {
+        setSubmissions((prev) =>
+          prev.map((sub) => (sub.id === id ? { ...sub, approvalStatus: newStatus as any } : sub))
+        );
+      } else {
+        alert('Erro ao atualizar status.');
+      }
+    } catch {
+      alert('Erro ao atualizar status.');
+    }
+  };
+
+  if (status === 'loading' || !user || user.role !== 'ADMIN') return null;
+
+  return (
+    <div className="max-w-5xl mx-auto pb-12">
+      <Link
+        href="/biblioteca"
+        className="inline-flex items-center gap-1.5 text-sm text-primary/70 hover:text-primary transition-colors mb-4 font-medium"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Voltar para Biblioteca
+      </Link>
+      
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-primary flex items-center gap-2 mb-2">
+          <BookOpen className="w-6 h-6 text-secondary" />
+          Aprovações da Biblioteca
+        </h1>
+        <p className="text-foreground/70 text-sm">
+          Gerencie os materiais enviados pelos professores e gestores escolares.
+        </p>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-border-custom shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="p-8 text-center text-foreground/50">Carregando submissões...</div>
+        ) : submissions.length === 0 ? (
+          <div className="p-12 text-center text-foreground/50">
+            Nenhuma submissão encontrada.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-beige border-b border-border-custom text-sm font-semibold text-primary">
+                  <th className="p-4">Material</th>
+                  <th className="p-4">Enviado por</th>
+                  <th className="p-4">Data</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {submissions.map((sub) => (
+                  <tr key={sub.id} className="border-b border-border-custom/50 hover:bg-beige/30 transition-colors">
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        <img 
+                          src={getImageUrl(sub.coverImage)} 
+                          alt="" 
+                          className="w-12 h-12 rounded-lg object-cover border border-border-custom"
+                        />
+                        <div>
+                          <p className="font-semibold text-primary text-sm line-clamp-1">{sub.title}</p>
+                          <span className="text-xs font-medium text-secondary">{sub.contentType}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <p className="text-sm font-medium text-foreground/80">{sub.user.name}</p>
+                      {sub.school && (
+                        <p className="text-xs text-foreground/50">{sub.school.name}</p>
+                      )}
+                    </td>
+                    <td className="p-4 text-sm text-foreground/70">
+                      {new Date(sub.createdAt).toLocaleDateString('pt-BR')}
+                    </td>
+                    <td className="p-4">
+                      {sub.approvalStatus === 'PENDENTE' && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs font-bold">
+                          <Clock className="w-3.5 h-3.5" /> PENDENTE
+                        </span>
+                      )}
+                      {sub.approvalStatus === 'APROVADO' && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> APROVADO
+                        </span>
+                      )}
+                      {sub.approvalStatus === 'REPROVADO' && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-100 text-red-700 text-xs font-bold">
+                          <XCircle className="w-3.5 h-3.5" /> REPROVADO
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center justify-end gap-2">
+                        <Link
+                          href={`/biblioteca/${sub.id}`}
+                          target="_blank"
+                          className="p-2 text-foreground/50 hover:text-primary transition-colors rounded-lg hover:bg-beige"
+                          title="Visualizar"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </Link>
+                        {sub.approvalStatus !== 'APROVADO' && (
+                          <button
+                            onClick={() => handleStatusChange(sub.id, 'APROVADO')}
+                            className="p-2 text-emerald-600 hover:text-emerald-700 transition-colors rounded-lg hover:bg-emerald-50"
+                            title="Aprovar"
+                          >
+                            <CheckCircle2 className="w-5 h-5" />
+                          </button>
+                        )}
+                        {sub.approvalStatus !== 'REPROVADO' && (
+                          <button
+                            onClick={() => handleStatusChange(sub.id, 'REPROVADO')}
+                            className="p-2 text-red-600 hover:text-red-700 transition-colors rounded-lg hover:bg-red-50"
+                            title="Reprovar"
+                          >
+                            <XCircle className="w-5 h-5" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

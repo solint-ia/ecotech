@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { Compass, Library, MessageSquare, School, Share2, LogOut, User, ChevronDown } from 'lucide-react';
+import { Compass, Library, MessageSquare, School, Share2, LogOut, User, ChevronDown, LayoutDashboard } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 const navItems = [
@@ -90,9 +90,17 @@ export default function Navbar() {
                 aria-expanded={dropdownOpen}
                 aria-haspopup="true"
               >
-                <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
-                  {initials}
-                </div>
+                {user?.profileImage ? (
+                  <img
+                    src={user.profileImage.startsWith('http') ? user.profileImage : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}${user.profileImage}`}
+                    alt={user.name}
+                    className="w-8 h-8 rounded-full object-cover border border-border-custom"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
+                    {initials}
+                  </div>
+                )}
                 <span className="text-sm font-semibold text-primary max-w-[140px] truncate">
                   {user?.name || 'Usuário'}
                 </span>
@@ -130,6 +138,31 @@ export default function Navbar() {
                     </span>
                   )}
                 </div>
+
+                {/* Profile Link */}
+                <Link
+                  href="/perfil"
+                  onClick={() => setDropdownOpen(false)}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-primary hover:bg-beige transition-colors border-b border-border-custom"
+                  role="menuitem"
+                >
+                  <User className="w-4 h-4" />
+                  Meu Perfil
+                </Link>
+
+                {/* Dashboard Link for Admins and Schools */}
+                {(user?.role === 'ADMIN' || user?.role === 'SCHOOL_MANAGER') && (
+                  <Link
+                    href={user.role === 'ADMIN' ? '/admin/dashboard' : '/escola/dashboard'}
+                    onClick={() => setDropdownOpen(false)}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-primary hover:bg-beige transition-colors border-b border-border-custom"
+                    role="menuitem"
+                  >
+                    <LayoutDashboard className="w-4 h-4" />
+                    Dashboard
+                  </Link>
+                )}
+
                 <button
                   onClick={handleSignOut}
                   className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
