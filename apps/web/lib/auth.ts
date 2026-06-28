@@ -2,6 +2,7 @@ import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  secret: process.env.AUTH_SECRET || "dev-nextauth-secret-key-67890-very-secure",
   providers: [
     CredentialsProvider({
       name: 'Credentials',

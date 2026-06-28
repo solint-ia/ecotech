@@ -15,9 +15,11 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
   },
   "devDependencies": {
-    "turbo": "^2.0.0",
+    "@swc/cli": "^0.8.1",
+    "@swc/core": "^1.15.43",
+    "eslint": "^8.0.0",
     "prettier": "^3.0.0",
-    "typescript": "^5.0.0",
-    "eslint": "^8.0.0"
+    "turbo": "^2.0.0",
+    "typescript": "^5.0.0"
   }
 }
