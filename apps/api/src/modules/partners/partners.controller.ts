@@ -42,9 +42,10 @@ export class PartnersController {
   findAll(
     @Query('category') category?: string,
     @Query('state') state?: string,
-    @Query('city') city?: string
+    @Query('city') city?: string,
+    @Query('includeInactive') includeInactive?: string
   ) {
-    return this.partnersService.findAll(category, state, city);
+    return this.partnersService.findAll(category, state, city, includeInactive === 'true');
   }
 
   /** GET /partners/:id - Public detail view of a specific partner */

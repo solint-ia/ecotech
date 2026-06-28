@@ -9,9 +9,9 @@ import { TrailGallery } from '../../../components/trilhas/TrailGallery';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 const DIFFICULTY_LABELS: Record<string, { label: string; color: string }> = {
-  FACIL: { label: 'Fácil', color: 'bg-green-500' },
-  MODERADA: { label: 'Moderada', color: 'bg-yellow-500' },
-  DIFICIL: { label: 'Difícil', color: 'bg-red-500' },
+  FACIL: { label: 'Fácil', color: 'bg-[#eaf4ee] text-[#142f1f]' },
+  MODERADA: { label: 'Moderada', color: 'bg-mustard-soft/90 text-white' },
+  DIFICIL: { label: 'Difícil', color: 'bg-terracotta-soft/90 text-white' },
 };
 
 async function getTrail(slug: string) {
@@ -56,7 +56,7 @@ export default async function TrailDetailPage({ params }: { params: Promise<{ sl
       </Link>
 
       {/* Hero Image */}
-      <div className="relative rounded-2xl overflow-hidden h-72 sm:h-96 bg-beige mb-6">
+      <div className="relative rounded-3xl overflow-hidden h-80 sm:h-[420px] bg-beige mb-6 shadow-sm">
         {trail.coverImage ? (
           <img
             src={getImageUrl(trail.coverImage)}
@@ -64,21 +64,22 @@ export default async function TrailDetailPage({ params }: { params: Promise<{ sl
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-secondary/10">
-            <span className="text-secondary/40 text-4xl">🌿</span>
+          <div className="w-full h-full flex items-center justify-center bg-forest/5">
+            <span className="text-forest/20 text-5xl">🌿</span>
           </div>
         )}
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+        {/* Gradient overlay - covers bottom 40% */}
+        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/70 to-transparent" />
+        
         {/* Info overlay */}
-        <div className="absolute bottom-0 left-0 p-5">
-          <span className={`text-white text-xs font-bold px-2.5 py-1 rounded-full ${difficulty.color} mb-2 inline-block`}>
+        <div className="absolute bottom-0 left-0 p-6 sm:p-8 w-full">
+          <span className={`text-[11px] font-bold tracking-wider px-3 py-1 rounded-full uppercase ${difficulty.color} mb-3 inline-block shadow-sm`}>
             {difficulty.label}
           </span>
-          <h1 className="text-white text-2xl sm:text-3xl font-bold drop-shadow">{trail.title}</h1>
+          <h1 className="text-white text-3xl sm:text-4xl font-extrabold drop-shadow-md leading-tight">{trail.title}</h1>
           {trail.city && (
-            <p className="text-white/80 text-sm flex items-center gap-1 mt-1">
-              <MapPin className="w-3.5 h-3.5" />
+            <p className="text-white/90 text-sm sm:text-base font-medium flex items-center gap-1.5 mt-2 drop-shadow-sm">
+              <MapPin className="w-4 h-4" />
               {trail.city}
             </p>
           )}
@@ -95,26 +96,26 @@ export default async function TrailDetailPage({ params }: { params: Promise<{ sl
       </div>
 
       {/* Trail Meta (biome, distance, duration, points count) */}
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="flex flex-wrap gap-3 mb-8">
         {trail.biome && (
-          <span className="inline-flex items-center gap-1.5 text-xs bg-secondary/10 text-secondary font-medium px-3 py-1.5 rounded-full">
+          <span className="inline-flex items-center gap-1.5 text-xs bg-sage text-forest font-semibold px-3.5 py-2 rounded-full border border-forest/10 shadow-sm">
             🌿 {trail.biome}
           </span>
         )}
         {trail.distanceKm != null && (
-          <span className="inline-flex items-center gap-1.5 text-xs bg-beige text-foreground/70 font-medium px-3 py-1.5 rounded-full">
+          <span className="inline-flex items-center gap-1.5 text-xs bg-white text-foreground/70 font-semibold px-3.5 py-2 rounded-full border border-border-custom shadow-sm">
             <Route className="w-3.5 h-3.5" />
             {trail.distanceKm} km
           </span>
         )}
         {trail.duration && (
-          <span className="inline-flex items-center gap-1.5 text-xs bg-beige text-foreground/70 font-medium px-3 py-1.5 rounded-full">
+          <span className="inline-flex items-center gap-1.5 text-xs bg-white text-foreground/70 font-semibold px-3.5 py-2 rounded-full border border-border-custom shadow-sm">
             <Clock className="w-3.5 h-3.5" />
             {trail.duration}
           </span>
         )}
         {trail.educationalPoints && (
-          <span className="inline-flex items-center gap-1.5 text-xs bg-beige text-foreground/70 font-medium px-3 py-1.5 rounded-full">
+          <span className="inline-flex items-center gap-1.5 text-xs bg-white text-foreground/70 font-semibold px-3.5 py-2 rounded-full border border-border-custom shadow-sm">
             📍 {trail.educationalPoints.length} pontos educativos
           </span>
         )}

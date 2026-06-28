@@ -43,6 +43,7 @@ export class TrailsController {
   findAll(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('state') state?: string,
     @Query('city') city?: string,
     @Query('biome') biome?: string,
     @Query('difficulty') difficulty?: string,
@@ -51,6 +52,7 @@ export class TrailsController {
     return this.trailsService.findAll({
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 12,
+      state,
       city,
       biome,
       difficulty,
@@ -70,6 +72,17 @@ export class TrailsController {
   findMyDrafts(@CurrentUser() user: any) {
     const schoolId = user.role === 'SCHOOL_MANAGER' ? user.schoolId : undefined;
     return this.trailsService.findDrafts(schoolId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SCHOOL_MANAGER', 'TEACHER')
+  @Get('my-trails')
+  findMyTrails(@CurrentUser() user: any) {
+    if (user.role !== 'ADMIN' && !user.schoolId) {
+      throw new BadRequestException('Usuário não possui uma escola associada.');
+    }
+    const schoolId = user.role === 'ADMIN' ? null : user.schoolId;
+    return this.trailsService.findMyTrails(schoolId);
   }
 
   /** GET /trails/admin - All trails (admin/school view, requires auth) */

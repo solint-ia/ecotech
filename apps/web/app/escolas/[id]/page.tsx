@@ -119,10 +119,11 @@ export default function SchoolDetailPage({ params }: { params: Promise<{ id: str
   if (!school) return null;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-10">
-      {/* Hero / Header */}
-      <div className="bg-white rounded-3xl overflow-hidden shadow-sm border border-border-custom">
-        <div className="w-full h-48 md:h-64 bg-gray-200 relative">
+    <div className="max-w-4xl mx-auto space-y-8 pb-10">
+      {/* Immersive Banner & Info Card */}
+      <div className="relative bg-white rounded-2xl shadow-sm border border-border-custom overflow-hidden">
+        {/* Banner */}
+        <div className="w-full h-56 md:h-72 bg-beige relative">
           {school.coverImage ? (
             <img 
               src={school.coverImage.startsWith('http') ? school.coverImage : `${API_URL}${school.coverImage}`}
@@ -130,22 +131,22 @@ export default function SchoolDetailPage({ params }: { params: Promise<{ id: str
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-              <Library className="w-16 h-16 text-primary/40" />
+            <div className="w-full h-full bg-forest/5 flex items-center justify-center">
+              <Library className="w-20 h-20 text-forest/20" />
             </div>
           )}
-          {/* Degradê na base da imagem para dar contraste ao texto (se necessário) */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60"></div>
+          {/* Degradê na base da imagem para dar contraste */}
+          <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent"></div>
         </div>
 
-        <div className="p-6 md:p-8 relative">
-          {/* Floating Avatar Area - opcional, podemos manter só texto já que tem banner */}
+        {/* Informações da Escola (abrangendo a base fluidamente) */}
+        <div className="relative z-10 bg-white p-6 md:p-8 -mt-6 rounded-t-3xl">
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
             <div className="flex-1 space-y-2 text-center md:text-left">
-              <h1 className="text-3xl font-bold text-primary">{school.name}</h1>
-              <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 text-sm font-medium text-foreground/70 justify-center md:justify-start">
+              <h1 className="text-3xl font-bold text-forest">{school.name}</h1>
+              <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 text-sm font-medium text-foreground/50 justify-center md:justify-start">
                 <div className="flex items-center gap-1.5 justify-center">
-                  <MapPin className="w-4 h-4 text-secondary" />
+                  <MapPin className="w-4 h-4 opacity-70" />
                   <span>{school.city} • {school.location}</span>
                 </div>
               </div>
@@ -155,10 +156,10 @@ export default function SchoolDetailPage({ params }: { params: Promise<{ id: str
               <button
                 onClick={handleToggleFollow}
                 disabled={followLoading}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-full font-bold text-sm transition-all shadow-sm ${
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-full font-bold text-sm transition-all ${
                   isFollowing 
-                    ? 'bg-beige text-primary border border-primary/20 hover:bg-beige/70' 
-                    : 'bg-primary text-white hover:bg-primary/90'
+                    ? 'bg-transparent text-forest border border-forest hover:bg-forest/5' 
+                    : 'bg-forest text-white hover:bg-forest/90 shadow-sm'
                 } disabled:opacity-70 disabled:cursor-wait`}
               >
                 {followLoading ? (
@@ -176,26 +177,26 @@ export default function SchoolDetailPage({ params }: { params: Promise<{ id: str
           {/* Stats Bar */}
           <div className="flex items-center justify-center md:justify-start gap-8 mt-8 pt-6 border-t border-border-custom">
             <div className="flex flex-col items-center md:items-start">
-              <span className="flex items-center gap-1.5 text-[11px] uppercase font-bold tracking-widest text-foreground/50 mb-1">
+              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground/40 mb-1">
                 <Target className="w-3.5 h-3.5" /> Trilhas
               </span>
-              <span className="text-2xl font-black text-primary">{school._count.trails}</span>
+              <span className="text-2xl font-bold text-forest/90">{school._count.trails}</span>
             </div>
             <div className="flex flex-col items-center md:items-start">
-              <span className="flex items-center gap-1.5 text-[11px] uppercase font-bold tracking-widest text-foreground/50 mb-1">
+              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground/40 mb-1">
                 <Users className="w-3.5 h-3.5" /> Seguidores
               </span>
-              <span className="text-2xl font-black text-primary">{school._count.followers}</span>
+              <span className="text-2xl font-bold text-forest/90">{school._count.followers}</span>
             </div>
           </div>
 
           {/* Description */}
           <div className="mt-8 pt-6 border-t border-border-custom">
-            <h2 className="flex items-center gap-2 text-lg font-bold text-primary mb-3">
-              <FileText className="w-5 h-5 text-secondary" />
+            <h2 className="flex items-center gap-2 text-lg font-bold text-forest mb-3">
+              <FileText className="w-5 h-5 opacity-70" />
               Sobre a Escola
             </h2>
-            <p className="text-foreground/80 leading-relaxed whitespace-pre-line text-sm md:text-base">
+            <p className="text-foreground/70 leading-relaxed whitespace-pre-line text-sm md:text-base">
               {school.description || 'Esta escola ainda não forneceu uma descrição detalhada.'}
             </p>
           </div>
@@ -204,13 +205,13 @@ export default function SchoolDetailPage({ params }: { params: Promise<{ id: str
 
       {/* Seção de Trilhas */}
       <div className="pt-4">
-        <h2 className="text-xl font-bold text-primary mb-6 flex items-center gap-2">
-          <Target className="w-6 h-6 text-secondary" />
+        <h2 className="text-xl font-bold text-forest mb-6 flex items-center gap-2">
+          <Target className="w-6 h-6 opacity-80" />
           Trilhas da Escola
         </h2>
 
         {school.trails.length === 0 ? (
-          <div className="bg-white p-10 rounded-2xl border border-border-custom text-center">
+          <div className="bg-white p-10 rounded-2xl border border-border-custom text-center shadow-sm">
             <p className="text-foreground/60 mb-2">Nenhuma trilha publicada ainda.</p>
             <p className="text-sm text-foreground/50">As trilhas criadas por esta escola aparecerão aqui.</p>
           </div>

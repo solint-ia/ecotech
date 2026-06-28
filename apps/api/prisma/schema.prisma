@@ -73,6 +73,7 @@ model User {
   feedPosts       FeedPost[]
   feedLikes       FeedLike[]
   feedComments    FeedComment[]
+  feedCommentLikes FeedCommentLike[]
   stories         Story[]
   libraryContents LibraryContent[]
 }
@@ -120,6 +121,7 @@ model Trail {
   slug             String             @unique
   shortDescription String
   fullDescription  String
+  state            String?
   city             String
   coverImage       String
   biome            String
@@ -266,10 +268,23 @@ model FeedComment {
   postId    String
   userId    String
   comment   String
+  likesCount Int     @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   post      FeedPost @relation(fields: [postId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
+  likes     FeedCommentLike[]
+}
+
+model FeedCommentLike {
+  id        String   @id @default(uuid())
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
+  comment   FeedComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([commentId, userId])
 }
 
 model Story {

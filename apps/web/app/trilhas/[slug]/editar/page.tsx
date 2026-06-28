@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { ArrowLeft, Save } from 'lucide-react';
+import { StateCitySelect } from '../../../../components/shared/StateCitySelect';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -21,6 +22,7 @@ export default function EditarTrilhaPage() {
 
   // Form state
   const [title, setTitle] = useState('');
+  const [state, setState] = useState('');
   const [city, setCity] = useState('');
   const [shortDescription, setShortDescription] = useState('');
   const [fullDescription, setFullDescription] = useState('');
@@ -41,6 +43,7 @@ export default function EditarTrilhaPage() {
           if (data && data.id) {
             setTrailId(data.id);
             setTitle(data.title);
+            setState(data.state || '');
             setCity(data.city);
             setShortDescription(data.shortDescription || '');
             setFullDescription(data.fullDescription || '');
@@ -74,6 +77,7 @@ export default function EditarTrilhaPage() {
     try {
       const formData = new FormData();
       formData.append('title', title);
+      if (state) formData.append('state', state);
       formData.append('city', city);
       formData.append('difficulty', difficulty);
       formData.append('status', String(publishNow));
@@ -139,36 +143,30 @@ export default function EditarTrilhaPage() {
       )}
 
       <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-border-custom p-6 space-y-5">
-        {/* Nome + Município */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="trail-title" className="block text-sm font-medium mb-1.5 text-foreground">
-              Nome *
-            </label>
-            <input
-              id="trail-title"
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              minLength={3}
-              className="w-full px-4 py-2.5 rounded-xl border border-border-custom bg-background focus:outline-none focus:ring-2 focus:ring-secondary text-sm transition-all"
-            />
-          </div>
-          <div>
-            <label htmlFor="trail-city" className="block text-sm font-medium mb-1.5 text-foreground">
-              Município *
-            </label>
-            <input
-              id="trail-city"
-              type="text"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              required
-              className="w-full px-4 py-2.5 rounded-xl border border-border-custom bg-background focus:outline-none focus:ring-2 focus:ring-secondary text-sm transition-all"
-            />
-          </div>
+        {/* Nome */}
+        <div>
+          <label htmlFor="trail-title" className="block text-sm font-medium mb-1.5 text-foreground">
+            Nome *
+          </label>
+          <input
+            id="trail-title"
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+            minLength={3}
+            className="w-full px-4 py-2.5 rounded-xl border border-border-custom bg-background focus:outline-none focus:ring-2 focus:ring-secondary text-sm transition-all"
+          />
         </div>
+
+        {/* Estado e Município */}
+        <StateCitySelect
+          selectedState={state}
+          selectedCity={city}
+          onStateChange={setState}
+          onCityChange={setCity}
+          inline={true}
+        />
 
         {/* Descrição curta */}
         <div>
@@ -273,7 +271,7 @@ export default function EditarTrilhaPage() {
             type="file"
             accept="image/*"
             onChange={(e) => setCoverImage(e.target.files?.[0] || null)}
-            className="w-full px-4 py-2.5 rounded-xl border border-border-custom bg-background focus:outline-none focus:ring-2 focus:ring-secondary text-sm transition-all"
+            className="w-full text-sm text-foreground/60 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-beige file:text-primary hover:file:bg-beige/80 transition-colors"
           />
         </div>
 

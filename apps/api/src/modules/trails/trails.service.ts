@@ -26,6 +26,7 @@ export class TrailsService {
   async findAll(query: {
     page?: number;
     limit?: number;
+    state?: string;
     city?: string;
     biome?: string;
     difficulty?: string;
@@ -37,6 +38,7 @@ export class TrailsService {
 
     const where: any = { status: true };
 
+    if (query.state) where.state = query.state;
     if (query.city) where.city = { contains: query.city, mode: 'insensitive' };
     if (query.biome) where.biome = { contains: query.biome, mode: 'insensitive' };
     if (query.difficulty) where.difficulty = query.difficulty;
@@ -59,6 +61,7 @@ export class TrailsService {
           title: true,
           slug: true,
           shortDescription: true,
+          state: true,
           city: true,
           coverImage: true,
           biome: true,
@@ -150,6 +153,56 @@ export class TrailsService {
         title: true,
         slug: true,
         shortDescription: true,
+        state: true,
+        city: true,
+        coverImage: true,
+        biome: true,
+        distanceKm: true,
+        duration: true,
+        difficulty: true,
+        status: true,
+        school: { select: { id: true, name: true } },
+        _count: { select: { likes: true, points: true } },
+        viewsCount: true,
+        likesCount: true,
+      },
+    });
+
+    const mappedData = data.map((item) => {
+      const { _count, ...rest } = item;
+      return {
+        ...rest,
+        _count: {
+          likes: _count.likes,
+          points: _count.points,
+          educationalPoints: _count.points,
+        },
+      };
+    });
+
+    return {
+      data: mappedData,
+      meta: {
+        total: mappedData.length,
+        page: 1,
+        limit: 100,
+        lastPage: 1,
+      },
+    };
+  }
+
+  async findMyTrails(schoolId: string | null) {
+    const where: any = { schoolId };
+
+    const data = await this.prisma.trail.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        shortDescription: true,
+        state: true,
         city: true,
         coverImage: true,
         biome: true,
@@ -205,6 +258,7 @@ export class TrailsService {
           id: true,
           title: true,
           slug: true,
+          state: true,
           city: true,
           biome: true,
           difficulty: true,
@@ -248,6 +302,7 @@ export class TrailsService {
       data: {
         title: dto.title,
         slug,
+        state: dto.state || null,
         city: dto.city,
         shortDescription: dto.shortDescription ?? '',
         fullDescription: dto.fullDescription ?? '',
@@ -283,6 +338,7 @@ export class TrailsService {
       where: { id },
       data: {
         ...(dto.title && { title: dto.title }),
+        ...(dto.state !== undefined && { state: dto.state }),
         ...(dto.city && { city: dto.city }),
         ...(dto.shortDescription !== undefined && { shortDescription: dto.shortDescription }),
         ...(dto.fullDescription !== undefined && { fullDescription: dto.fullDescription }),

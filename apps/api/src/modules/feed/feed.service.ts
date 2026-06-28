@@ -43,8 +43,12 @@ export class FeedService {
    * @param take  – number of items to return (default 10)
    * @param cursor – ISO date string; returns posts *before* this date
    */
-  async findAll(take = 10, cursor?: string) {
+  async findAll(take = 10, cursor?: string, userId?: string, currentUserId?: string) {
     const whereClause: any = { status: true };
+
+    if (userId) {
+      whereClause.userId = userId;
+    }
 
     if (cursor) {
       whereClause.createdAt = { lt: new Date(cursor) };
@@ -60,6 +64,7 @@ export class FeedService {
         trail: { select: { id: true, title: true, slug: true } },
         images: { orderBy: { order: 'asc' } },
         _count: { select: { likes: true, comments: true } },
+        ...(currentUserId ? { likes: { where: { userId: currentUserId }, select: { id: true } } } : {}),
       },
     });
 
@@ -69,12 +74,14 @@ export class FeedService {
       ? items[items.length - 1].createdAt.toISOString()
       : null;
 
-    // Intercept user data for SCHOOL_MANAGER
-    const mappedItems = items.map(post => {
+    // Intercept user data for SCHOOL_MANAGER and set hasLiked
+    const mappedItems = items.map((post: any) => {
       if (post.user.role === 'SCHOOL_MANAGER' && post.school) {
         post.user.name = post.school.name;
         post.user.profileImage = (post.school as any).coverImage || post.user.profileImage;
       }
+      post.hasLiked = currentUserId ? (post.likes && post.likes.length > 0) : false;
+      delete post.likes;
       return post;
     });
 
@@ -84,7 +91,7 @@ export class FeedService {
   /**
    * Get a single post by ID with its comments.
    */
-  async findOne(id: string) {
+  async findOne(id: string, currentUserId?: string) {
     const post = await this.prisma.feedPost.findUnique({
       where: { id },
       include: {
@@ -92,10 +99,12 @@ export class FeedService {
         school: { select: { id: true, name: true, coverImage: true } },
         trail: { select: { id: true, title: true, slug: true } },
         images: { orderBy: { order: 'asc' } },
+        ...(currentUserId ? { likes: { where: { userId: currentUserId }, select: { id: true } } } : {}),
         comments: {
           orderBy: { createdAt: 'desc' },
           include: {
             user: { select: { id: true, name: true, profileImage: true } },
+            ...(currentUserId ? { likes: { where: { userId: currentUserId }, select: { id: true } } } : {}),
           },
         },
         _count: { select: { likes: true, comments: true } },
@@ -111,15 +120,17 @@ export class FeedService {
       post.user.profileImage = (post.school as any).coverImage || post.user.profileImage;
     }
 
-    if (post.comments) {
-      post.comments = post.comments.map(comment => {
-        // We don't have comment.school here, but if we did we could map it.
-        // For now, feed comments might just show the user name if we don't join school on comments.
-        return comment;
-      });
-    }
+    const processedComments = post.comments?.map((comment: any) => {
+      comment.hasLiked = currentUserId ? (comment.likes && comment.likes.length > 0) : false;
+      delete comment.likes;
+      return comment;
+    }) || [];
 
-    return post;
+    const hasLiked = currentUserId ? (post.likes && (post.likes as any).length > 0) : false;
+    const postToReturn = { ...post, comments: processedComments, hasLiked };
+    delete (postToReturn as any).likes;
+
+    return postToReturn;
   }
 
   /**
@@ -237,27 +248,60 @@ export class FeedService {
   /**
    * Delete a comment — only the author or an ADMIN can delete.
    */
-  async deleteComment(commentId: string, userId: string, userRole: string) {
+  async deleteComment(commentId: string, userId: string, role: string) {
     const comment = await this.prisma.feedComment.findUnique({
       where: { id: commentId },
+      include: { post: true },
     });
 
-    if (!comment) {
-      throw new NotFoundException('Comentário não encontrado.');
+    if (!comment) throw new NotFoundException('Comentário não encontrado');
+
+    if (comment.userId !== userId && comment.post.userId !== userId && role !== 'ADMIN') {
+      throw new ForbiddenException('Sem permissão para apagar este comentário');
     }
 
-    if (comment.userId !== userId && userRole !== 'ADMIN') {
-      throw new ForbiddenException('Você não tem permissão para excluir este comentário.');
-    }
-
-    await this.prisma.feedComment.delete({ where: { id: commentId } });
-
-    await this.prisma.feedPost.update({
-      where: { id: comment.postId },
-      data: { commentsCount: { decrement: 1 } },
-    });
-
+    await this.prisma.$transaction([
+      this.prisma.feedComment.delete({ where: { id: commentId } }),
+      this.prisma.feedPost.update({
+        where: { id: comment.postId },
+        data: { commentsCount: { decrement: 1 } },
+      }),
+    ]);
     return { deleted: true };
+  }
+
+  /**
+   * Toggle like on a comment
+   */
+  async toggleCommentLike(commentId: string, userId: string) {
+    const comment = await this.prisma.feedComment.findUnique({ where: { id: commentId } });
+    if (!comment) throw new NotFoundException('Comentário não encontrado');
+
+    const existingLike = await this.prisma.feedCommentLike.findUnique({
+      where: { commentId_userId: { commentId, userId } },
+    });
+
+    if (existingLike) {
+      await this.prisma.$transaction([
+        this.prisma.feedCommentLike.delete({ where: { id: existingLike.id } }),
+        this.prisma.feedComment.update({
+          where: { id: commentId },
+          data: { likesCount: { decrement: 1 } },
+        }),
+      ]);
+      return { liked: false, likesCount: Math.max(0, comment.likesCount - 1) };
+    } else {
+      await this.prisma.$transaction([
+        this.prisma.feedCommentLike.create({
+          data: { commentId, userId },
+        }),
+        this.prisma.feedComment.update({
+          where: { id: commentId },
+          data: { likesCount: { increment: 1 } },
+        }),
+      ]);
+      return { liked: true, likesCount: comment.likesCount + 1 };
+    }
   }
 
   /**

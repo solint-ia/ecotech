@@ -4,7 +4,7 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, Save, ChevronDown, ChevronUp, Edit2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Edit2, X } from 'lucide-react';
 import { getImageUrl } from '../../../../lib/image-url';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -29,10 +29,13 @@ export default function BiodiversidadePage({ params }: { params: Promise<{ slug:
 
   const [trail, setTrail] = useState<any>(null);
   const [items, setItems] = useState<BiodiversityItem[]>([]);
-  const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  
+  // UI State
+  const [activeFilter, setActiveFilter] = useState<'ALL' | 'FAUNA' | 'FLORA'>('ALL');
+  const [selectedItem, setSelectedItem] = useState<BiodiversityItem | null>(null);
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -98,7 +101,8 @@ export default function BiodiversidadePage({ params }: { params: Promise<{ slug:
     });
   };
 
-  const handleEditClick = (item: BiodiversityItem) => {
+  const handleEditClick = (e: React.MouseEvent, item: BiodiversityItem) => {
+    e.stopPropagation();
     setEditingItemId(item.id);
     setFormData({
       groupType: item.groupType || 'FAUNA',
@@ -109,7 +113,7 @@ export default function BiodiversidadePage({ params }: { params: Promise<{ slug:
       environmentalImportance: item.environmentalImportance || '',
     });
     setShowForm(true);
-    setExpandedItemId(null);
+    setSelectedItem(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -165,7 +169,8 @@ export default function BiodiversidadePage({ params }: { params: Promise<{ slug:
     }
   };
 
-  const handleDeleteItem = async (itemId: string) => {
+  const handleDeleteItem = async (e: React.MouseEvent, itemId: string) => {
+    e.stopPropagation();
     if (!window.confirm('Tem certeza que deseja excluir este item?')) return;
     
     try {
@@ -182,30 +187,52 @@ export default function BiodiversidadePage({ params }: { params: Promise<{ slug:
 
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto py-12 text-center text-foreground/60 text-sm animate-pulse">
+      <div className="max-w-6xl mx-auto py-12 text-center text-foreground/60 text-sm animate-pulse">
         Carregando...
       </div>
     );
   }
 
-  const fauna = items.filter(i => i.groupType === 'FAUNA');
-  const flora = items.filter(i => i.groupType === 'FLORA');
+  const filteredItems = items.filter(i => activeFilter === 'ALL' || i.groupType === activeFilter);
 
   return (
-    <div className="max-w-2xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-2">
-        <Link
-          href={`/trilhas/${slug}`}
-          className="text-primary/70 hover:text-primary transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-xl font-bold text-primary">Biodiversidade</h1>
-          {trail && (
-            <p className="text-xs text-foreground/60 mt-0.5">{trail.title}</p>
-          )}
+    <div className="max-w-6xl mx-auto pb-12">
+      {/* Header & Filters */}
+      <div className="flex flex-col gap-4 mb-8">
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/trilhas/${slug}`}
+            className="text-primary/70 hover:text-primary transition-colors p-2 rounded-full hover:bg-beige"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-primary">Biodiversidade</h1>
+            {trail && (
+              <p className="text-sm text-foreground/60 mt-0.5">{trail.title}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveFilter('ALL')}
+            className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${activeFilter === 'ALL' ? 'bg-secondary text-white' : 'bg-[#FAFCFA] text-foreground/60 border border-black/5 hover:bg-beige'}`}
+          >
+            Todos
+          </button>
+          <button
+            onClick={() => setActiveFilter('FAUNA')}
+            className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${activeFilter === 'FAUNA' ? 'bg-[#EAF4EE] text-forest' : 'bg-[#FAFCFA] text-foreground/60 border border-black/5 hover:bg-beige'}`}
+          >
+            🦋 Fauna
+          </button>
+          <button
+            onClick={() => setActiveFilter('FLORA')}
+            className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${activeFilter === 'FLORA' ? 'bg-[#EAF4EE] text-forest' : 'bg-[#FAFCFA] text-foreground/60 border border-black/5 hover:bg-beige'}`}
+          >
+            🌿 Flora
+          </button>
         </div>
       </div>
 
@@ -215,164 +242,109 @@ export default function BiodiversidadePage({ params }: { params: Promise<{ slug:
         </div>
       )}
 
-      {/* List */}
-      <div className="space-y-6 mb-4 mt-6">
-        {items.length === 0 && !showForm && (
-          <div className="text-center py-10 text-foreground/50 text-sm bg-white rounded-xl border border-border-custom">
-            Nenhum item de biodiversidade cadastrado. Clique em "Adicionar Item" para começar.
-          </div>
-        )}
-
-        {fauna.length > 0 && (
-          <div>
-            <h3 className="text-sm font-bold text-amber-800 uppercase tracking-wider mb-2 px-1">Fauna ({fauna.length})</h3>
-            <div className="space-y-3">
-              {fauna.map((item) => (
-                <div key={item.id} className="bg-white rounded-xl border border-border-custom overflow-hidden">
-                  <div className="flex items-center justify-between px-4 py-3">
-                    <button
-                      className="flex items-center gap-3 flex-1 text-left"
-                      onClick={() => setExpandedItemId(expandedItemId === item.id ? null : item.id)}
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-amber-800 truncate">{item.popularName}</p>
-                        {item.scientificName && <p className="text-xs italic text-foreground/50">{item.scientificName}</p>}
-                      </div>
-                      {expandedItemId === item.id ? (
-                        <ChevronUp className="w-4 h-4 text-foreground/40 shrink-0 ml-auto" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-foreground/40 shrink-0 ml-auto" />
-                      )}
-                    </button>
-                    <div className="flex items-center ml-2">
-                      <button
-                        onClick={() => handleEditClick(item)}
-                        className="p-1.5 text-primary/60 hover:text-primary hover:bg-beige rounded-lg transition-colors"
-                        title="Editar"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteItem(item.id)}
-                        className="ml-1 p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Excluir"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                  {expandedItemId === item.id && (
-                    <div className="px-4 pb-4 border-t border-border-custom pt-3 space-y-2 text-sm text-foreground/70">
-                      {item.description && <p><strong>Descrição:</strong> {item.description}</p>}
-                      {item.environmentalImportance && <p><strong>Importância:</strong> {item.environmentalImportance}</p>}
-                      {item.image && (
-                        <div className="mt-2">
-                          <img src={getImageUrl(item.image)} alt={item.popularName} className="mt-2 w-32 h-32 object-cover rounded-lg border border-border-custom" />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {flora.length > 0 && (
-          <div>
-            <h3 className="text-sm font-bold text-green-800 uppercase tracking-wider mb-2 px-1">Flora ({flora.length})</h3>
-            <div className="space-y-3">
-              {flora.map((item) => (
-                <div key={item.id} className="bg-white rounded-xl border border-border-custom overflow-hidden">
-                  <div className="flex items-center justify-between px-4 py-3">
-                    <button
-                      className="flex items-center gap-3 flex-1 text-left"
-                      onClick={() => setExpandedItemId(expandedItemId === item.id ? null : item.id)}
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-green-800 truncate">{item.popularName}</p>
-                        {item.scientificName && <p className="text-xs italic text-foreground/50">{item.scientificName}</p>}
-                      </div>
-                      {expandedItemId === item.id ? (
-                        <ChevronUp className="w-4 h-4 text-foreground/40 shrink-0 ml-auto" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-foreground/40 shrink-0 ml-auto" />
-                      )}
-                    </button>
-                    <div className="flex items-center ml-2">
-                      <button
-                        onClick={() => handleEditClick(item)}
-                        className="p-1.5 text-primary/60 hover:text-primary hover:bg-beige rounded-lg transition-colors"
-                        title="Editar"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteItem(item.id)}
-                        className="ml-1 p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Excluir"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                  {expandedItemId === item.id && (
-                    <div className="px-4 pb-4 border-t border-border-custom pt-3 space-y-2 text-sm text-foreground/70">
-                      {item.description && <p><strong>Descrição:</strong> {item.description}</p>}
-                      {item.environmentalImportance && <p><strong>Importância:</strong> {item.environmentalImportance}</p>}
-                      {item.image && (
-                        <div className="mt-2">
-                          <img src={getImageUrl(item.image)} alt={item.popularName} className="mt-2 w-32 h-32 object-cover rounded-lg border border-border-custom" />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Add Button */}
+      {/* Grid of Cards */}
       {!showForm && (
-        <button
-          onClick={() => setShowForm(true)}
-          className="w-full py-4 border-2 border-dashed border-border-custom rounded-xl flex items-center justify-center gap-2 text-sm font-medium text-foreground/60 hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all mb-8"
-        >
-          <Plus className="w-4 h-4" />
-          Adicionar Item
-        </button>
+        <>
+          {filteredItems.length === 0 ? (
+            <div className="text-center py-10 text-foreground/50 text-sm bg-white rounded-xl border border-black/5 mb-8 shadow-sm">
+              Nenhum item de biodiversidade encontrado para esta categoria.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              {filteredItems.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => setSelectedItem(item)}
+                  className="bg-white rounded-2xl border border-black/5 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 cursor-pointer group flex flex-col"
+                >
+                  {/* Image Header */}
+                  <div className="relative aspect-video w-full overflow-hidden">
+                    <img 
+                      src={getImageUrl(item.image)} 
+                      alt={item.popularName} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                    />
+                    <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => handleEditClick(e, item)}
+                        className="p-1.5 bg-white/90 text-primary hover:bg-white rounded-lg backdrop-blur-sm shadow-sm transition-colors"
+                        title="Editar"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => handleDeleteItem(e, item.id)}
+                        className="p-1.5 bg-white/90 text-red-500 hover:bg-white hover:text-red-600 rounded-lg backdrop-blur-sm shadow-sm transition-colors"
+                        title="Excluir"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="absolute top-2 left-2">
+                      <span className="px-2 py-1 bg-black/60 backdrop-blur-md text-white text-xs font-semibold rounded-md">
+                        {item.groupType === 'FAUNA' ? '🦋 Fauna' : '🌿 Flora'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Card Content */}
+                  <div className="p-4 flex-1 flex flex-col">
+                    <h3 className="text-lg font-bold text-forest line-clamp-1">{item.popularName}</h3>
+                    {item.scientificName && (
+                      <p className="text-sm italic text-gray-500 mb-2">{item.scientificName}</p>
+                    )}
+                    <p className="text-sm text-foreground/70 line-clamp-2 mt-auto pt-2">{item.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add Button */}
+          <button
+            onClick={() => setShowForm(true)}
+            className="w-full py-4 border-2 border-dashed border-border-custom rounded-xl flex items-center justify-center gap-2 text-sm font-medium text-foreground/60 hover:text-forest hover:border-forest/40 hover:bg-forest/5 transition-all mb-8"
+          >
+            <Plus className="w-4 h-4" />
+            Adicionar Item de Biodiversidade
+          </button>
+        </>
       )}
 
-      {/* Form */}
+      {/* Form View */}
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-border-custom p-5 space-y-4 shadow-sm mb-8">
-          <h2 className="text-base font-bold text-primary mb-4 border-b border-border-custom pb-2">
-            {editingItemId ? 'Editar Item' : 'Novo Item'}
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-black/5 p-6 shadow-sm mb-8 animate-in fade-in zoom-in-95 duration-200">
+          <h2 className="text-lg font-bold text-forest mb-6 flex items-center gap-2">
+            {editingItemId ? <Edit2 className="w-5 h-5"/> : <Plus className="w-5 h-5"/>}
+            {editingItemId ? 'Editar Item da Biodiversidade' : 'Novo Item da Biodiversidade'}
           </h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-xs font-semibold mb-1 text-foreground" htmlFor="group-type">
+              <label className="block text-sm font-semibold mb-1 text-primary" htmlFor="group-type">
                 Grupo *
               </label>
-              <select
-                id="group-type"
-                required
-                value={formData.groupType}
-                onChange={(e) => setFormData({ ...formData, groupType: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-border-custom bg-background text-sm focus:outline-none focus:ring-2 focus:ring-secondary appearance-none"
-              >
-                <option value="FAUNA">Fauna (Animais)</option>
-                <option value="FLORA">Flora (Plantas)</option>
-              </select>
+              <div className="relative">
+                <select
+                  id="group-type"
+                  required
+                  value={formData.groupType}
+                  onChange={(e) => setFormData({ ...formData, groupType: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border border-black/5 bg-white text-sm focus:outline-none focus:ring-1 focus:ring-forest focus:border-forest appearance-none shadow-sm transition-all text-foreground/70"
+                >
+                  <option value="FAUNA">Fauna (Animais)</option>
+                  <option value="FLORA">Flora (Plantas)</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-foreground/40">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-xs font-semibold mb-1 text-foreground" htmlFor="popular-name">
+              <label className="block text-sm font-semibold mb-1 text-primary" htmlFor="popular-name">
                 Nome Popular *
               </label>
               <input
@@ -381,12 +353,12 @@ export default function BiodiversidadePage({ params }: { params: Promise<{ slug:
                 required
                 value={formData.popularName}
                 onChange={(e) => setFormData({ ...formData, popularName: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-border-custom bg-background text-sm focus:outline-none focus:ring-2 focus:ring-secondary"
+                className="w-full px-4 py-2.5 rounded-xl border border-black/5 bg-white text-sm focus:outline-none focus:ring-1 focus:ring-forest focus:border-forest shadow-sm transition-all"
                 placeholder="Ex: Arara Canindé"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold mb-1 text-foreground" htmlFor="scientific-name">
+              <label className="block text-sm font-semibold mb-1 text-primary" htmlFor="scientific-name">
                 Nome Científico
               </label>
               <input
@@ -394,14 +366,14 @@ export default function BiodiversidadePage({ params }: { params: Promise<{ slug:
                 type="text"
                 value={formData.scientificName}
                 onChange={(e) => setFormData({ ...formData, scientificName: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-border-custom bg-background text-sm italic focus:outline-none focus:ring-2 focus:ring-secondary"
+                className="w-full px-4 py-2.5 rounded-xl border border-black/5 bg-white text-sm italic focus:outline-none focus:ring-1 focus:ring-forest focus:border-forest shadow-sm transition-all"
                 placeholder="Ex: Ara ararauna"
               />
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold mb-1 text-foreground" htmlFor="desc">
+          <div className="mb-4">
+            <label className="block text-sm font-semibold mb-1 text-primary" htmlFor="desc">
               Descrição do Item *
             </label>
             <textarea
@@ -410,13 +382,13 @@ export default function BiodiversidadePage({ params }: { params: Promise<{ slug:
               rows={3}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border border-border-custom bg-background text-sm focus:outline-none focus:ring-2 focus:ring-secondary"
+              className="w-full px-4 py-2.5 rounded-xl border border-black/5 bg-white text-sm focus:outline-none focus:ring-1 focus:ring-forest focus:border-forest resize-none shadow-sm transition-all"
               placeholder="Detalhes físicos, habitat e comportamento..."
             />
           </div>
           
-          <div>
-            <label className="block text-xs font-semibold mb-1 text-foreground" htmlFor="importance">
+          <div className="mb-4">
+            <label className="block text-sm font-semibold mb-1 text-primary" htmlFor="importance">
               Importância Ambiental *
             </label>
             <textarea
@@ -425,13 +397,13 @@ export default function BiodiversidadePage({ params }: { params: Promise<{ slug:
               rows={2}
               value={formData.environmentalImportance}
               onChange={(e) => setFormData({ ...formData, environmentalImportance: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border border-border-custom bg-background text-sm focus:outline-none focus:ring-2 focus:ring-secondary"
+              className="w-full px-4 py-2.5 rounded-xl border border-black/5 bg-white text-sm focus:outline-none focus:ring-1 focus:ring-forest focus:border-forest resize-none shadow-sm transition-all"
               placeholder="Ex: Dispersão de sementes, controle de pragas..."
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold mb-1 text-foreground" htmlFor="curiosities">
+          <div className="mb-4">
+            <label className="block text-sm font-semibold mb-1 text-primary" htmlFor="curiosities">
               Curiosidades
             </label>
             <textarea
@@ -439,13 +411,13 @@ export default function BiodiversidadePage({ params }: { params: Promise<{ slug:
               rows={2}
               value={formData.curiosities}
               onChange={(e) => setFormData({ ...formData, curiosities: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border border-border-custom bg-background text-sm focus:outline-none focus:ring-2 focus:ring-secondary"
+              className="w-full px-4 py-2.5 rounded-xl border border-black/5 bg-white text-sm focus:outline-none focus:ring-1 focus:ring-forest focus:border-forest resize-none shadow-sm transition-all"
               placeholder="Fatos interessantes sobre o item..."
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold mb-1 text-foreground" htmlFor="image">
+          <div className="mb-6">
+            <label className="block text-sm font-semibold mb-1 text-primary" htmlFor="image">
               Imagem {editingItemId ? '(Opcional, sobrescreve a atual)' : '*'}
             </label>
             <input
@@ -454,15 +426,15 @@ export default function BiodiversidadePage({ params }: { params: Promise<{ slug:
               required={!editingItemId}
               accept="image/*"
               onChange={(e) => setItemImage(e.target.files?.[0] || null)}
-              className="w-full px-3 py-2 rounded-lg border border-border-custom bg-background text-sm focus:outline-none focus:ring-2 focus:ring-secondary"
+              className="w-full text-sm text-foreground/60 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-beige file:text-primary hover:file:bg-beige/80 transition-colors cursor-pointer"
             />
           </div>
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex justify-end gap-3 pt-4 border-t border-black/5 mt-4">
             <button
               type="button"
               onClick={resetForm}
-              className="flex-1 py-2.5 border border-border-custom rounded-xl text-sm font-medium text-foreground/70 hover:bg-beige transition-colors"
+              className="px-6 py-2.5 bg-[#FAFCFA] border border-border-custom rounded-full text-sm font-medium text-foreground/70 hover:bg-beige transition-colors shadow-sm"
             >
               Cancelar
             </button>
@@ -470,13 +442,67 @@ export default function BiodiversidadePage({ params }: { params: Promise<{ slug:
               id="btn-salvar-biodiversidade"
               type="submit"
               disabled={saving}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-60"
+              className="px-8 py-2.5 bg-forest text-white rounded-full text-sm font-bold hover:bg-forest/90 transition-all hover:shadow-md hover:-translate-y-0.5 disabled:opacity-60 flex items-center gap-2 shadow-sm"
             >
               <Save className="w-4 h-4" />
               {saving ? 'Salvando...' : 'Salvar Item'}
             </button>
           </div>
         </form>
+      )}
+
+      {/* Details Modal */}
+      {selectedItem && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+            {/* Modal Image Header */}
+            <div className="relative aspect-video w-full flex-shrink-0 bg-black/5">
+              <img 
+                src={getImageUrl(selectedItem.image)} 
+                alt={selectedItem.popularName} 
+                className="w-full h-full object-cover"
+              />
+              <button
+                onClick={() => setSelectedItem(null)}
+                className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-black/70 text-white rounded-full backdrop-blur-md transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="absolute bottom-4 left-4">
+                <span className="px-3 py-1.5 bg-black/60 backdrop-blur-md text-white text-sm font-semibold rounded-lg">
+                  {selectedItem.groupType === 'FAUNA' ? '🦋 Fauna' : '🌿 Flora'}
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto">
+              <h2 className="text-3xl font-bold text-forest mb-1">{selectedItem.popularName}</h2>
+              {selectedItem.scientificName && (
+                <p className="text-lg italic text-gray-500 mb-6">{selectedItem.scientificName}</p>
+              )}
+
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-sm font-bold text-primary uppercase tracking-wider mb-2">Descrição</h3>
+                  <p className="text-foreground/80 leading-relaxed">{selectedItem.description}</p>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-bold text-primary uppercase tracking-wider mb-2">Importância Ambiental</h3>
+                  <p className="text-foreground/80 leading-relaxed bg-forest/5 p-4 rounded-xl border border-forest/10">{selectedItem.environmentalImportance}</p>
+                </div>
+
+                {selectedItem.curiosities && (
+                  <div>
+                    <h3 className="text-sm font-bold text-primary uppercase tracking-wider mb-2">Curiosidades</h3>
+                    <p className="text-foreground/80 leading-relaxed">{selectedItem.curiosities}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -171,9 +171,9 @@ export default function CreatePostForm({
             <button
               type="button"
               onClick={() => setExpanded(false)}
-              className="p-1.5 rounded-lg hover:bg-beige transition-colors"
+              className="p-1.5 rounded-full hover:bg-black/5 transition-colors group"
             >
-              <X className="w-4 h-4 text-foreground/50" />
+              <X className="w-5 h-5 text-foreground/40 group-hover:text-forest transition-colors" />
             </button>
           </div>
 
@@ -183,7 +183,7 @@ export default function CreatePostForm({
             placeholder="Título da publicação *"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl border border-border-custom bg-beige/30 focus:ring-2 focus:ring-secondary focus:outline-none text-sm placeholder:text-foreground/40"
+            className="w-full px-4 py-3 rounded-xl border border-black/5 bg-white focus:ring-1 focus:ring-forest focus:border-forest focus:outline-none text-sm placeholder:text-foreground/40 transition-all shadow-sm"
             required
           />
 
@@ -193,45 +193,55 @@ export default function CreatePostForm({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            className="w-full px-4 py-2.5 rounded-xl border border-border-custom bg-beige/30 focus:ring-2 focus:ring-secondary focus:outline-none text-sm placeholder:text-foreground/40 resize-none"
+            className="w-full px-4 py-3 rounded-xl border border-black/5 bg-white focus:ring-1 focus:ring-forest focus:border-forest focus:outline-none text-sm placeholder:text-foreground/40 resize-none transition-all shadow-sm"
             required
           />
 
           {/* Dropdowns row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <select
-              value={schoolId}
-              onChange={(e) => setSchoolId(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-border-custom bg-beige/30 focus:ring-2 focus:ring-secondary focus:outline-none text-sm text-foreground/70"
-            >
-              <option value="">Escola do autor (opcional)</option>
-              {schools.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={schoolId}
+                onChange={(e) => setSchoolId(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-black/5 bg-white focus:ring-1 focus:ring-forest focus:border-forest focus:outline-none text-sm text-foreground/60 transition-all shadow-sm appearance-none pr-10"
+              >
+                <option value="">Escola do autor (opcional)</option>
+                {schools.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-foreground/40">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+              </div>
+            </div>
 
-            <select
-              value={trailId}
-              onChange={(e) => setTrailId(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-border-custom bg-beige/30 focus:ring-2 focus:ring-secondary focus:outline-none text-sm text-foreground/70"
-            >
-              <option value="">Trilha mencionada (opcional)</option>
-              {trails.map((t) => (
-                <option key={t.id} value={t.id}>{t.title}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={trailId}
+                onChange={(e) => setTrailId(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-black/5 bg-white focus:ring-1 focus:ring-forest focus:border-forest focus:outline-none text-sm text-foreground/60 transition-all shadow-sm appearance-none pr-10"
+              >
+                <option value="">Trilha mencionada (opcional)</option>
+                {trails.map((t) => (
+                  <option key={t.id} value={t.id}>{t.title}</option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-foreground/40">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+              </div>
+            </div>
           </div>
 
           {/* Image preview grid */}
           {imagePreviews.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2">
               {imagePreviews.map((preview, index) => (
-                <div key={index} className="relative rounded-xl overflow-hidden border border-border-custom aspect-square group">
+                <div key={index} className="relative rounded-xl overflow-hidden border border-border-custom aspect-square group shadow-sm">
                   <img src={preview} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
                   <button
                     type="button"
                     onClick={() => removeImage(index)}
-                    className="absolute top-1 right-1 p-1 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                    className="absolute top-1 right-1 p-1 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70 shadow-sm"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -241,13 +251,13 @@ export default function CreatePostForm({
           )}
 
           {/* Bottom actions */}
-          <div className="flex items-center justify-between pt-2 border-t border-border-custom">
+          <div className="flex items-center justify-between pt-3">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 text-sm text-secondary hover:text-primary transition-colors font-medium"
+              className="flex items-center gap-2 text-sm text-forest font-medium border border-forest/20 rounded-full px-4 py-2 hover:bg-[#EAF4EE] transition-colors"
             >
-              <ImagePlus className="w-5 h-5" />
+              <ImagePlus className="w-4 h-4" />
               Imagem
             </button>
             <input
@@ -262,7 +272,7 @@ export default function CreatePostForm({
             <button
               type="submit"
               disabled={loading || !title.trim() || !description.trim()}
-              className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+              className="flex items-center gap-2 px-6 py-2 bg-forest text-white rounded-full text-sm font-bold hover:bg-forest/90 hover:-translate-y-0.5 hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none shadow-sm"
             >
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

@@ -24,6 +24,10 @@ export class CreateTrailDto {
   title: string;
 
   @IsString()
+  @IsOptional()
+  state?: string;
+
+  @IsString()
   @MinLength(2, { message: 'A cidade é obrigatória.' })
   city: string;
 

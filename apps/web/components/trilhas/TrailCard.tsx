@@ -21,9 +21,9 @@ export interface Trail {
 }
 
 const DIFFICULTY_LABELS: Record<string, { label: string; color: string }> = {
-  FACIL: { label: 'Fácil', color: 'bg-green-500' },
-  MODERADA: { label: 'Moderada', color: 'bg-yellow-500' },
-  DIFICIL: { label: 'Difícil', color: 'bg-red-500' },
+  FACIL: { label: 'Fácil', color: 'bg-emerald-600 text-white shadow-sm' }, 
+  MODERADA: { label: 'Moderada', color: 'bg-amber-500 text-white shadow-sm' },
+  DIFICIL: { label: 'Difícil', color: 'bg-red-600 text-white shadow-sm' },
 };
 
 interface TrailCardProps {
@@ -38,7 +38,7 @@ export default function TrailCard({ trail }: TrailCardProps) {
     <Link
       href={`/trilhas/${trail.slug}`}
       id={`trail-card-${trail.slug}`}
-      className="group bg-white rounded-xl overflow-hidden border border-border-custom hover:shadow-md transition-shadow duration-200 block"
+      className="group bg-white rounded-2xl overflow-hidden border border-border-custom hover:-translate-y-1 hover:shadow-xl hover:shadow-forest/5 transition-all duration-300 block"
     >
       {/* Cover Image */}
       <div className="relative h-48 overflow-hidden bg-beige">
@@ -54,7 +54,7 @@ export default function TrailCard({ trail }: TrailCardProps) {
           </div>
         )}
         <span
-          className={`absolute top-3 left-3 text-white text-xs font-semibold px-2 py-0.5 rounded-full ${difficulty.color}`}
+          className={`absolute top-3 left-3 text-[10px] font-bold tracking-wider px-2.5 py-1 rounded-full uppercase ${difficulty.color}`}
         >
           {difficulty.label}
         </span>
@@ -66,54 +66,53 @@ export default function TrailCard({ trail }: TrailCardProps) {
       </div>
 
       {/* Card Content */}
-      <div className="p-4">
-        <h2 className="font-semibold text-primary text-sm mb-0.5 line-clamp-1 group-hover:text-secondary transition-colors">
+      <div className="p-5">
+        <h2 className="font-bold text-foreground text-lg mb-1 line-clamp-1 group-hover:text-forest transition-colors">
           {trail.title}
         </h2>
-        <p className="text-xs text-foreground/60 mb-1 flex items-center gap-1">
-          <MapPin className="w-3 h-3 shrink-0" />
-          {trail.city}
-        </p>
-        {trail.biome && (
-          <p className="text-xs text-secondary font-medium mb-2">{trail.biome}</p>
-        )}
+        <div className="flex items-center gap-1.5 text-xs text-foreground/50 mb-3">
+          <MapPin className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">{trail.city}</span>
+          {trail.biome && (
+            <>
+              <span className="mx-1">•</span>
+              <span className="truncate">{trail.biome}</span>
+            </>
+          )}
+        </div>
+        
         {trail.shortDescription && (
-          <p className="text-xs text-foreground/70 line-clamp-2 mb-3">
+          <p className="text-sm text-foreground/60 line-clamp-2 mb-4 leading-relaxed">
             {trail.shortDescription}
           </p>
         )}
-        <hr className="border-border-custom mb-3" />
-        <div className="flex items-center gap-3 text-xs text-foreground/60">
-          {trail.biome && (
-            <span className="flex items-center gap-1">
-              <Leaf className="w-3 h-3" />
-              {trail.biome}
-            </span>
-          )}
+        
+        <hr className="border-border-custom/50 mb-4" />
+        
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-foreground/40 font-medium">
           {trail.distanceKm != null && (
-            <span className="flex items-center gap-1">
-              <Route className="w-3 h-3" />
+            <span className="flex items-center gap-1.5">
+              <Route className="w-3.5 h-3.5" />
               {trail.distanceKm} km
             </span>
           )}
           {trail.duration && (
-            <span className="flex items-center gap-1">
-              <Clock className="w-3 h-3" />
+            <span className="flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5" />
               {trail.duration}
             </span>
           )}
-        </div>
-        <div className="flex items-center gap-3 text-xs text-foreground/50 mt-2">
-          <span className="flex items-center gap-1">
-            <Heart className="w-3 h-3" />
+          <span className="flex items-center gap-1.5">
+            <Heart className="w-3.5 h-3.5" />
             {trail.likesCount ?? trail._count?.likes ?? 0}
           </span>
-          <span className="flex items-center gap-1">
-            <Eye className="w-3 h-3" />
+          <span className="flex items-center gap-1.5">
+            <Eye className="w-3.5 h-3.5" />
             {trail.viewsCount ?? 0}
           </span>
-          <span className="flex items-center gap-1 ml-auto">
-            {educationalPointsCount} pontos
+          
+          <span className="flex items-center gap-1 ml-auto text-forest font-semibold bg-sage px-2 py-0.5 rounded-md">
+            {educationalPointsCount ?? trail._count?.educationalPoints ?? 0} pts
           </span>
         </div>
       </div>

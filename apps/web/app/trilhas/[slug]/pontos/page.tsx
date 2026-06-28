@@ -414,7 +414,7 @@ export default function PontosPage() {
           <div>
             <div className="flex justify-between mb-1">
               <label className="block text-xs font-medium text-foreground" htmlFor="point-offline-summary">
-                Resumo offline (para QR Code)
+                Resumo offline (para QR Code) *
               </label>
               <span className={`text-xs font-mono ${offlineSummaryLeft < 30 ? 'text-red-500' : 'text-foreground/50'}`}>
                 {offlineSummaryLeft} restantes
@@ -423,6 +423,7 @@ export default function PontosPage() {
             <textarea
               id="point-offline-summary"
               rows={3}
+              required
               maxLength={250}
               value={formData.offlineSummary}
               onChange={(e) => {
@@ -435,6 +436,59 @@ export default function PontosPage() {
           </div>
 
           <div>
+            <label className="block text-xs font-medium mb-1 text-foreground" htmlFor="point-full-desc">
+              Descrição Completa
+            </label>
+            <textarea
+              id="point-full-desc"
+              rows={4}
+              value={formData.fullDescription}
+              onChange={(e) => setFormData({ ...formData, fullDescription: e.target.value })}
+              className="w-full px-3 py-2 rounded-lg border border-border-custom bg-background text-sm focus:outline-none focus:ring-2 focus:ring-secondary resize-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium mb-1 text-foreground" htmlFor="point-env-importance">
+              Importância Ambiental
+            </label>
+            <textarea
+              id="point-env-importance"
+              rows={3}
+              value={formData.environmentalImportance}
+              onChange={(e) => setFormData({ ...formData, environmentalImportance: e.target.value })}
+              className="w-full px-3 py-2 rounded-lg border border-border-custom bg-background text-sm focus:outline-none focus:ring-2 focus:ring-secondary resize-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium mb-1 text-foreground" htmlFor="point-curiosities">
+                Curiosidades
+              </label>
+              <textarea
+                id="point-curiosities"
+                rows={3}
+                value={formData.curiosities}
+                onChange={(e) => setFormData({ ...formData, curiosities: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border border-border-custom bg-background text-sm focus:outline-none focus:ring-2 focus:ring-secondary resize-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1 text-foreground" htmlFor="point-preservation">
+                Cuidados e Preservação
+              </label>
+              <textarea
+                id="point-preservation"
+                rows={3}
+                value={formData.preservationCare}
+                onChange={(e) => setFormData({ ...formData, preservationCare: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border border-border-custom bg-background text-sm focus:outline-none focus:ring-2 focus:ring-secondary resize-none"
+              />
+            </div>
+          </div>
+
+          <div>
             <label className="block text-xs font-medium mb-1 text-foreground" htmlFor="point-image">
               Imagem de capa
             </label>
@@ -443,7 +497,7 @@ export default function PontosPage() {
               type="file"
               accept="image/*"
               onChange={(e) => setPointImage(e.target.files?.[0] || null)}
-              className="w-full px-3 py-2 rounded-lg border border-border-custom bg-background text-sm focus:outline-none focus:ring-2 focus:ring-secondary"
+              className="w-full text-sm text-foreground/60 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-beige file:text-primary hover:file:bg-beige/80 transition-colors"
             />
           </div>
 

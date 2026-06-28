@@ -48,17 +48,21 @@ export class FeedController {
   findAll(
     @Query('take') take?: string,
     @Query('cursor') cursor?: string,
+    @Query('userId') userId?: string,
+    @Query('currentUserId') currentUserId?: string,
   ) {
     return this.feedService.findAll(
       take ? parseInt(take, 10) : 10,
       cursor || undefined,
+      userId,
+      currentUserId,
     );
   }
 
   /** GET /feed/:id — Public post detail with comments */
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.feedService.findOne(id);
+  findOne(@Param('id') id: string, @Query('userId') userId?: string) {
+    return this.feedService.findOne(id, userId);
   }
 
   /** POST /feed — Create a new post (authenticated) */
@@ -127,8 +131,22 @@ export class FeedController {
   @UseGuards(JwtAuthGuard)
   @Delete('comments/:commentId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  removeComment(@Param('commentId') commentId: string, @Request() req: any) {
-    return this.feedService.deleteComment(commentId, req.user.id, req.user.role);
+  removeComment(
+    @Param('commentId') commentId: string,
+    @Request() req: any,
+  ) {
+    return this.feedService.deleteComment(
+      commentId,
+      req.user.id,
+      req.user.role,
+    );
+  }
+
+  /** POST /feed/comments/:id/like — Toggle like on comment (authenticated) */
+  @UseGuards(JwtAuthGuard)
+  @Post('comments/:id/like')
+  toggleCommentLike(@Param('id') id: string, @Request() req: any) {
+    return this.feedService.toggleCommentLike(id, req.user.id);
   }
 
   /** POST /feed/:id/share — Increment share counter (public) */

@@ -88,14 +88,14 @@ export default function SchoolsPage() {
           <p className="text-sm text-foreground/70 mb-4">
             Descubra as escolas que estão transformando a educação ambiental.
           </p>
-          <div className="relative w-full">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-foreground/40" />
+          <div className="relative w-full max-w-md">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-foreground/40" />
             </div>
             <input
               type="text"
-              className="block w-full pl-10 pr-3 py-2.5 border border-border-custom rounded-xl bg-beige/30 focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
-              placeholder="Buscar por nome..."
+              className="block w-full pl-10 pr-4 py-2.5 border border-border-custom rounded-full bg-white text-foreground text-sm font-medium focus:bg-white focus:ring-2 focus:ring-forest/20 focus:border-forest transition-all outline-none"
+              placeholder="Buscar por escola..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -125,19 +125,17 @@ export default function SchoolsPage() {
               <article className="bg-white rounded-2xl border border-border-custom shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 group-hover:-translate-y-1 flex flex-col h-full">
                 
                 {/* Cover Image */}
-                <div className="w-full h-40 bg-gray-200 relative overflow-hidden">
+                <div className="w-full h-44 bg-beige relative overflow-hidden rounded-t-2xl">
                   {school.coverImage ? (
                     <img 
                       src={school.coverImage.startsWith('http') ? school.coverImage : `${API_URL}${school.coverImage}`}
                       alt={school.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
                     />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                      <span className="text-white text-4xl font-bold opacity-80">
-                        {school.name.split(' ').length > 1 
-                          ? (school.name.split(' ')[0][0] + school.name.split(' ')[school.name.split(' ').length - 1][0]).toUpperCase()
-                          : school.name.substring(0, 2).toUpperCase()}
+                    <div className="w-full h-full bg-forest/5 flex items-center justify-center">
+                      <span className="text-forest/30 text-5xl font-bold">
+                        {school.name.substring(0, 1).toUpperCase()}
                       </span>
                     </div>
                   )}
@@ -145,12 +143,12 @@ export default function SchoolsPage() {
 
                 {/* Content */}
                 <div className="p-5 flex flex-col flex-1">
-                  <h3 className="text-lg font-bold text-primary line-clamp-1 mb-1 group-hover:text-secondary transition-colors">
+                  <h3 className="text-lg font-bold text-forest line-clamp-1 mb-1 transition-colors">
                     {school.name}
                   </h3>
                   
-                  <div className="flex items-center gap-1 text-xs font-medium text-foreground/60 mb-3">
-                    <MapPin className="w-3.5 h-3.5 text-secondary" />
+                  <div className="flex items-center gap-1.5 text-[11px] font-medium text-foreground/50 mb-3">
+                    <MapPin className="w-3.5 h-3.5 opacity-70" />
                     <span className="truncate">{school.city} • {school.location}</span>
                   </div>
                   
@@ -159,14 +157,14 @@ export default function SchoolsPage() {
                   </p>
 
                   {/* Stats */}
-                  <div className="flex items-center gap-4 pt-4 border-t border-border-custom mt-auto">
+                  <div className="flex items-center gap-6 pt-4 mt-auto">
                     <div className="flex flex-col">
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-foreground/50">Trilhas</span>
-                      <span className="text-sm font-semibold text-primary">{school._count.trails}</span>
+                      <span className="text-[10px] font-semibold text-foreground/40 mb-0.5">Trilhas</span>
+                      <span className="text-sm font-bold text-forest/80">{school._count.trails}</span>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-foreground/50">Seguidores</span>
-                      <span className="text-sm font-semibold text-primary">{school._count.followers}</span>
+                      <span className="text-[10px] font-semibold text-foreground/40 mb-0.5">Seguidores</span>
+                      <span className="text-sm font-bold text-forest/80">{school._count.followers}</span>
                     </div>
                   </div>
                 </div>
