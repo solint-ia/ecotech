@@ -6,11 +6,14 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 export class SchoolsController {
   constructor(private readonly schoolsService: SchoolsService) {}
 
-  @UseGuards(JwtAuthGuard)
   @Get()
   @HttpCode(HttpStatus.OK)
-  async findAll(@Query('search') search?: string) {
-    return this.schoolsService.findAllActive({ search });
+  async findAll(
+    @Query('search') search?: string,
+    @Query('state') state?: string,
+    @Query('city') city?: string
+  ) {
+    return this.schoolsService.findAllActive({ search, state, city });
   }
 
   @UseGuards(JwtAuthGuard)

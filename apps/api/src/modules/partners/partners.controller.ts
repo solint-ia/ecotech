@@ -39,8 +39,12 @@ export class PartnersController {
 
   /** GET /partners - Public list of partners with optional category filter */
   @Get()
-  findAll(@Query('category') category?: string) {
-    return this.partnersService.findAll(category);
+  findAll(
+    @Query('category') category?: string,
+    @Query('state') state?: string,
+    @Query('city') city?: string
+  ) {
+    return this.partnersService.findAll(category, state, city);
   }
 
   /** GET /partners/:id - Public detail view of a specific partner */

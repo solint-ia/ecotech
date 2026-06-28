@@ -3,7 +3,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
-import { Leaf, Camera, UploadCloud } from 'lucide-react';
+import { Leaf, Camera, UploadCloud, Mail, Lock, Compass } from 'lucide-react';
+import { AuthFooter } from '@/components/AuthFooter';
+import { StateCitySelect } from '@/components/shared/StateCitySelect';
 import {
   validateCPF,
   validateCNPJ,
@@ -17,6 +19,7 @@ import {
 export default function LoginPage() {
   const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
+  const [currentStep, setCurrentStep] = useState(1);
 
   // Base fields
   const [name, setName] = useState('');
@@ -32,11 +35,11 @@ export default function LoginPage() {
 
   // School Manager specific fields
   const [schoolName, setSchoolName] = useState('');
-  const [city, setCity] = useState('');
   const [location, setLocation] = useState(''); // Endereço
   const [cnpj, setCnpj] = useState('');
-  const [managerName, setManagerName] = useState('');
   const [cpfManager, setCpfManager] = useState('');
+  const [stateUF, setStateUF] = useState('');
+  const [city, setCity] = useState('');
 
   // Profile Image
   const [profileImage, setProfileImage] = useState<File | null>(null);
@@ -74,46 +77,45 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setMessage({ type: '', text: '' });
-
+    const totalSteps = isLogin ? 1 : (role === 'SCHOOL_MANAGER' ? 4 : 2);
     const newErrors: Record<string, string> = {};
 
-    if (!isLogin) {
-      if (!validateFullName(name)) {
-        newErrors.name = 'Insira seu nome completo.';
-      }
-
-      if (phone && !validatePhone(phone)) {
-        newErrors.phone = 'Insira um telefone válido com DDD.';
-      }
-
-      if (password !== confirmPassword) {
-        newErrors.confirmPassword = 'As senhas não coincidem.';
-      }
-
-      if (role === 'SCHOOL_MANAGER') {
-        if (!schoolName.trim()) {
-          newErrors.schoolName = 'O nome da escola é obrigatório.';
-        }
-        if (!city.trim()) {
-          newErrors.city = 'A cidade é obrigatória.';
-        }
-        if (!location.trim()) {
-          newErrors.location = 'O endereço é obrigatório.';
-        }
-        if (cnpj && !validateCNPJ(cnpj)) {
-          newErrors.cnpj = 'Insira um CNPJ válido.';
-        }
-        if (cpfManager && !validateCPF(cpfManager)) {
-          newErrors.cpfManager = 'Insira um CPF válido.';
+    if (!isLogin && currentStep < totalSteps) {
+      if (currentStep === 1) {
+        if (!validateFullName(name)) newErrors.name = role === 'SCHOOL_MANAGER' ? 'Insira o nome completo do gestor.' : 'Insira seu nome completo.';
+        if (phone && !validatePhone(phone)) newErrors.phone = 'Insira um telefone válido com DDD.';
+        if (!email) newErrors.email = 'Insira seu e-mail.';
+      } else if (role === 'SCHOOL_MANAGER') {
+        if (currentStep === 2) {
+          if (!schoolName.trim()) newErrors.schoolName = 'O nome da escola é obrigatório.';
+          if (cnpj && !validateCNPJ(cnpj)) newErrors.cnpj = 'Insira um CNPJ válido.';
+        } else if (currentStep === 3) {
+          if (!stateUF) newErrors.stateUF = 'Selecione um Estado.';
+          if (!city) newErrors.city = 'Selecione uma Cidade.';
+          if (!location.trim()) newErrors.location = 'O endereço é obrigatório.';
+          if (cpfManager && !validateCPF(cpfManager)) newErrors.cpfManager = 'Insira um CPF válido.';
         }
       }
 
       if (Object.keys(newErrors).length > 0) {
         setErrors(newErrors);
+        setMessage({ type: 'error', text: 'Por favor, corrija os erros apontados.' });
+        return;
+      }
+      
+      setErrors({});
+      setCurrentStep(prev => prev + 1);
+      return;
+    }
+
+    setIsLoading(true);
+
+    if (!isLogin) {
+      if (password !== confirmPassword) {
+        setErrors({ confirmPassword: 'As senhas não coincidem.' });
         setIsLoading(false);
-        setMessage({ type: 'error', text: 'Por favor, corrija os erros apontados no formulário.' });
+        setMessage({ type: 'error', text: 'As senhas não coincidem.' });
         return;
       }
     }
@@ -151,10 +153,11 @@ export default function LoginPage() {
 
         if (role === 'SCHOOL_MANAGER') {
           formData.append('schoolName', schoolName);
+          formData.append('state', stateUF);
           formData.append('city', city);
           formData.append('location', location);
           if (cnpj) formData.append('cnpj', cnpj);
-          if (managerName) formData.append('managerName', managerName);
+          formData.append('managerName', name);
           if (cpfManager) formData.append('cpfManager', cpfManager);
         } else {
           if (schoolId) formData.append('schoolId', schoolId);
@@ -201,326 +204,379 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 py-12">
-      {/* Header outside the modal */}
-      <div className="text-center mb-8 flex flex-col items-center">
-        <div className="bg-primary/10 p-3 rounded-full mb-4 shadow-sm border border-primary/20">
-          <Leaf className="w-10 h-10 text-primary" />
-        </div>
-        <h1 className="text-3xl font-bold text-primary mb-2 tracking-tight">
-          Ecotech
-        </h1>
-        <p className="text-base text-foreground/80 max-w-sm font-medium">
-          Plataforma Educacional Socioambiental
-        </p>
-      </div>
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#EAF4EE] overflow-y-auto">
 
-      <div className="bg-card w-full max-w-xl p-8 rounded-3xl shadow-xl border border-border-custom relative overflow-hidden">
-        {/* Decorative elements */}
-        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary to-secondary"></div>
+      {/* Soft Radial Lighting Background */}
+      <div className="fixed inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at center, rgba(255,255,255,0.6) 0%, transparent 70%)' }} />
 
-        {message.text && (
-          <div className={`p-4 mb-6 rounded-xl text-sm font-medium ${message.type === 'success'
-            ? 'bg-secondary/10 text-primary border border-secondary/20'
-            : 'bg-red-50 text-red-700 border border-red-200'
-            }`}>
-            {message.text}
-          </div>
-        )}
+      {/* Main Login Area */}
+      <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 pb-12 md:pb-20 relative z-10">
+        <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-700 py-4 relative z-10">
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* The Premium Card */}
+          <div className="bg-white/90 backdrop-blur-[12px] rounded-[24px] shadow-[0_20px_60px_rgba(0,0,0,0.08)] border border-white/60 p-5 sm:p-8 relative overflow-hidden">
 
-          {/* FOTO DE PERFIL (Comentado - será adicionado em outra página)
-          {!isLogin && (
-            <div className="flex flex-col items-center mb-6">
-              <div 
-                className="w-24 h-24 rounded-full bg-background border-2 border-dashed border-border-custom flex flex-col items-center justify-center cursor-pointer overflow-hidden relative hover:border-secondary transition-colors"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                {previewImage ? (
-                  <img src={previewImage} alt="Profile preview" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="flex flex-col items-center text-foreground/50">
-                    <Camera className="w-8 h-8 mb-1" />
-                    <span className="text-[10px] font-medium uppercase tracking-wider">Foto</span>
-                  </div>
-                )}
-              </div>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleImageChange} 
-                className="hidden" 
-                accept="image/*"
-              />
-            </div>
-          )}
-          */}
-
-          {/* PERFIL (Role) (Apenas Cadastro) */}
-          {!isLogin && (
-            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-              <label className="block text-sm font-medium mb-1.5 text-foreground">Eu sou um(a)</label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-border-custom bg-background focus:outline-none focus:ring-2 focus:ring-secondary transition-all text-foreground font-medium appearance-none"
-              >
-                <option value="STUDENT">Estudante</option>
-                <option value="TEACHER">Professor</option>
-                <option value="SCHOOL_MANAGER">Escola (Gestor)</option>
-              </select>
-            </div>
-          )}
-
-          {!isLogin && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1.5 text-foreground">Nome Completo</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => {
-                    setName(e.target.value);
-                    if (errors.name) setErrors(prev => { const c = { ...prev }; delete c.name; return c; });
-                  }}
-                  className={`w-full px-4 py-3 rounded-xl border bg-background focus:outline-none focus:ring-2 transition-all ${errors.name ? 'border-red-500 focus:ring-red-500' : 'border-border-custom focus:ring-secondary'}`}
-                  placeholder="Seu nome"
-                  required={!isLogin}
+            {/* Logotipo Centralizado */}
+            <div className="flex flex-col items-center mb-8 relative z-10">
+              <div className="w-full h-24 flex items-center justify-center">
+                <img
+                  src="/EcoTechLogo.png"
+                  alt="Ecotech"
+                  className="w-full h-full object-contain drop-shadow-sm mix-blend-multiply transform scale-[1.25]"
                 />
-                {errors.name && (
-                  <p className="text-xs text-red-500 font-medium mt-1 animate-in fade-in duration-200">
-                    {errors.name}
-                  </p>
-                )}
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1.5 text-foreground">Telefone</label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => {
-                    setPhone(formatPhone(e.target.value));
-                    if (errors.phone) setErrors(prev => { const c = { ...prev }; delete c.phone; return c; });
-                  }}
-                  className={`w-full px-4 py-3 rounded-xl border bg-background focus:outline-none focus:ring-2 transition-all ${errors.phone ? 'border-red-500 focus:ring-red-500' : 'border-border-custom focus:ring-secondary'}`}
-                  placeholder="(00) 00000-0000"
-                />
-                {errors.phone && (
-                  <p className="text-xs text-red-500 font-medium mt-1 animate-in fade-in duration-200">
-                    {errors.phone}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium mb-1.5 text-foreground">E-mail</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-border-custom bg-background focus:outline-none focus:ring-2 focus:ring-secondary transition-all"
-              placeholder="seu@email.com"
-              required
-            />
-          </div>
-
-          {!isLogin && role !== 'SCHOOL_MANAGER' && (
-            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-              <label className="block text-sm font-medium mb-1.5 text-foreground">Vincular a uma Escola</label>
-              <select
-                value={schoolId}
-                onChange={(e) => setSchoolId(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-border-custom bg-background focus:outline-none focus:ring-2 focus:ring-secondary transition-all text-foreground appearance-none"
-              >
-                <option value="">Nenhuma (ou procurar depois)</option>
-                {schools.map(school => (
-                  <option key={school.id} value={school.id}>{school.name} ({school.city})</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* CAMPOS DE ESCOLA */}
-          {!isLogin && role === 'SCHOOL_MANAGER' && (
-            <div className="space-y-4 pt-2 border-t border-border-custom animate-in fade-in slide-in-from-top-2 duration-300">
-              <h3 className="font-semibold text-primary text-sm uppercase tracking-wider">Dados da Escola</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-1.5 text-foreground">Nome da Escola</label>
-                  <input
-                    type="text"
-                    value={schoolName}
-                    onChange={(e) => {
-                      setSchoolName(e.target.value);
-                      if (errors.schoolName) setErrors(prev => { const c = { ...prev }; delete c.schoolName; return c; });
-                    }}
-                    className={`w-full px-4 py-3 rounded-xl border bg-background focus:outline-none focus:ring-2 transition-all ${errors.schoolName ? 'border-red-500 focus:ring-red-500' : 'border-border-custom focus:ring-secondary'}`}
-                    placeholder="Escola Municipal Ecotech"
-                    required
-                  />
-                  {errors.schoolName && (
-                    <p className="text-xs text-red-500 font-medium mt-1 animate-in fade-in duration-200">
-                      {errors.schoolName}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1.5 text-foreground">CNPJ</label>
-                  <input
-                    type="text"
-                    value={cnpj}
-                    onChange={(e) => {
-                      setCnpj(formatCNPJ(e.target.value));
-                      if (errors.cnpj) setErrors(prev => { const c = { ...prev }; delete c.cnpj; return c; });
-                    }}
-                    className={`w-full px-4 py-3 rounded-xl border bg-background focus:outline-none focus:ring-2 transition-all ${errors.cnpj ? 'border-red-500 focus:ring-red-500' : 'border-border-custom focus:ring-secondary'}`}
-                    placeholder="00.000.000/0000-00"
-                  />
-                  {errors.cnpj && (
-                    <p className="text-xs text-red-500 font-medium mt-1 animate-in fade-in duration-200">
-                      {errors.cnpj}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1.5 text-foreground">Cidade</label>
-                  <input
-                    type="text"
-                    value={city}
-                    onChange={(e) => {
-                      setCity(e.target.value);
-                      if (errors.city) setErrors(prev => { const c = { ...prev }; delete c.city; return c; });
-                    }}
-                    className={`w-full px-4 py-3 rounded-xl border bg-background focus:outline-none focus:ring-2 transition-all ${errors.city ? 'border-red-500 focus:ring-red-500' : 'border-border-custom focus:ring-secondary'}`}
-                    placeholder="Sua Cidade"
-                    required
-                  />
-                  {errors.city && (
-                    <p className="text-xs text-red-500 font-medium mt-1 animate-in fade-in duration-200">
-                      {errors.city}
-                    </p>
-                  )}
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-1.5 text-foreground">Endereço (Rua e Número)</label>
-                  <input
-                    type="text"
-                    value={location}
-                    onChange={(e) => {
-                      setLocation(e.target.value);
-                      if (errors.location) setErrors(prev => { const c = { ...prev }; delete c.location; return c; });
-                    }}
-                    className={`w-full px-4 py-3 rounded-xl border bg-background focus:outline-none focus:ring-2 transition-all ${errors.location ? 'border-red-500 focus:ring-red-500' : 'border-border-custom focus:ring-secondary'}`}
-                    placeholder="Rua da Natureza, 123"
-                    required
-                  />
-                  {errors.location && (
-                    <p className="text-xs text-red-500 font-medium mt-1 animate-in fade-in duration-200">
-                      {errors.location}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1.5 text-foreground">Gestor Responsável</label>
-                  <input
-                    type="text"
-                    value={managerName}
-                    onChange={(e) => setManagerName(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-border-custom bg-background focus:outline-none focus:ring-2 focus:ring-secondary transition-all"
-                    placeholder="Nome do Gestor"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1.5 text-foreground">CPF do Gestor</label>
-                  <input
-                    type="text"
-                    value={cpfManager}
-                    onChange={(e) => {
-                      setCpfManager(formatCPF(e.target.value));
-                      if (errors.cpfManager) setErrors(prev => { const c = { ...prev }; delete c.cpfManager; return c; });
-                    }}
-                    className={`w-full px-4 py-3 rounded-xl border bg-background focus:outline-none focus:ring-2 transition-all ${errors.cpfManager ? 'border-red-500 focus:ring-red-500' : 'border-border-custom focus:ring-secondary'}`}
-                    placeholder="000.000.000-00"
-                  />
-                  {errors.cpfManager && (
-                    <p className="text-xs text-red-500 font-medium mt-1 animate-in fade-in duration-200">
-                      {errors.cpfManager}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className={isLogin ? 'md:col-span-2' : ''}>
-              <label className="block text-sm font-medium mb-1.5 text-foreground">Senha</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-border-custom bg-background focus:outline-none focus:ring-2 focus:ring-secondary transition-all"
-                placeholder="••••••••"
-                required
-                minLength={6}
-              />
+              <h1 className="mt-6 text-center text-[0.8rem] font-semibold text-primary/80 tracking-wide leading-snug">
+                Conectando pessoas à natureza<br />através da educação
+              </h1>
             </div>
 
-            {!isLogin && (
-              <div>
-                <label className="block text-sm font-medium mb-1.5 text-foreground">Confirmar Senha</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                    if (errors.confirmPassword) setErrors(prev => { const c = { ...prev }; delete c.confirmPassword; return c; });
-                  }}
-                  className={`w-full px-4 py-3 rounded-xl border bg-background focus:outline-none focus:ring-2 transition-all ${errors.confirmPassword ? 'border-red-500 focus:ring-red-500' : 'border-border-custom focus:ring-secondary'}`}
-                  placeholder="••••••••"
-                  required={!isLogin}
-                  minLength={6}
-                />
-                {errors.confirmPassword && (
-                  <p className="text-xs text-red-500 font-medium mt-1 animate-in fade-in duration-200">
-                    {errors.confirmPassword}
-                  </p>
-                )}
+            {message.text && (
+              <div className={`p-4 mb-6 rounded-xl text-sm font-medium ${message.type === 'success'
+                ? 'bg-secondary/10 text-primary border border-secondary/20'
+                : 'bg-red-50 text-red-700 border border-red-200'
+                }`}>
+                {message.text}
               </div>
             )}
+
+            {/* Visual Stepper */}
+            {!isLogin && (
+              <div className="flex justify-center items-center gap-2 mb-6 animate-in fade-in">
+                {Array.from({ length: role === 'SCHOOL_MANAGER' ? 4 : 2 }).map((_, idx) => {
+                  const step = idx + 1;
+                  const isActive = step === currentStep;
+                  const isPast = step < currentStep;
+                  return (
+                    <div 
+                      key={step} 
+                      className={`h-2 rounded-full transition-all duration-300 ${isActive ? 'w-6 bg-[#0B5D3B]' : (isPast ? 'w-2 bg-[#0B5D3B]/60' : 'w-2 bg-primary/20')}`}
+                    />
+                  );
+                })}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+
+              {/* STEP 1: Basic Info */}
+              {(isLogin || (!isLogin && currentStep === 1)) && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                  {/* PERFIL (Role) (Apenas Cadastro) */}
+                  {!isLogin && (
+                    <div>
+                      <label className="block text-sm font-semibold text-primary/80 mb-1.5">Eu sou um(a)</label>
+                      <select
+                        value={role}
+                        onChange={(e) => setRole(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl border border-primary/30 bg-transparent text-primary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all appearance-none text-sm"
+                      >
+                        <option value="STUDENT">Estudante</option>
+                        <option value="TEACHER">Professor</option>
+                        <option value="SCHOOL_MANAGER">Escola (Gestor)</option>
+                      </select>
+                    </div>
+                  )}
+
+                  {!isLogin && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div>
+                        <label className="block text-sm font-semibold text-primary/80 mb-1.5">{role === 'SCHOOL_MANAGER' ? 'Gestor Responsável' : 'Nome Completo'}</label>
+                        <input
+                          type="text"
+                          value={name}
+                          onChange={(e) => {
+                            setName(e.target.value);
+                            if (errors.name) setErrors(prev => { const c = { ...prev }; delete c.name; return c; });
+                          }}
+                          className={`w-full px-4 py-3.5 rounded-xl border bg-transparent text-primary focus:outline-none focus:ring-1 transition-all ${errors.name ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-primary/30 focus:border-primary focus:ring-primary'}`}
+                          placeholder={role === 'SCHOOL_MANAGER' ? 'Nome do Gestor' : 'Seu nome'}
+                          required={!isLogin}
+                        />
+                        {errors.name && (
+                          <p className="text-xs text-red-500 font-medium mt-1 animate-in fade-in duration-200">
+                            {errors.name}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-primary/80 mb-1.5">Telefone</label>
+                        <input
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => {
+                            setPhone(formatPhone(e.target.value));
+                            if (errors.phone) setErrors(prev => { const c = { ...prev }; delete c.phone; return c; });
+                          }}
+                          className={`w-full px-4 py-3.5 rounded-xl border bg-transparent text-primary focus:outline-none focus:ring-1 transition-all ${errors.phone ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-primary/30 focus:border-primary focus:ring-primary'}`}
+                          placeholder="(00) 00000-0000"
+                        />
+                        {errors.phone && (
+                          <p className="text-xs text-red-500 font-medium mt-1 animate-in fade-in duration-200">
+                            {errors.phone}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="relative z-10">
+                    <label className="block text-sm font-semibold text-primary/80 mb-1.5 ml-1">E-mail</label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary/40" />
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className={`w-full pl-11 pr-4 py-3 rounded-xl border bg-white/60 text-primary text-sm focus:bg-white focus:outline-none focus:ring-4 transition-all ${errors.email ? 'border-red-500 focus:border-red-500 focus:ring-red-500/12' : 'border-primary/10 focus:border-[#2E8B57] focus:ring-[#2E8B57]/12'}`}
+                        placeholder="seu@email.com"
+                        required
+                      />
+                    </div>
+                    {errors.email && (
+                      <p className="text-xs text-red-500 font-medium mt-1 animate-in fade-in duration-200">
+                        {errors.email}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 2 (STUDENT/TEACHER) */}
+              {!isLogin && role !== 'SCHOOL_MANAGER' && currentStep === 2 && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div>
+                    <label className="block text-sm font-semibold text-primary/80 mb-1.5">Vincular a uma Escola</label>
+                    <select
+                      value={schoolId}
+                      onChange={(e) => setSchoolId(e.target.value)}
+                      className="w-full px-4 py-3.5 rounded-xl border border-primary/30 bg-transparent text-primary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all appearance-none"
+                    >
+                      <option value="">Nenhuma (ou procurar depois)</option>
+                      {schools.map(school => (
+                        <option key={school.id} value={school.id}>{school.name} ({school.city})</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 2 (SCHOOL_MANAGER) */}
+              {!isLogin && role === 'SCHOOL_MANAGER' && currentStep === 2 && (
+                <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <h3 className="font-bold text-primary text-sm uppercase tracking-widest text-center mb-2">Dados da Escola</h3>
+                  <div className="grid grid-cols-1 gap-5">
+                    <div>
+                      <label className="block text-sm font-semibold text-primary/80 mb-1.5">Nome da Escola</label>
+                      <input
+                        type="text"
+                        value={schoolName}
+                        onChange={(e) => {
+                          setSchoolName(e.target.value);
+                          if (errors.schoolName) setErrors(prev => { const c = { ...prev }; delete c.schoolName; return c; });
+                        }}
+                        className={`w-full px-4 py-3.5 rounded-xl border bg-transparent text-primary focus:outline-none focus:ring-1 transition-all ${errors.schoolName ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-primary/30 focus:border-primary focus:ring-primary'}`}
+                        placeholder="Escola Municipal Ecotech"
+                        required
+                      />
+                      {errors.schoolName && (
+                        <p className="text-xs text-red-500 font-medium mt-1 animate-in fade-in duration-200">
+                          {errors.schoolName}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-primary/80 mb-1.5">CNPJ</label>
+                      <input
+                        type="text"
+                        value={cnpj}
+                        onChange={(e) => {
+                          setCnpj(formatCNPJ(e.target.value));
+                          if (errors.cnpj) setErrors(prev => { const c = { ...prev }; delete c.cnpj; return c; });
+                        }}
+                        className={`w-full px-4 py-3.5 rounded-xl border bg-transparent text-primary focus:outline-none focus:ring-1 transition-all ${errors.cnpj ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-primary/30 focus:border-primary focus:ring-primary'}`}
+                        placeholder="00.000.000/0000-00"
+                      />
+                      {errors.cnpj && (
+                        <p className="text-xs text-red-500 font-medium mt-1 animate-in fade-in duration-200">
+                          {errors.cnpj}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3 (SCHOOL_MANAGER) */}
+              {!isLogin && role === 'SCHOOL_MANAGER' && currentStep === 3 && (
+                <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <h3 className="font-bold text-primary text-sm uppercase tracking-widest text-center mb-2">Endereço e Gestor</h3>
+                  
+                  <StateCitySelect
+                    selectedState={stateUF}
+                    selectedCity={city}
+                    onStateChange={(s) => {
+                      setStateUF(s);
+                      if (errors.stateUF) setErrors(prev => { const c = { ...prev }; delete c.stateUF; return c; });
+                    }}
+                    onCityChange={(c) => {
+                      setCity(c);
+                      if (errors.city) setErrors(prev => { const c = { ...prev }; delete c.city; return c; });
+                    }}
+                    inline={true}
+                  />
+                  {(errors.stateUF || errors.city) && (
+                    <p className="text-xs text-red-500 font-medium mt-1 animate-in fade-in duration-200 text-center">
+                      Por favor, selecione Estado e Cidade.
+                    </p>
+                  )}
+
+                  <div className="grid grid-cols-1 gap-5">
+                    <div>
+                      <label className="block text-sm font-semibold text-primary/80 mb-1.5">Endereço (Rua e Número)</label>
+                      <input
+                        type="text"
+                        value={location}
+                        onChange={(e) => {
+                          setLocation(e.target.value);
+                          if (errors.location) setErrors(prev => { const c = { ...prev }; delete c.location; return c; });
+                        }}
+                        className={`w-full px-4 py-3.5 rounded-xl border bg-transparent text-primary focus:outline-none focus:ring-1 transition-all ${errors.location ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-primary/30 focus:border-primary focus:ring-primary'}`}
+                        placeholder="Rua da Natureza, 123"
+                        required
+                      />
+                      {errors.location && (
+                        <p className="text-xs text-red-500 font-medium mt-1 animate-in fade-in duration-200">
+                          {errors.location}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-primary/80 mb-1.5">CPF do Gestor</label>
+                      <input
+                        type="text"
+                        value={cpfManager}
+                        onChange={(e) => {
+                          setCpfManager(formatCPF(e.target.value));
+                          if (errors.cpfManager) setErrors(prev => { const c = { ...prev }; delete c.cpfManager; return c; });
+                        }}
+                        className={`w-full px-4 py-3.5 rounded-xl border bg-transparent text-primary focus:outline-none focus:ring-1 transition-all ${errors.cpfManager ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-primary/30 focus:border-primary focus:ring-primary'}`}
+                        placeholder="000.000.000-00"
+                      />
+                      {errors.cpfManager && (
+                        <p className="text-xs text-red-500 font-medium mt-1 animate-in fade-in duration-200">
+                          {errors.cpfManager}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SECURITY / PASSWORD */}
+              {(isLogin || (!isLogin && ((role !== 'SCHOOL_MANAGER' && currentStep === 2) || (role === 'SCHOOL_MANAGER' && currentStep === 4)))) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 relative z-10 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className={isLogin ? 'md:col-span-2' : ''}>
+                    <label className="block text-sm font-semibold text-primary/80 mb-1.5 ml-1">Senha</label>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary/40" />
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-primary/10 bg-white/60 text-primary text-sm focus:bg-white focus:outline-none focus:border-[#2E8B57] focus:ring-4 focus:ring-[#2E8B57]/12 transition-all"
+                        placeholder="••••••••"
+                        required
+                        minLength={6}
+                      />
+                    </div>
+                  </div>
+
+                  {!isLogin && (
+                    <div>
+                      <label className="block text-sm font-semibold text-primary/80 mb-1.5 ml-1">Confirmar Senha</label>
+                      <div className="relative">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary/40" />
+                        <input
+                          type="password"
+                          value={confirmPassword}
+                          onChange={(e) => {
+                            setConfirmPassword(e.target.value);
+                            if (errors.confirmPassword) setErrors(prev => { const c = { ...prev }; delete c.confirmPassword; return c; });
+                          }}
+                          className={`w-full pl-11 pr-4 py-3 rounded-xl border bg-white/60 text-primary text-sm focus:bg-white focus:outline-none focus:ring-4 transition-all ${errors.confirmPassword ? 'border-red-500 focus:border-red-500 focus:ring-red-500/12' : 'border-primary/10 focus:border-[#2E8B57] focus:ring-[#2E8B57]/12'}`}
+                          placeholder="••••••••"
+                          required={!isLogin}
+                          minLength={6}
+                        />
+                      </div>
+                      {errors.confirmPassword && (
+                        <p className="text-xs text-red-500 font-medium mt-1 animate-in fade-in duration-200">
+                          {errors.confirmPassword}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ACTION BUTTONS */}
+              <div className="flex gap-3 mt-6">
+                {!isLogin && currentStep > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCurrentStep(prev => prev - 1);
+                      setErrors({});
+                      setMessage({ type: '', text: '' });
+                    }}
+                    className="w-1/3 py-3.5 px-4 text-primary font-bold tracking-wide transition-all rounded-xl border border-primary/20 hover:bg-primary/5 active:scale-[0.98] flex items-center justify-center relative z-10 text-sm"
+                  >
+                    VOLTAR
+                  </button>
+                )}
+                
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className={`flex-1 py-3.5 px-4 text-white rounded-xl font-bold tracking-wide transition-all transform active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed shadow-[0_8px_20px_rgba(11,93,59,0.15)] hover:shadow-[0_12px_25px_rgba(11,93,59,0.25)] hover:-translate-y-0.5 relative z-10 flex items-center justify-center gap-2
+                ${isLogin ? 'bg-gradient-to-br from-[#0B5D3B] to-[#1F7A4D]' : 'bg-gradient-to-br from-[#4F8A4C] to-[#3B6D39]'}`}
+                >
+                  {isLogin && <Compass className="w-5 h-5 text-white/90" />}
+                  {isLoading
+                    ? 'PROCESSANDO...'
+                    : (isLogin ? 'ENTRAR NA PLATAFORMA' : (currentStep < (role === 'SCHOOL_MANAGER' ? 4 : 2) ? 'PRÓXIMO' : 'CRIAR MINHA CONTA'))}
+                </button>
+              </div>
+            </form>
+
+            <div className="mt-6 flex flex-col items-center gap-3 relative z-10">
+              {isLogin && (
+                <button type="button" className="text-[0.85rem] text-primary/60 hover:text-primary font-medium transition-colors focus:outline-none">
+                  Esqueceu sua senha?
+                </button>
+              )}
+              <p className="text-primary/70 font-medium text-sm mt-1">
+                {isLogin ? 'Novo por aqui?' : 'Já possui uma conta?'}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLogin(!isLogin);
+                    setMessage({ type: '', text: '' });
+                    setErrors({});
+                    setCurrentStep(1);
+                  }}
+                  className="ml-2 font-bold text-primary hover:text-primary/80 transition-colors focus:outline-none"
+                >
+                  {isLogin ? 'Cadastre-se' : 'Faça login'}
+                </button>
+              </p>
+            </div>
           </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-3.5 px-4 bg-primary hover:bg-primary/90 text-white rounded-xl font-semibold transition-all transform active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed mt-8 shadow-md flex items-center justify-center"
-          >
-            {isLoading
-              ? 'Processando...'
-              : (isLogin ? 'Entrar na Plataforma' : 'Criar minha Conta')}
-          </button>
-        </form>
-
-        <div className="mt-8 pt-6 border-t border-border-custom text-center text-sm">
-          <p className="text-foreground/80 font-medium">
-            {isLogin ? 'Ainda não faz parte da rede?' : 'Já possui uma conta?'}
-            <button
-              type="button"
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setMessage({ type: '', text: '' });
-                setErrors({});
-              }}
-              className="ml-2 font-bold text-secondary hover:text-primary transition-colors focus:outline-none"
-            >
-              {isLogin ? 'Cadastre-se agora' : 'Faça login'}
-            </button>
-          </p>
         </div>
       </div>
+
+      {/* Macro-Footer */}
+      <AuthFooter />
     </div>
   );
 }

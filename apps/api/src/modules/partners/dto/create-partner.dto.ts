@@ -23,6 +23,10 @@ export class CreatePartnerDto {
   address: string;
 
   @IsString()
+  @IsOptional()
+  state?: string;
+
+  @IsString()
   @IsNotEmpty()
   city: string;
 

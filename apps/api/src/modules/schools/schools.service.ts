@@ -5,10 +5,16 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class SchoolsService {
   constructor(private prisma: PrismaService) {}
 
-  async findAllActive(query?: { search?: string }) {
+  async findAllActive(query?: { search?: string; state?: string; city?: string }) {
     const where: any = { status: true };
     if (query?.search) {
       where.name = { contains: query.search, mode: 'insensitive' };
+    }
+    if (query?.state) {
+      where.state = query.state;
+    }
+    if (query?.city) {
+      where.city = query.city;
     }
 
     return this.prisma.school.findMany({
@@ -16,6 +22,7 @@ export class SchoolsService {
       select: {
         id: true,
         name: true,
+        state: true,
         city: true,
         location: true,
         description: true,
