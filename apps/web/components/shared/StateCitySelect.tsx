@@ -81,19 +81,12 @@ export function StateCitySelect({
     fetchCities();
   }, [selectedState]);
 
-  const containerClass = inline
-    ? `flex flex-col sm:flex-row gap-4 ${className}`
-    : `space-y-4 ${className}`;
-
   return (
-    <div className={containerClass}>
-      <div className="flex-1 space-y-1.5 relative">
-        <label className="text-xs font-semibold text-primary/80 uppercase tracking-wider ml-1">
-          Estado
-        </label>
+    <div className={`flex flex-col md:flex-row gap-4 w-full ${className}`}>
+      <div className="flex-1 relative group">
         <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-            <MapPin className="h-5 w-5 text-primary/40" />
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <MapPin className={`h-4 w-4 transition-colors ${selectedState ? 'text-forest' : 'text-foreground/40 group-focus-within:text-forest'}`} />
           </div>
           <select
             value={selectedState}
@@ -102,9 +95,13 @@ export function StateCitySelect({
               onCityChange(''); // Reset city when state changes
             }}
             disabled={loadingStates}
-            className="w-full pl-11 pr-4 py-3.5 bg-white border border-border-custom rounded-xl text-primary font-medium focus:ring-2 focus:ring-secondary/50 focus:border-secondary transition-all outline-none appearance-none disabled:opacity-50"
+            className={`w-full pl-10 pr-10 py-2.5 rounded-full text-sm font-semibold transition-all outline-none appearance-none disabled:opacity-50 cursor-pointer ${
+              selectedState
+                ? 'bg-sage border border-sage text-forest shadow-sm'
+                : 'bg-white border border-border-custom text-foreground/70 hover:border-forest/30 focus:border-forest focus:ring-2 focus:ring-forest/20'
+            }`}
           >
-            <option value="">{loadingStates ? 'Carregando...' : 'Selecione o Estado'}</option>
+            <option value="">{loadingStates ? 'Carregando...' : 'Todos os estados'}</option>
             {states.map((uf) => (
               <option key={uf.id} value={uf.sigla}>
                 {uf.nome} ({uf.sigla})
@@ -113,27 +110,28 @@ export function StateCitySelect({
           </select>
           {/* Custom Dropdown Arrow */}
           <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
-            <svg className="w-4 h-4 text-primary/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+            <svg className={`w-4 h-4 transition-colors ${selectedState ? 'text-forest' : 'text-foreground/40'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 space-y-1.5 relative">
-        <label className="text-xs font-semibold text-primary/80 uppercase tracking-wider ml-1">
-          Município
-        </label>
+      <div className="flex-1 relative group">
         <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-            <Building className="h-5 w-5 text-primary/40" />
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <Building className={`h-4 w-4 transition-colors ${selectedCity ? 'text-forest' : 'text-foreground/40 group-focus-within:text-forest'}`} />
           </div>
           <select
             value={selectedCity}
             onChange={(e) => onCityChange(e.target.value)}
             disabled={!selectedState || loadingCities}
-            className="w-full pl-11 pr-4 py-3.5 bg-white border border-border-custom rounded-xl text-primary font-medium focus:ring-2 focus:ring-secondary/50 focus:border-secondary transition-all outline-none appearance-none disabled:opacity-50"
+            className={`w-full pl-10 pr-10 py-2.5 rounded-full text-sm font-semibold transition-all outline-none appearance-none disabled:opacity-50 cursor-pointer ${
+              selectedCity
+                ? 'bg-sage border border-sage text-forest shadow-sm'
+                : 'bg-white border border-border-custom text-foreground/70 hover:border-forest/30 focus:border-forest focus:ring-2 focus:ring-forest/20'
+            }`}
           >
             <option value="">
-              {!selectedState ? 'Selecione um Estado primeiro' : loadingCities ? 'Carregando...' : 'Selecione a Cidade'}
+              {!selectedState ? 'Selecione um Estado primeiro' : loadingCities ? 'Carregando...' : 'Todas as cidades'}
             </option>
             {cities.map((city) => (
               <option key={city.codigo_ibge} value={city.nome}>
@@ -143,7 +141,7 @@ export function StateCitySelect({
           </select>
            {/* Custom Dropdown Arrow */}
            <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
-            <svg className="w-4 h-4 text-primary/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+            <svg className={`w-4 h-4 transition-colors ${selectedCity ? 'text-forest' : 'text-foreground/40'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
           </div>
         </div>
       </div>

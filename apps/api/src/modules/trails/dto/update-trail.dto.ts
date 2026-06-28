@@ -21,6 +21,10 @@ export class UpdateTrailDto {
 
   @IsString()
   @IsOptional()
+  state?: string;
+
+  @IsString()
+  @IsOptional()
   city?: string;
 
   @IsString()

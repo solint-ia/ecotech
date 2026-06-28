@@ -68,13 +68,21 @@ export default function RedePage() {
           </p>
         </div>
         {isAdmin && (
-          <Link
-            href="/rede/criar"
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm whitespace-nowrap"
-          >
-            <Plus className="w-4 h-4" />
-            Novo Parceiro
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/rede/gerenciar"
+              className="flex items-center gap-2 px-4 py-2 bg-white text-primary border border-border-custom rounded-lg text-sm font-semibold hover:bg-beige transition-colors shadow-sm whitespace-nowrap"
+            >
+              Gerenciar Parceiros
+            </Link>
+            <Link
+              href="/rede/criar"
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm whitespace-nowrap"
+            >
+              <Plus className="w-4 h-4" />
+              Novo Parceiro
+            </Link>
+          </div>
         )}
       </div>
 

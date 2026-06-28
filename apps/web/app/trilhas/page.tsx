@@ -3,8 +3,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { MapPin, Clock, Route, Heart, Eye, Plus, Search, Leaf } from 'lucide-react';
+import { MapPin, Clock, Route, Heart, Eye, Plus, Search, Leaf, ChevronDown } from 'lucide-react';
 import { getImageUrl } from '../../lib/image-url';
+import { StateCitySelect } from '../../components/shared/StateCitySelect';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -24,7 +25,9 @@ export default function TrilhasPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [showDrafts, setShowDrafts] = useState(false);
+  const [activeTab, setActiveTab] = useState<'publicadas' | 'rascunhos' | 'minhas-trilhas'>('publicadas');
+  const [filterState, setFilterState] = useState('');
+  const [filterCity, setFilterCity] = useState('');
   const [selectedBiome, setSelectedBiome] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState('');
   const [total, setTotal] = useState(0);
@@ -40,22 +43,27 @@ export default function TrilhasPage() {
   // Reset page on filter change
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, selectedBiome, selectedDifficulty, showDrafts]);
+  }, [debouncedSearch, filterState, filterCity, selectedBiome, selectedDifficulty, activeTab]);
 
   const fetchTrails = useCallback(async () => {
     setLoading(true);
     try {
-      const endpoint = showDrafts ? `${API_URL}/trails/my-drafts` : `${API_URL}/trails`;
+      let endpoint = `${API_URL}/trails`;
+      if (activeTab === 'rascunhos') endpoint = `${API_URL}/trails/my-drafts`;
+      if (activeTab === 'minhas-trilhas') endpoint = `${API_URL}/trails/my-trails`;
+
       const params = new URLSearchParams({
         page: String(page),
         limit: String(limit),
       });
       if (debouncedSearch) params.set('search', debouncedSearch);
+      if (filterState) params.set('state', filterState);
+      if (filterCity) params.set('city', filterCity);
       if (selectedBiome) params.set('biome', selectedBiome);
       if (selectedDifficulty) params.set('difficulty', selectedDifficulty);
 
       const headers: HeadersInit = {};
-      if (showDrafts && user?.accessToken) {
+      if (activeTab !== 'publicadas' && user?.accessToken) {
         headers['Authorization'] = `Bearer ${user.accessToken}`;
       }
 
@@ -69,7 +77,7 @@ export default function TrilhasPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, selectedBiome, selectedDifficulty, showDrafts, user?.accessToken]);
+  }, [page, debouncedSearch, filterState, filterCity, selectedBiome, selectedDifficulty, activeTab, user?.accessToken]);
 
   useEffect(() => {
     fetchTrails();
@@ -107,65 +115,107 @@ export default function TrilhasPage() {
       </div>
 
       {/* Tabs */}
-      {(user?.role === 'ADMIN' || user?.role === 'SCHOOL_MANAGER') && (
-        <div className="flex items-center gap-4 mb-6 border-b border-border-custom pb-2">
+      {(user?.role === 'ADMIN' || user?.role === 'SCHOOL_MANAGER' || user?.role === 'TEACHER') && (
+        <div className="flex items-center gap-6 mb-8 border-b border-border-custom pb-3">
           <button
-            onClick={() => setShowDrafts(false)}
-            className={`text-sm font-semibold px-2 py-1 transition-colors ${
-              !showDrafts ? 'text-primary border-b-2 border-primary' : 'text-foreground/50 hover:text-foreground/80'
+            onClick={() => setActiveTab('publicadas')}
+            className={`text-sm font-semibold transition-all relative ${
+              activeTab === 'publicadas' ? 'text-forest' : 'text-foreground/50 hover:text-foreground/80'
             }`}
           >
             Publicadas
+            {activeTab === 'publicadas' && (
+              <span className="absolute -bottom-[13px] left-0 right-0 h-0.5 bg-forest rounded-t-full" />
+            )}
           </button>
           <button
-            onClick={() => setShowDrafts(true)}
-            className={`text-sm font-semibold px-2 py-1 transition-colors ${
-              showDrafts ? 'text-primary border-b-2 border-primary' : 'text-foreground/50 hover:text-foreground/80'
+            onClick={() => setActiveTab('rascunhos')}
+            className={`text-sm font-semibold transition-all relative ${
+              activeTab === 'rascunhos' ? 'text-forest' : 'text-foreground/50 hover:text-foreground/80'
             }`}
           >
             Meus Rascunhos
+            {activeTab === 'rascunhos' && (
+              <span className="absolute -bottom-[13px] left-0 right-0 h-0.5 bg-forest rounded-t-full" />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('minhas-trilhas')}
+            className={`text-sm font-semibold transition-all relative ${
+              activeTab === 'minhas-trilhas' ? 'text-forest' : 'text-foreground/50 hover:text-foreground/80'
+            }`}
+          >
+            Minhas Trilhas
+            {activeTab === 'minhas-trilhas' && (
+              <span className="absolute -bottom-[13px] left-0 right-0 h-0.5 bg-forest rounded-t-full" />
+            )}
           </button>
         </div>
       )}
 
       {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40" />
+      <div className="flex flex-col gap-4 mb-8">
+        <div className="relative w-full">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-forest/50" />
           <input
             id="search-trilhas"
             type="text"
             placeholder="Buscar trilhas..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border-custom bg-white focus:outline-none focus:ring-2 focus:ring-secondary text-sm transition-all"
+            className="w-full pl-11 pr-4 py-3 rounded-full border border-border-custom bg-white focus:outline-none focus:ring-2 focus:ring-forest text-sm transition-all shadow-sm"
           />
         </div>
-        <select
-          id="filter-biome"
-          value={selectedBiome}
-          onChange={(e) => setSelectedBiome(e.target.value)}
-          className="px-3 py-2.5 rounded-lg border border-border-custom bg-white text-sm focus:outline-none focus:ring-2 focus:ring-secondary appearance-none min-w-[160px]"
-        >
-          <option value="">Todos os biomas</option>
-          {biomes.map((b) => (
-            <option key={b} value={b}>
-              {b}
-            </option>
-          ))}
-        </select>
-        <select
-          id="filter-difficulty"
-          value={selectedDifficulty}
-          onChange={(e) => setSelectedDifficulty(e.target.value)}
-          className="px-3 py-2.5 rounded-lg border border-border-custom bg-white text-sm focus:outline-none focus:ring-2 focus:ring-secondary appearance-none min-w-[140px]"
-        >
-          <option value="">Dificuldade</option>
-          <option value="FACIL">Fácil</option>
-          <option value="MODERADA">Moderada</option>
-          <option value="DIFICIL">Difícil</option>
-        </select>
-      </div>
+        <div className="flex flex-col sm:flex-row gap-4 items-center">
+          <div className="flex-1 w-full sm:w-auto">
+            <StateCitySelect
+              selectedState={filterState}
+              selectedCity={filterCity}
+              onStateChange={setFilterState}
+              onCityChange={setFilterCity}
+              inline={true}
+            />
+          </div>
+          <div className="relative w-full sm:w-auto">
+            <select
+              id="filter-biome"
+              value={selectedBiome}
+              onChange={(e) => setSelectedBiome(e.target.value)}
+              className={`w-full sm:min-w-[160px] pl-4 pr-10 py-3 rounded-full border text-sm focus:outline-none focus:ring-2 focus:ring-forest appearance-none h-[46px] transition-all cursor-pointer shadow-sm ${
+                selectedBiome 
+                  ? 'bg-sage text-forest border-sage font-medium' 
+                  : 'bg-white border-border-custom text-foreground/80 hover:border-forest/30'
+              }`}
+            >
+              <option value="">Todos os biomas</option>
+              {biomes.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className={`absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none transition-colors ${selectedBiome ? 'text-forest' : 'text-foreground/50'}`} />
+          </div>
+          <div className="relative w-full sm:w-auto">
+            <select
+              id="filter-difficulty"
+              value={selectedDifficulty}
+              onChange={(e) => setSelectedDifficulty(e.target.value)}
+              className={`w-full sm:min-w-[140px] pl-4 pr-10 py-3 rounded-full border text-sm focus:outline-none focus:ring-2 focus:ring-forest appearance-none h-[46px] transition-all cursor-pointer shadow-sm ${
+                selectedDifficulty
+                  ? 'bg-sage text-forest border-sage font-medium'
+                  : 'bg-white border-border-custom text-foreground/80 hover:border-forest/30'
+              }`}
+            >
+              <option value="">Dificuldade</option>
+              <option value="FACIL">Fácil</option>
+              <option value="MODERADA">Moderada</option>
+              <option value="DIFICIL">Difícil</option>
+            </select>
+            <ChevronDown className={`absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none transition-colors ${selectedDifficulty ? 'text-forest' : 'text-foreground/50'}`} />
+          </div>
+        </div>
+    </div>
 
       {/* Trails Grid */}
       {loading ? (

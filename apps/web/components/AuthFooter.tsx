@@ -52,7 +52,7 @@ export function AuthFooter() {
               {[
                 { icon: Mail, text: 'contato@cliente.com.br' },
                 { icon: MessageCircle, text: '(00) 00000-0000' },
-                { icon: Instagram, text: '@cliente' }
+                { icon: Instagram, text: '@projeto_ecotech' }
               ].map((item, i) => (
                 <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-[#EAF4EE]/50 border border-transparent hover:border-[#4F8A4C]/30 hover:shadow-sm transition-all duration-300 group cursor-pointer">
                   <item.icon className="w-4 h-4 text-[#0B5D3B] group-hover:text-[#4F8A4C] transition-colors" />

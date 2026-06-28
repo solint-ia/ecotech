@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Heart, ExternalLink, Pencil } from 'lucide-react';
+import { Heart, ExternalLink, Pencil, Trash2 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import ShareModal from './ShareModal';
+import ConfirmDeleteModal from '../feed/ConfirmDeleteModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -31,6 +32,8 @@ export default function TrailActions({ trail }: TrailActionsProps) {
   // Ensure we fallback to 0 if likesCount is undefined, preventing negative increments from 0
   const [likesCount, setLikesCount] = useState(trail.likesCount ?? 0);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [currentUrl, setCurrentUrl] = useState('');
 
   const user = session?.user as any;
@@ -121,10 +124,33 @@ export default function TrailActions({ trail }: TrailActionsProps) {
     }
   };
 
+  const handleDelete = async () => {
+    if (!token) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`${API_URL}/trails/${trail.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        window.location.href = '/trilhas';
+      } else {
+        alert('Erro ao excluir trilha.');
+      }
+    } catch {
+      alert('Erro ao excluir trilha.');
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false);
+    }
+  };
+
   return (
     <>
-      <div className="flex items-center gap-4">
-        <button
+      <div className="flex flex-wrap items-center justify-between w-full gap-4">
+        {/* Social Actions - Left */}
+        <div className="flex items-center gap-4">
+          <button
           onClick={handleLike}
           className={`flex items-center gap-1.5 text-sm transition-colors ${
             isLiked ? 'text-red-500' : 'text-foreground/70 hover:text-red-500'
@@ -154,39 +180,52 @@ export default function TrailActions({ trail }: TrailActionsProps) {
           </svg>
           Compartilhar
         </button>
-        {trail.wikilocUrl && (
-          <a
-            href={trail.wikilocUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-sm text-secondary hover:text-primary transition-colors"
-          >
-            <ExternalLink className="w-4 h-4" />
-            Wikiloc
-          </a>
-        )}
-        {(user?.role === 'ADMIN' || (user?.role === 'SCHOOL_MANAGER' && user?.schoolId === trail.schoolId)) && trail.slug && (
-          <>
-            <Link
-              href={`/trilhas/${trail.slug}/editar`}
-              className="flex items-center gap-1.5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-all shadow-md hover:shadow-lg active:scale-95"
+        </div>
+
+        {/* Primary and Admin Actions - Right */}
+        <div className="flex items-center gap-3">
+          {trail.wikilocUrl && (
+            <a
+              href={trail.wikilocUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-sm font-bold bg-[#8cc63f] hover:bg-[#7ab133] text-white px-5 py-2.5 rounded-full transition-all shadow-md hover:shadow-lg active:scale-95"
             >
-              <Pencil className="w-4 h-4" />
-              Editar Trilha
-            </Link>
-            {trail.status === false && (
-              <button
-                onClick={handlePublish}
-                className="flex items-center gap-1.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all shadow-md hover:shadow-lg active:scale-95"
+              <ExternalLink className="w-4 h-4" />
+              Ver no Wikiloc
+            </a>
+          )}
+          
+          {(user?.role === 'ADMIN' || (user?.role === 'SCHOOL_MANAGER' && user?.schoolId === trail.schoolId)) && trail.slug && (
+            <div className="flex items-center gap-2 border-l border-border-custom pl-3 ml-1">
+              <Link
+                href={`/trilhas/${trail.slug}/editar`}
+                className="flex items-center gap-1.5 text-xs font-semibold bg-white border border-border-custom hover:bg-beige text-foreground/80 px-3 py-2 rounded-lg transition-all shadow-sm active:scale-95"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Publicar Trilha
+                <Pencil className="w-3.5 h-3.5" />
+                Editar
+              </Link>
+              {trail.status === false && (
+                <button
+                  onClick={handlePublish}
+                  className="flex items-center gap-1.5 text-xs font-semibold bg-forest hover:bg-forest/90 text-white px-3 py-2 rounded-lg transition-all shadow-sm active:scale-95"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Publicar
+                </button>
+              )}
+              <button
+                onClick={() => setIsDeleteModalOpen(true)}
+                className="flex items-center justify-center text-xs font-semibold bg-white border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 p-2 rounded-lg transition-all shadow-sm active:scale-95"
+                title="Excluir Trilha"
+              >
+                <Trash2 className="w-4 h-4" />
               </button>
-            )}
-          </>
-        )}
+            </div>
+          )}
+        </div>
       </div>
 
       <ShareModal 
@@ -195,6 +234,16 @@ export default function TrailActions({ trail }: TrailActionsProps) {
         trail={trail as any}
         url={currentUrl}
       />
+
+      {isDeleteModalOpen && (
+        <ConfirmDeleteModal
+          title="Excluir Trilha"
+          description="Tem certeza que deseja excluir esta trilha? Esta ação não pode ser desfeita e todos os dados associados serão perdidos."
+          loading={isDeleting}
+          onConfirm={handleDelete}
+          onClose={() => setIsDeleteModalOpen(false)}
+        />
+      )}
     </>
   );
 }

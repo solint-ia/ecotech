@@ -35,25 +35,25 @@ export class AnalyticsService {
     const topTrailsLiked = await this.prisma.trail.findMany({
       orderBy: { likesCount: 'desc' },
       take: 5,
-      select: { id: true, title: true, likesCount: true, viewsCount: true },
+      select: { id: true, title: true, likesCount: true, viewsCount: true, biome: true, city: true, state: true },
     });
 
     const topTrailsViewed = await this.prisma.trail.findMany({
       orderBy: { viewsCount: 'desc' },
       take: 5,
-      select: { id: true, title: true, likesCount: true, viewsCount: true },
+      select: { id: true, title: true, likesCount: true, viewsCount: true, biome: true, city: true, state: true },
     });
 
     const schoolsWithMostTrails = await this.prisma.school.findMany({
       orderBy: { trails: { _count: 'desc' } },
       take: 5,
-      select: { id: true, name: true, _count: { select: { trails: true } } },
+      select: { id: true, name: true, city: true, state: true, _count: { select: { trails: true } } },
     });
 
     const schoolsWithMostFollowers = await this.prisma.school.findMany({
       orderBy: { followers: { _count: 'desc' } },
       take: 5,
-      select: { id: true, name: true, _count: { select: { followers: true } } },
+      select: { id: true, name: true, city: true, state: true, _count: { select: { followers: true } } },
     });
 
     // 3. Recent Activities (Merge different tables manually for timeline)

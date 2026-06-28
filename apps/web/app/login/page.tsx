@@ -204,7 +204,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#EAF4EE] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#0B5D3B] overflow-y-auto">
 
       {/* Soft Radial Lighting Background */}
       <div className="fixed inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at center, rgba(255,255,255,0.6) 0%, transparent 70%)' }} />

@@ -2,17 +2,18 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import { Rss, Loader2, ChevronDown, Sparkles } from 'lucide-react';
-import FeedPostCard, { FeedPost } from '../../components/feed/FeedPostCard';
-import CreatePostForm from '../../components/feed/CreatePostForm';
-import EditPostModal from '../../components/feed/EditPostModal';
-import StoriesBar from '../../components/feed/StoriesBar';
+import { useRouter } from 'next/navigation';
+import { Loader2, ChevronDown, BookHeart, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
+import FeedPostCard, { FeedPost } from '../../../components/feed/FeedPostCard';
+import EditPostModal from '../../../components/feed/EditPostModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 const PAGE_SIZE = 10;
 
-export default function FeedPage() {
-  const { data: session } = useSession();
+export default function MeusPostsPage() {
+  const router = useRouter();
+  const { data: session, status } = useSession();
   const user = session?.user as any;
   const accessToken = user?.accessToken;
   const isLoggedIn = !!user;
@@ -25,13 +26,20 @@ export default function FeedPage() {
   const [editingPost, setEditingPost] = useState<FeedPost | null>(null);
   const feedRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login');
+    }
+  }, [status, router]);
+
   const fetchPosts = useCallback(async (cursor?: string | null) => {
+    if (!user?.id) return;
+    
     const isLoadingMore = !!cursor;
     isLoadingMore ? setLoadingMore(true) : setLoading(true);
 
     try {
-      let url = `${API_URL}/feed?take=${PAGE_SIZE}`;
-      if (user?.id) url += `&currentUserId=${user.id}`;
+      let url = `${API_URL}/feed?take=${PAGE_SIZE}&userId=${user.id}&currentUserId=${user.id}`;
       if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
 
       const res = await fetch(url, { cache: 'no-store' });
@@ -53,12 +61,10 @@ export default function FeedPage() {
   }, [user?.id]);
 
   useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
-
-  const handlePostCreated = () => {
-    fetchPosts(); // reload from beginning
-  };
+    if (user?.id) {
+      fetchPosts();
+    }
+  }, [fetchPosts, user?.id]);
 
   const handlePostDeleted = (id: string) => {
     setPosts((prev) => prev.filter((p) => p.id !== id));
@@ -73,8 +79,18 @@ export default function FeedPage() {
     fetchPosts(); // reload feed
   };
 
+  if (status === 'loading') {
+    return (
+      <div className="flex justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-forest/50" />
+      </div>
+    );
+  }
+
+  if (!isLoggedIn) return null;
+
   return (
-    <div ref={feedRef} className="max-w-2xl mx-auto space-y-6">
+    <div ref={feedRef} className="max-w-2xl mx-auto space-y-6 pb-12">
       {/* Edit Modal */}
       {editingPost && (
         <EditPostModal
@@ -84,37 +100,27 @@ export default function FeedPage() {
           onUpdated={handlePostUpdated}
         />
       )}
+
       {/* Page Header */}
-      <div className="flex items-center gap-3 mb-2">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-secondary to-primary flex items-center justify-center shadow-sm">
-          <Rss className="w-5 h-5 text-white" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-primary leading-tight">Feed</h1>
-          <p className="text-sm text-foreground/60">
-            Acompanhe as publicações da comunidade
-          </p>
+      <div className="flex items-center gap-4 mb-6">
+        <Link 
+          href="/feed"
+          className="w-10 h-10 rounded-full bg-white border border-black/5 flex items-center justify-center text-primary/70 hover:text-primary hover:bg-beige transition-colors shadow-sm"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </Link>
+        <div className="flex-1 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#FAFCFA] border border-black/5 flex items-center justify-center shadow-sm">
+            <BookHeart className="w-5 h-5 text-forest" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-primary leading-tight">Meus Posts</h1>
+            <p className="text-sm text-foreground/60">
+              Seu histórico pessoal de publicações na rede
+            </p>
+          </div>
         </div>
       </div>
-
-      {/* Stories Bar */}
-      {isLoggedIn && (
-        <StoriesBar 
-          accessToken={accessToken} 
-          currentUser={{ id: user?.id, name: user?.name || 'Usuário', profileImage: user?.profileImage }}
-        />
-      )}
-
-      {/* Create Post Form */}
-      {isLoggedIn && (
-        <CreatePostForm
-          accessToken={accessToken}
-          userName={user?.name || 'Usuário'}
-          userImage={user?.profileImage}
-          userSchoolId={user?.schoolId}
-          onCreated={handlePostCreated}
-        />
-      )}
 
       {/* Feed Loading Skeleton */}
       {loading ? (
@@ -122,7 +128,7 @@ export default function FeedPage() {
           {Array.from({ length: 3 }).map((_, i) => (
             <div
               key={i}
-              className="bg-white rounded-2xl border border-border-custom overflow-hidden animate-pulse"
+              className="bg-white rounded-2xl border border-black/5 overflow-hidden animate-pulse shadow-sm"
             >
               <div className="flex items-center gap-3 px-5 py-4">
                 <div className="w-11 h-11 rounded-full bg-gray-200" />
@@ -137,27 +143,27 @@ export default function FeedPage() {
                 <div className="h-3 bg-gray-200 rounded w-2/3" />
               </div>
               <div className="h-48 bg-gray-200" />
-              <div className="flex items-center gap-4 px-5 py-3 border-t border-border-custom">
-                <div className="h-4 bg-gray-200 rounded w-12" />
-                <div className="h-4 bg-gray-200 rounded w-12" />
-              </div>
             </div>
           ))}
         </div>
       ) : posts.length === 0 ? (
         /* Empty State */
-        <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-2xl border border-border-custom">
-          <div className="w-16 h-16 rounded-2xl bg-beige flex items-center justify-center mb-4">
-            <Sparkles className="w-8 h-8 text-secondary/50" />
+        <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-2xl border border-black/5 shadow-sm">
+          <div className="w-16 h-16 rounded-full bg-[#EAF4EE] flex items-center justify-center mb-4 border border-emerald-900/5">
+            <BookHeart className="w-8 h-8 text-forest/50" />
           </div>
-          <p className="text-lg font-semibold text-primary">
-            Nenhuma publicação ainda
+          <p className="text-lg font-bold text-emerald-950">
+            Você ainda não publicou nada
           </p>
-          <p className="text-sm text-foreground/60 mt-1 max-w-xs">
-            {isLoggedIn
-              ? 'Seja o primeiro a compartilhar algo com a comunidade!'
-              : 'Faça login para começar a publicar no feed.'}
+          <p className="text-sm text-foreground/60 mt-2 max-w-xs leading-relaxed">
+            Compartilhe suas ideias e registros da natureza com a comunidade Ecotech.
           </p>
+          <Link
+            href="/feed"
+            className="mt-6 px-6 py-2.5 bg-forest text-white rounded-full text-sm font-semibold hover:bg-forest/90 transition-all shadow-sm"
+          >
+            Ir para o Feed e publicar
+          </Link>
         </div>
       ) : (
         /* Post List */
@@ -182,14 +188,14 @@ export default function FeedPage() {
               <button
                 onClick={() => fetchPosts(nextCursor)}
                 disabled={loadingMore}
-                className="flex items-center gap-2 px-6 py-2.5 bg-white border border-border-custom text-primary rounded-xl text-sm font-semibold hover:bg-beige transition-all shadow-sm disabled:opacity-50"
+                className="flex items-center gap-2 px-6 py-2.5 bg-white border border-black/5 text-primary rounded-full text-sm font-semibold hover:bg-beige transition-all shadow-sm disabled:opacity-50"
               >
                 {loadingMore ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <ChevronDown className="w-4 h-4" />
                 )}
-                {loadingMore ? 'Carregando...' : 'Ver mais publicações'}
+                {loadingMore ? 'Carregando...' : 'Carregar publicações mais antigas'}
               </button>
             </div>
           )}

@@ -3,12 +3,12 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { Compass, Library, MessageSquare, School, Share2, LogOut, User, ChevronDown, LayoutDashboard } from 'lucide-react';
+import { Compass, Library, MessageSquare, School, Share2, LogOut, User, ChevronDown, LayoutDashboard, BookHeart } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 const navItems = [
-  { name: 'Feed', href: '/feed', icon: MessageSquare },
   { name: 'Trilhas', href: '/trilhas', icon: Compass },
+  { name: 'Feed', href: '/feed', icon: MessageSquare },
   { name: 'Escolas', href: '/escolas', icon: School },
   { name: 'Biblioteca', href: '/biblioteca', icon: Library },
   { name: 'Rede', href: '/rede', icon: Share2 },
@@ -40,11 +40,11 @@ export default function Navbar() {
   const user = session?.user as any;
   const initials = user?.name
     ? user.name
-        .split(' ')
-        .slice(0, 2)
-        .map((n: string) => n[0])
-        .join('')
-        .toUpperCase()
+      .split(' ')
+      .slice(0, 2)
+      .map((n: string) => n[0])
+      .join('')
+      .toUpperCase()
     : 'U';
 
 
@@ -57,41 +57,48 @@ export default function Navbar() {
   return (
     <>
       {/* Desktop Navigation (Top Bar) */}
-      <header className="sticky top-0 z-40 hidden w-full border-b border-border-custom bg-white md:block shadow-sm">
-        <div className="mx-auto flex max-w-7xl h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-6">
-            <Link href="/trilhas" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-white text-sm font-bold">E</span>
-              </div>
-              <span className="text-xl font-bold text-primary">Ecotech</span>
-            </Link>
-            <nav className="flex items-center gap-1">
-              {navItems.map((item) => {
-                const isActive = pathname?.startsWith(item.href);
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                      isActive
-                        ? 'bg-primary text-white'
-                        : 'text-primary hover:bg-beige hover:text-primary'
-                    }`}
-                  >
-                    {item.name}
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
+      {/* Header Navigation - Mobile (Full Width Glass) & Desktop (Floating Capsule) */}
+      <header className="
+        z-50 transition-all duration-300
+        fixed top-0 left-0 right-0 w-full bg-[#FAFCFA]/80 backdrop-blur-md border-b border-emerald-900/5
+        md:sticky md:top-4 md:mt-4 md:w-[95%] md:max-w-5xl md:mx-auto md:rounded-full md:bg-[#073D26] md:shadow-md md:border md:border-white/10 md:backdrop-blur-none
+      ">
+        <div className="flex items-center justify-between px-4 md:px-6 lg:px-8 py-3 md:py-3.5">
+          {/* Canto Esquerdo: Branding */}
+          <Link href="/trilhas" className="flex items-center gap-2 md:gap-3 shrink-0">
+            {/* Mobile Logo (Verde) */}
+            <img src="/EcoTechLogo.png" alt="Ecotech Logo" className="w-12 h-12 object-contain md:hidden" />
+            {/* Desktop Logo (Branca) */}
+            <img src="/logo-header.png" alt="Ecotech Logo" className="w-12 h-12 object-contain hidden md:block" />
 
-          {/* User section */}
-          <div className="relative" ref={dropdownRef}>
+            <span className="text-xl font-bold md:font-semibold text-[#0B5D3B] md:text-white tracking-tight">Ecotech</span>
+          </Link>
+
+          {/* Centro: Navegação Principal (Apenas Desktop) */}
+          <nav className="hidden md:flex items-center gap-1 justify-center flex-1">
+            {navItems.map((item) => {
+              const isActive = pathname?.startsWith(item.href);
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={`px-4 py-2 text-sm transition-all rounded-full ${isActive
+                    ? 'text-white font-semibold bg-white/10'
+                    : 'text-white/60 hover:text-white hover:bg-white/5 font-medium'
+                    }`}
+                >
+                  {item.name}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Canto Direito: Menu do Usuário */}
+          <div className="relative shrink-0" ref={dropdownRef}>
             {isLoggedIn ? (
               <button
                 onClick={() => setDropdownOpen((v) => !v)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-beige transition-colors"
+                className="flex items-center gap-2 p-1 rounded-full hover:bg-black/5 md:hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 md:focus:ring-white/20"
                 id="user-menu-button"
                 aria-expanded={dropdownOpen}
                 aria-haspopup="true"
@@ -100,24 +107,18 @@ export default function Navbar() {
                   <img
                     src={user.profileImage.startsWith('http') ? user.profileImage : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}${user.profileImage}`}
                     alt={user.name}
-                    className="w-8 h-8 rounded-full object-cover border border-border-custom"
+                    className="w-9 h-9 rounded-full object-cover border border-black/10 md:border-white/20"
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
+                  <div className="w-9 h-9 rounded-full bg-[#0B5D3B]/10 text-[#0B5D3B] md:bg-white/20 md:text-white flex items-center justify-center text-sm font-bold border border-black/5 md:border-white/10">
                     {initials}
                   </div>
                 )}
-                <span className="text-sm font-semibold text-primary max-w-[140px] truncate">
-                  {user?.name || 'Usuário'}
-                </span>
-                <ChevronDown
-                  className={`w-4 h-4 text-primary transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}
-                />
               </button>
             ) : (
               <Link
                 href="/login"
-                className="text-sm font-semibold text-primary hover:text-secondary transition-colors"
+                className="px-5 py-2 text-sm font-semibold text-[#0B5D3B] bg-[#0B5D3B]/10 hover:bg-[#0B5D3B]/20 md:text-white md:bg-white/15 md:hover:bg-white/25 rounded-full transition-colors"
               >
                 Entrar
               </Link>
@@ -126,57 +127,72 @@ export default function Navbar() {
             {/* Dropdown Menu */}
             {dropdownOpen && isLoggedIn && (
               <div
-                className="absolute right-0 mt-2 w-52 bg-white border border-border-custom rounded-xl shadow-lg py-1 animate-in fade-in slide-in-from-top-2 duration-150"
+                className="absolute right-0 mt-3 w-56 bg-white border border-border-custom rounded-2xl shadow-xl py-1 animate-in fade-in slide-in-from-top-2 duration-200"
                 role="menu"
               >
-                <div className="px-4 py-2 border-b border-border-custom">
-                  <p className="text-sm font-semibold text-primary truncate">{user?.name}</p>
-                  <p className="text-xs text-foreground/60 truncate">{user?.email}</p>
+                <div className="px-5 py-4 border-b border-border-custom bg-beige/30 rounded-t-2xl">
+                  <p className="text-sm font-bold text-primary truncate">{user?.name}</p>
+                  <p className="text-xs text-foreground/60 truncate mt-0.5">{user?.email}</p>
                   {user?.role && (
-                    <span className="inline-block mt-1 text-[10px] font-bold uppercase tracking-wider text-secondary bg-secondary/10 px-2 py-0.5 rounded-full">
+                    <span className="inline-block mt-2.5 text-[10px] font-bold uppercase tracking-wider text-secondary bg-secondary/10 px-2.5 py-1 rounded-full">
                       {user.role === 'ADMIN'
                         ? 'Administrador'
                         : user.role === 'SCHOOL_MANAGER'
-                        ? 'Gestor de Escola'
-                        : user.role === 'TEACHER'
-                        ? 'Professor'
-                        : 'Estudante'}
+                          ? 'Gestor de Escola'
+                          : user.role === 'TEACHER'
+                            ? 'Professor'
+                            : 'Estudante'}
                     </span>
                   )}
                 </div>
 
-                {/* Profile Link */}
-                <Link
-                  href="/perfil"
-                  onClick={() => setDropdownOpen(false)}
-                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-primary hover:bg-beige transition-colors border-b border-border-custom"
-                  role="menuitem"
-                >
-                  <User className="w-4 h-4" />
-                  Meu Perfil
-                </Link>
-
-                {/* Dashboard Link for Admins and Schools */}
-                {(user?.role === 'ADMIN' || user?.role === 'SCHOOL_MANAGER') && (
+                <div className="p-2 space-y-1">
+                  {/* Profile Link */}
                   <Link
-                    href={user.role === 'ADMIN' ? '/admin/dashboard' : '/escola/dashboard'}
+                    href="/perfil"
                     onClick={() => setDropdownOpen(false)}
-                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-primary hover:bg-beige transition-colors border-b border-border-custom"
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-foreground/80 hover:text-primary hover:bg-beige rounded-xl transition-colors"
                     role="menuitem"
                   >
-                    <LayoutDashboard className="w-4 h-4" />
-                    Dashboard
+                    <User className="w-4 h-4 opacity-70" />
+                    Meu Perfil
                   </Link>
-                )}
 
-                <button
-                  onClick={handleSignOut}
-                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                  role="menuitem"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Sair
-                </button>
+                  {/* Meus Posts Link */}
+                  <Link
+                    href="/feed/meus-posts"
+                    onClick={() => setDropdownOpen(false)}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-foreground/80 hover:text-primary hover:bg-beige rounded-xl transition-colors"
+                    role="menuitem"
+                  >
+                    <BookHeart className="w-4 h-4 opacity-70 text-forest" />
+                    Meus Posts
+                  </Link>
+
+                  {/* Dashboard Link for Admins and Schools */}
+                  {(user?.role === 'ADMIN' || user?.role === 'SCHOOL_MANAGER') && (
+                    <Link
+                      href={user.role === 'ADMIN' ? '/admin/dashboard' : '/escola/dashboard'}
+                      onClick={() => setDropdownOpen(false)}
+                      className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-foreground/80 hover:text-primary hover:bg-beige rounded-xl transition-colors"
+                      role="menuitem"
+                    >
+                      <LayoutDashboard className="w-4 h-4 opacity-70" />
+                      Dashboard
+                    </Link>
+                  )}
+
+                  <div className="h-px bg-border-custom my-1.5 mx-2" />
+
+                  <button
+                    onClick={handleSignOut}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                    role="menuitem"
+                  >
+                    <LogOut className="w-4 h-4 opacity-70" />
+                    Sair
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -193,9 +209,8 @@ export default function Navbar() {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`flex flex-col items-center justify-center gap-1 w-12 h-12 rounded-full transition-colors ${
-                  isActive ? 'text-primary' : 'text-gray-500 hover:text-secondary'
-                }`}
+                className={`flex flex-col items-center justify-center gap-1 w-12 h-12 rounded-full transition-colors ${isActive ? 'text-primary' : 'text-gray-500 hover:text-secondary'
+                  }`}
               >
                 <Icon className="w-6 h-6" />
                 <span className="text-[10px] font-medium">{item.name}</span>

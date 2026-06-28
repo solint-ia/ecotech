@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { MapPin, Plus, Download, QrCode, ChevronRight } from 'lucide-react';
 import { useSession } from 'next-auth/react';
@@ -33,22 +33,36 @@ export default function TrailDetailTabs({ trail }: TrailDetailTabsProps) {
   const isAdminOrManager = user?.role === 'ADMIN' || user?.role === 'SCHOOL_MANAGER';
 
   const biodiversity: any[] = trail.biodiversity ?? trail.biodiversityItems ?? [];
-  const fauna = biodiversity.filter((i: any) => i.groupType?.toLowerCase() === 'fauna');
-  const flora = biodiversity.filter((i: any) => i.groupType?.toLowerCase() === 'flora');
+
+  // Split-View States for Biodiversidade Tab
+  const [activeBioFilter, setActiveBioFilter] = useState<'ALL' | 'FAUNA' | 'FLORA'>('ALL');
+  const [selectedBioItem, setSelectedBioItem] = useState<any>(null);
+
+  const filteredBioItems = biodiversity.filter(i => activeBioFilter === 'ALL' || i.groupType === activeBioFilter);
+
+  useEffect(() => {
+    if (activeTab === 'biodiversidade') {
+      if (filteredBioItems.length === 0) {
+        setSelectedBioItem(null);
+      } else if (selectedBioItem && !filteredBioItems.find(i => i.id === selectedBioItem.id)) {
+        setSelectedBioItem(null);
+      }
+    }
+  }, [activeTab, activeBioFilter, biodiversity]);
 
   return (
-    <div className="bg-white rounded-xl border border-border-custom overflow-hidden">
+    <div className="bg-white rounded-2xl border border-border-custom overflow-hidden shadow-sm">
       {/* Tab Nav */}
-      <div className="flex border-b border-border-custom">
+      <div className="flex flex-nowrap overflow-x-auto gap-2 p-4 border-b border-border-custom bg-white scrollbar-hide">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             id={`tab-${tab.id}`}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 py-3.5 text-sm font-medium transition-colors ${
+            className={`whitespace-nowrap px-5 py-2 text-sm font-semibold rounded-full transition-all duration-300 ${
               activeTab === tab.id
-                ? 'text-primary border-b-2 border-primary bg-primary/5'
-                : 'text-foreground/60 hover:text-primary hover:bg-beige'
+                ? 'bg-forest text-white shadow-md'
+                : 'bg-white text-foreground/60 border border-border-custom hover:border-forest/30 hover:text-forest'
             }`}
           >
             {tab.label}
@@ -57,7 +71,7 @@ export default function TrailDetailTabs({ trail }: TrailDetailTabsProps) {
       </div>
 
       {/* Tab Content */}
-      <div className="p-5">
+      <div className="p-6">
         {/* ── SOBRE ── */}
         {activeTab === 'sobre' && (
           <div className="space-y-4">
@@ -101,64 +115,129 @@ export default function TrailDetailTabs({ trail }: TrailDetailTabsProps) {
                 Nenhum item de biodiversidade cadastrado ainda.
               </p>
             ) : (
-              <div className="space-y-8">
-                {/* FAUNA */}
-                {fauna.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-bold uppercase tracking-wider">
-                        🦋 Fauna
-                      </span>
-                      <span className="text-xs text-foreground/40">{fauna.length} espécies</span>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {fauna.map((item: any) => (
-                        <BiodiversityCard key={item.id} item={item} color="amber" />
-                      ))}
-                    </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[600px] mb-8">
+                {/* Left Column: Quick Selection List */}
+                <div className="flex flex-col gap-4">
+                  {/* Filters */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setActiveBioFilter('FAUNA')}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${activeBioFilter === 'FAUNA' ? 'bg-[#EAF4EE] text-forest' : 'bg-[#FAFCFA] text-foreground/60 border border-black/5 hover:bg-beige'}`}
+                    >
+                      🦋 Fauna
+                    </button>
+                    <button
+                      onClick={() => setActiveBioFilter('FLORA')}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${activeBioFilter === 'FLORA' ? 'bg-[#EAF4EE] text-forest' : 'bg-[#FAFCFA] text-foreground/60 border border-black/5 hover:bg-beige'}`}
+                    >
+                      🌿 Flora
+                    </button>
+                    <button
+                      onClick={() => setActiveBioFilter('ALL')}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${activeBioFilter === 'ALL' ? 'bg-secondary text-white' : 'bg-[#FAFCFA] text-foreground/60 border border-black/5 hover:bg-beige'}`}
+                    >
+                      Todos
+                    </button>
                   </div>
-                )}
 
-                {/* FLORA */}
-                {flora.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-100 text-green-800 text-xs font-bold uppercase tracking-wider">
-                        🌿 Flora
-                      </span>
-                      <span className="text-xs text-foreground/40">{flora.length} espécies</span>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {flora.map((item: any) => (
-                        <BiodiversityCard key={item.id} item={item} color="green" />
-                      ))}
-                    </div>
+                  {/* Scrollable List */}
+                  <div className="overflow-y-auto max-h-[500px] space-y-3 pr-2 scrollbar-thin scrollbar-thumb-black/10 scrollbar-track-transparent">
+                    {filteredBioItems.length === 0 ? (
+                      <div className="text-center py-10 text-foreground/50 text-sm bg-white rounded-xl border border-black/5">
+                        Nenhum item encontrado.
+                      </div>
+                    ) : (
+                      filteredBioItems.map((item) => {
+                        const isSelected = selectedBioItem?.id === item.id;
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={() => setSelectedBioItem(item)}
+                            className={`flex items-center gap-4 p-3 rounded-xl shadow-sm cursor-pointer transition-all ${isSelected ? 'bg-[#EAF4EE] border border-emerald-700/30' : 'bg-white border border-transparent hover:bg-emerald-50/50'}`}
+                          >
+                            {item.image ? (
+                              <img 
+                                src={getImageUrl(item.image)} 
+                                alt={item.popularName} 
+                                className="w-12 h-12 rounded-lg object-cover flex-shrink-0 border border-black/5" 
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-lg bg-black/5 flex-shrink-0 flex items-center justify-center">
+                                🌿
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-emerald-950 truncate">{item.popularName}</p>
+                              {item.scientificName && (
+                                <p className="text-xs italic text-gray-500 truncate">{item.scientificName}</p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
-                )}
+                </div>
 
-                {/* Items with other groupType */}
-                {biodiversity.filter(
-                  (i: any) => i.groupType?.toLowerCase() !== 'fauna' && i.groupType?.toLowerCase() !== 'flora'
-                ).length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary/10 text-secondary text-xs font-bold uppercase tracking-wider">
-                        🔎 Outros
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {biodiversity
-                        .filter(
-                          (i: any) =>
-                            i.groupType?.toLowerCase() !== 'fauna' &&
-                            i.groupType?.toLowerCase() !== 'flora',
-                        )
-                        .map((item: any) => (
-                          <BiodiversityCard key={item.id} item={item} color="gray" />
-                        ))}
-                    </div>
-                  </div>
-                )}
+                {/* Right Column: Immersive Detail Panel */}
+                <div className="lg:col-span-2">
+                  {!selectedBioItem ? (
+                     <div className="bg-white rounded-2xl p-6 shadow-sm border border-emerald-950/5 h-full flex items-center justify-center text-foreground/50 text-sm">
+                       Selecione um item na lista para ver os detalhes.
+                     </div>
+                  ) : (
+                     <div className="bg-white rounded-2xl p-6 shadow-sm border border-emerald-950/5 flex flex-col h-full overflow-y-auto">
+                        {/* Banner */}
+                        <div className="relative w-full h-48 sm:h-64 rounded-xl overflow-hidden shadow-sm mb-6 flex-shrink-0 bg-black/5">
+                          {selectedBioItem.image && (
+                            <img 
+                              src={getImageUrl(selectedBioItem.image)} 
+                              alt={selectedBioItem.popularName} 
+                              className="w-full h-full object-cover"
+                            />
+                          )}
+                        </div>
+
+                        {/* Identity Block */}
+                        <div className="mb-6 flex items-start justify-between gap-4">
+                          <div>
+                            <h2 className="text-2xl sm:text-3xl font-bold text-emerald-900">{selectedBioItem.popularName}</h2>
+                            {selectedBioItem.scientificName && (
+                              <p className="text-sm sm:text-base italic text-gray-500 mt-1">{selectedBioItem.scientificName}</p>
+                            )}
+                          </div>
+                          <span className="px-3 py-1.5 bg-black/5 text-emerald-900 text-xs font-bold uppercase tracking-wider rounded-full whitespace-nowrap">
+                            {selectedBioItem.groupType === 'FAUNA' ? '🦋 Fauna' : '🌿 Flora'}
+                          </span>
+                        </div>
+
+                        {/* Content Blocks */}
+                        <div className="space-y-6 flex-1">
+                          <div>
+                            <h3 className="text-sm font-bold text-emerald-900 uppercase tracking-wider mb-2">Descrição</h3>
+                            <p className="text-foreground/80 leading-relaxed text-sm sm:text-base">{selectedBioItem.description}</p>
+                          </div>
+
+                          {selectedBioItem.environmentalImportance && (
+                            <div>
+                              <h3 className="text-sm font-bold text-emerald-900 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <span className="w-6 h-6 rounded-full bg-[#EAF4EE] flex items-center justify-center text-forest text-xs">🌱</span>
+                                Importância Ambiental
+                              </h3>
+                              <p className="text-foreground/80 leading-relaxed text-sm sm:text-base bg-forest/5 p-4 rounded-xl border border-forest/10">{selectedBioItem.environmentalImportance}</p>
+                            </div>
+                          )}
+
+                          {selectedBioItem.curiosities && (
+                            <div className="bg-[#FAFCFA] p-4 rounded-xl border border-black/5">
+                              <h3 className="text-sm font-bold text-emerald-900 uppercase tracking-wider mb-2">Curiosidades</h3>
+                              <p className="text-foreground/80 leading-relaxed text-sm sm:text-base">{selectedBioItem.curiosities}</p>
+                            </div>
+                          )}
+                        </div>
+                     </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -278,82 +357,6 @@ export default function TrailDetailTabs({ trail }: TrailDetailTabsProps) {
               </div>
             )}
           </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── BiodiversityCard sub-component ──
-function BiodiversityCard({
-  item,
-  color,
-}: {
-  item: any;
-  color: 'amber' | 'green' | 'gray';
-}) {
-  const [expanded, setExpanded] = useState(false);
-
-  const colorMap = {
-    amber: 'bg-amber-100 text-amber-700',
-    green: 'bg-green-100 text-green-700',
-    gray: 'bg-secondary/10 text-secondary',
-  };
-
-  return (
-    <div className="rounded-xl border border-border-custom overflow-hidden hover:shadow-sm transition-shadow">
-      {/* Image */}
-      {item.image && (
-        <img
-          src={getImageUrl(item.image)}
-          alt={item.popularName}
-          className="w-full h-32 object-cover"
-        />
-      )}
-
-      <div className="p-3">
-        <div className="flex items-start justify-between gap-2 mb-1">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-primary truncate">{item.popularName}</p>
-            {item.scientificName && (
-              <p className="text-xs text-foreground/50 italic">{item.scientificName}</p>
-            )}
-          </div>
-          <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${colorMap[color]}`}>
-            {item.groupType}
-          </span>
-        </div>
-
-        {item.description && (
-          <p className="text-xs text-foreground/70 mt-1 line-clamp-2">{item.description}</p>
-        )}
-
-        {/* Expandable extra info */}
-        {(item.curiosities || item.environmentalImportance) && (
-          <>
-            <button
-              onClick={() => setExpanded((v) => !v)}
-              className="text-xs text-secondary font-medium mt-2 hover:underline"
-            >
-              {expanded ? 'Mostrar menos ▲' : 'Saiba mais ▼'}
-            </button>
-            {expanded && (
-              <div className="mt-2 space-y-2 border-t border-border-custom pt-2">
-                {item.curiosities && (
-                  <div>
-                    <p className="text-[10px] font-bold uppercase text-foreground/40 mb-0.5">Curiosidades</p>
-                    <p className="text-xs text-foreground/70">{item.curiosities}</p>
-                  </div>
-                )}
-                {item.environmentalImportance && (
-                  <div>
-                    <p className="text-[10px] font-bold uppercase text-foreground/40 mb-0.5">Importância Ambiental</p>
-                    <p className="text-xs text-foreground/70">{item.environmentalImportance}</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </>
         )}
       </div>
     </div>

@@ -62,7 +62,7 @@ export default function StoriesBar({ accessToken, currentUser }: StoriesBarProps
 
   return (
     <div className="w-full bg-white rounded-2xl border border-border-custom shadow-sm p-4 mb-4">
-      <div className="flex gap-4 overflow-x-auto snap-x hide-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+      <div className="flex gap-6 overflow-x-auto snap-x hide-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         <style jsx>{`
           div::-webkit-scrollbar {
             display: none;
@@ -70,10 +70,10 @@ export default function StoriesBar({ accessToken, currentUser }: StoriesBarProps
         `}</style>
 
         {/* Add Story Button */}
-        <div className="flex flex-col items-center gap-1.5 snap-start flex-shrink-0">
+        <div className="flex flex-col items-center gap-2 snap-start flex-shrink-0">
           <button 
             onClick={() => setIsCreateOpen(true)}
-            className="relative w-16 h-16 rounded-full border-2 border-border-custom bg-beige/30 p-0.5 overflow-hidden group hover:border-secondary transition-colors"
+            className="relative w-16 h-16 rounded-full border-2 border-border-custom bg-beige/30 p-0.5 overflow-hidden group hover:border-forest transition-colors shadow-sm"
           >
             {currentUser.profileImage ? (
               <img 
@@ -86,11 +86,11 @@ export default function StoriesBar({ accessToken, currentUser }: StoriesBarProps
                 {currentUser.name.substring(0, 2).toUpperCase()}
               </div>
             )}
-            <div className="absolute bottom-0 right-0 w-5 h-5 bg-secondary text-white rounded-full border-2 border-white flex items-center justify-center">
+            <div className="absolute bottom-0 right-0 w-5 h-5 bg-forest text-white rounded-full border-2 border-white flex items-center justify-center">
               <Plus className="w-3 h-3" />
             </div>
           </button>
-          <span className="text-[11px] font-medium text-foreground/70 text-center w-16 truncate">
+          <span className="text-[10px] font-medium text-foreground/60 text-center w-16 truncate">
             Seu story
           </span>
         </div>
@@ -98,7 +98,7 @@ export default function StoriesBar({ accessToken, currentUser }: StoriesBarProps
         {/* Loading Skeletons */}
         {loading && (
           [1, 2, 3].map(i => (
-            <div key={i} className="flex flex-col items-center gap-1.5 flex-shrink-0 animate-pulse">
+            <div key={i} className="flex flex-col items-center gap-2 flex-shrink-0 animate-pulse">
               <div className="w-16 h-16 rounded-full bg-gray-200" />
               <div className="w-12 h-2 bg-gray-200 rounded-full" />
             </div>
@@ -107,10 +107,10 @@ export default function StoriesBar({ accessToken, currentUser }: StoriesBarProps
 
         {/* Stories List */}
         {!loading && groupedUsers.map(({ user, firstIndex }) => (
-          <div key={user.id} className="flex flex-col items-center gap-1.5 snap-start flex-shrink-0">
+          <div key={user.id} className="flex flex-col items-center gap-2 snap-start flex-shrink-0">
             <button 
               onClick={() => setViewerIndex(firstIndex)}
-              className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-500 hover:scale-105 transition-transform"
+              className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-[#0B5D3B] via-[#EAF4EE] to-emerald-400 hover:scale-105 transition-transform shadow-sm"
             >
               <div className="w-full h-full bg-white rounded-full p-[2px]">
                 {user.profileImage ? (
@@ -126,7 +126,7 @@ export default function StoriesBar({ accessToken, currentUser }: StoriesBarProps
                 )}
               </div>
             </button>
-            <span className="text-[11px] font-medium text-foreground/80 text-center w-16 truncate">
+            <span className="text-[10px] font-medium text-foreground/70 text-center w-16 truncate">
               {user.name.split(' ')[0]}
             </span>
           </div>

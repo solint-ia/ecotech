@@ -224,67 +224,44 @@ export function TrailGallery({ trailId, photos: initialPhotos }: TrailGalleryPro
           )}
         </div>
 
-        {/* Carousel */}
+        {/* Gallery Grid */}
         {photos.length > 0 ? (
-          <div className="relative group">
-            {/* Left arrow */}
-            <button
-              onClick={() => handleScroll('left')}
-              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 bg-white/95 backdrop-blur p-2.5 rounded-full shadow-xl text-slate-700 hover:bg-white hover:scale-110 transition-all z-10 opacity-0 group-hover:opacity-100 hidden sm:flex items-center justify-center"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {photos.map((photo, index) => (
+              <div
+                key={photo.id}
+                className="relative w-full aspect-video rounded-2xl overflow-hidden shadow-sm group/photo cursor-pointer hover:shadow-md transition-all duration-300"
+                onClick={() => openLightbox(index)}
+              >
+                <img
+                  src={getImageUrl(photo.image)}
+                  alt={`Imagem da trilha ${index + 1}`}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover/photo:scale-110"
+                  loading="lazy"
+                />
 
-            {/* Scrollable track */}
-            <div
-              ref={scrollContainerRef}
-              className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 pt-2 px-1"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {photos.map((photo, index) => (
-                <div
-                  key={photo.id}
-                  className="relative flex-none w-72 sm:w-80 aspect-video rounded-xl overflow-hidden snap-center shadow-lg group/photo cursor-pointer hover:shadow-xl transition-shadow"
-                  onClick={() => openLightbox(index)}
-                >
-                  <img
-                    src={getImageUrl(photo.image)}
-                    alt={`Imagem da trilha ${index + 1}`}
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover/photo:scale-105"
-                    loading="lazy"
-                  />
-
-                  {/* Hover overlay with zoom icon */}
-                  <div className="absolute inset-0 bg-black/0 group-hover/photo:bg-black/20 transition-colors flex items-center justify-center">
-                    <ZoomIn className="w-8 h-8 text-white opacity-0 group-hover/photo:opacity-100 transition-opacity drop-shadow-lg" />
-                  </div>
-
-                  {/* Delete button */}
-                  {canManage && (
-                    <button
-                      onClick={(e) => handleDelete(photo.id, e)}
-                      disabled={deletingId === photo.id}
-                      className="absolute top-2.5 right-2.5 bg-red-600/90 hover:bg-red-700 text-white p-2 rounded-lg opacity-0 group-hover/photo:opacity-100 transition-all disabled:opacity-50 shadow-md hover:scale-110 active:scale-95"
-                      title="Excluir imagem"
-                    >
-                      {deletingId === photo.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4" />
-                      )}
-                    </button>
-                  )}
+                {/* Hover overlay with zoom icon */}
+                <div className="absolute inset-0 bg-forest/0 group-hover/photo:bg-forest/20 transition-colors duration-300 flex items-center justify-center">
+                  <ZoomIn className="w-8 h-8 text-white opacity-0 group-hover/photo:opacity-100 transition-opacity duration-300 drop-shadow-md" />
                 </div>
-              ))}
-            </div>
 
-            {/* Right arrow */}
-            <button
-              onClick={() => handleScroll('right')}
-              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 bg-white/95 backdrop-blur p-2.5 rounded-full shadow-xl text-slate-700 hover:bg-white hover:scale-110 transition-all z-10 opacity-0 group-hover:opacity-100 hidden sm:flex items-center justify-center"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
+                {/* Delete button */}
+                {canManage && (
+                  <button
+                    onClick={(e) => handleDelete(photo.id, e)}
+                    disabled={deletingId === photo.id}
+                    className="absolute top-2.5 right-2.5 bg-red-600/90 hover:bg-red-700 text-white p-2 rounded-lg opacity-0 group-hover/photo:opacity-100 transition-all disabled:opacity-50 shadow-md hover:scale-110 active:scale-95"
+                    title="Excluir imagem"
+                  >
+                    {deletingId === photo.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
         ) : (
           /* Empty state */

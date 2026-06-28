@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Heart, MessageCircle, Share2, Pencil, Trash2, MoreHorizontal, MapPin, Calendar, User as UserIcon, Send, Loader2, X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -11,6 +11,8 @@ export interface FeedComment {
   userId: string;
   comment: string;
   createdAt: string;
+  likesCount?: number;
+  hasLiked?: boolean;
   user: { id: string; name: string; profileImage?: string | null };
 }
 
@@ -27,6 +29,7 @@ export interface FeedPost {
   user: { id: string; name: string; profileImage?: string | null; role: string };
   school?: { id: string; name: string } | null;
   trail?: { id: string; title: string; slug: string } | null;
+  hasLiked?: boolean;
   _count?: { likes: number; comments: number };
 }
 
@@ -74,12 +77,16 @@ export default function FeedPostCard({
   onEdit,
   accessToken,
 }: FeedPostCardProps) {
-  const [liked, setLiked] = useState(false);
+  const [liked, setLiked] = useState(post.hasLiked || false);
   const [likesCount, setLikesCount] = useState(post.likesCount || post._count?.likes || 0);
   const [commentsCount, setCommentsCount] = useState(post.commentsCount || post._count?.comments || 0);
   const [sharesCount, setSharesCount] = useState(post.sharesCount || 0);
   const [showMenu, setShowMenu] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
+
+  useEffect(() => {
+    setLiked(post.hasLiked || false);
+  }, [post.hasLiked]);
   
   // Deletion state
   const [isDeletingPost, setIsDeletingPost] = useState(false);
@@ -183,7 +190,8 @@ export default function FeedPostCard({
       setShowComments(true);
       setLoadingComments(true);
       try {
-        const res = await fetch(`${API_URL}/feed/${post.id}`);
+        const url = currentUserId ? `${API_URL}/feed/${post.id}?userId=${currentUserId}` : `${API_URL}/feed/${post.id}`;
+        const res = await fetch(url, { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           setComments(data.comments || []);
@@ -215,6 +223,8 @@ export default function FeedPostCard({
 
       if (res.ok) {
         const added = await res.json();
+        added.likesCount = 0;
+        added.hasLiked = false;
         setComments((prev) => [added, ...prev]);
         setCommentsCount((prev) => prev + 1);
         setNewComment('');
@@ -227,6 +237,37 @@ export default function FeedPostCard({
       alert('Erro de conexão ao enviar comentário.');
     } finally {
       setIsSubmittingComment(false);
+    }
+  };
+
+  const handleLikeComment = async (commentId: string) => {
+    if (!accessToken) return;
+    
+    // Optimistic update
+    setComments((prev) => prev.map(c => {
+      if (c.id === commentId) {
+        const wasLiked = c.hasLiked;
+        return {
+          ...c,
+          hasLiked: !wasLiked,
+          likesCount: (c.likesCount || 0) + (wasLiked ? -1 : 1),
+        };
+      }
+      return c;
+    }));
+
+    try {
+      const res = await fetch(`${API_URL}/feed/comments/${commentId}/like`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Update with actual state from server if needed
+        setComments((prev) => prev.map(c => c.id === commentId ? { ...c, hasLiked: data.liked, likesCount: data.likesCount } : c));
+      }
+    } catch (e) {
+      console.error('Erro ao curtir comentário:', e);
     }
   };
 
@@ -321,85 +362,88 @@ export default function FeedPostCard({
 
       {/* Trail badge */}
       {post.trail && (
-        <div className="px-5 pb-2">
+        <div className="px-5 pb-4">
           <a
             href={`/trilhas/${post.trail.slug}`}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-secondary bg-secondary/10 px-3 py-1 rounded-full hover:bg-secondary/20 transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-forest bg-forest/10 px-3 py-1 rounded-full hover:bg-forest/20 transition-colors"
           >
             🌿 Trilha: {post.trail.title}
           </a>
         </div>
       )}
 
-      {/* Title & Description */}
-      <div className="px-5 pb-3">
-        <h3 className="text-base font-bold text-primary mb-1">{post.title}</h3>
-        <p className="text-sm text-foreground/70 leading-relaxed whitespace-pre-line">{post.description}</p>
-      </div>
-
-      {/* Media */}
-      {/* Media Carousel */}
+      {/* Media Carousel (PASSO 3 - Mídia do Post) */}
       {post.images && post.images.length > 0 && (
-        <div className="relative w-full bg-gray-100 overflow-hidden group">
-          <div 
-            ref={carouselRef}
-            className="flex overflow-x-auto snap-x snap-mandatory"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            onScroll={handleScroll}
-          >
-            <style jsx>{`
-              div::-webkit-scrollbar {
-                display: none;
-              }
-            `}</style>
-            
-            {post.images.sort((a, b) => a.order - b.order).map((img, i) => (
-              <div key={img.id || i} className="w-full flex-shrink-0 snap-center aspect-[16/10]">
-                <img
-                  src={img.url.startsWith('http') ? img.url : `${API_URL}${img.url}`}
-                  alt={`${post.title} - imagem ${i + 1}`}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.01]"
-                  loading="lazy"
-                />
-              </div>
-            ))}
-          </div>
-
-          {post.images.length > 1 && (
-            <>
-              {/* Arrows (desktop) */}
-              <button
-                onClick={scrollPrev}
-                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/60 backdrop-blur-sm disabled:opacity-0"
-                disabled={currentSlide === 0}
-                aria-label="Anterior"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <button
-                onClick={scrollNext}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/60 backdrop-blur-sm disabled:opacity-0"
-                disabled={currentSlide === post.images.length - 1}
-                aria-label="Próxima"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-
-              {/* Dots */}
-              <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
-                {post.images.map((_, i) => (
-                  <div
-                    key={i}
-                    className={`h-1.5 rounded-full transition-all duration-300 shadow-sm ${
-                      i === currentSlide ? 'w-4 bg-white' : 'w-1.5 bg-white/50'
-                    }`}
+        <div className="px-5 pb-4">
+          <div className="relative w-full overflow-hidden group rounded-xl bg-beige">
+            <div 
+              ref={carouselRef}
+              className="flex overflow-x-auto snap-x snap-mandatory"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              onScroll={handleScroll}
+            >
+              <style jsx>{`
+                div::-webkit-scrollbar {
+                  display: none;
+                }
+              `}</style>
+              
+              {post.images.sort((a, b) => a.order - b.order).map((img, i) => (
+                <div key={img.id || i} className="w-full flex-shrink-0 snap-center aspect-video">
+                  <img
+                    src={img.url.startsWith('http') ? img.url : `${API_URL}${img.url}`}
+                    alt={`${post.title} - imagem ${i + 1}`}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                    loading="lazy"
                   />
-                ))}
-              </div>
-            </>
-          )}
+                </div>
+              ))}
+            </div>
+
+            {post.images.length > 1 && (
+              <>
+                {/* Arrows (desktop) */}
+                <button
+                  onClick={scrollPrev}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/60 backdrop-blur-sm disabled:opacity-0"
+                  disabled={currentSlide === 0}
+                  aria-label="Anterior"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={scrollNext}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/60 backdrop-blur-sm disabled:opacity-0"
+                  disabled={currentSlide === post.images.length - 1}
+                  aria-label="Próxima"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+
+                {/* Dots */}
+                <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
+                  {post.images.map((_, i) => (
+                    <div
+                      key={i}
+                      className={`h-1.5 rounded-full transition-all duration-300 shadow-sm ${
+                        i === currentSlide ? 'w-4 bg-white' : 'w-1.5 bg-white/50'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
+
+      {/* Title & Description (PASSO 4 - Nova Posição) */}
+      <div className="px-5 pb-4">
+        <h3 className="text-base font-bold text-forest">{post.title}</h3>
+        <p className="mt-1 text-sm text-foreground/70 opacity-90 leading-relaxed whitespace-pre-line">
+          {post.description}
+        </p>
+      </div>
 
       {/* Action Bar */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-border-custom">
@@ -441,25 +485,25 @@ export default function FeedPostCard({
 
       {/* Comments Section */}
       {showComments && (
-        <div className="px-5 py-4 bg-beige/30 border-t border-border-custom animate-in slide-in-from-top-2 duration-300">
+        <div className="px-5 py-4 bg-[#FAFCFA] border-t border-black/5 animate-in slide-in-from-top-2 duration-300">
           {/* Add Comment Input */}
           {accessToken ? (
             <form onSubmit={handleAddComment} className="flex gap-3 mb-5">
-              <div className="w-8 h-8 rounded-full bg-secondary/20 flex-shrink-0 flex items-center justify-center text-xs font-bold text-secondary">
+              <div className="w-8 h-8 rounded-full bg-forest/10 flex-shrink-0 flex items-center justify-center text-xs font-bold text-forest">
                 <UserIcon className="w-4 h-4" />
               </div>
-              <div className="flex-1 flex items-center gap-2 bg-white rounded-full border border-border-custom px-4 py-1.5 focus-within:ring-2 focus-within:ring-secondary/50 focus-within:border-secondary transition-all">
+              <div className="flex-1 flex items-center gap-2 bg-white rounded-full border border-black/5 px-4 py-1.5 focus-within:ring-2 focus-within:ring-forest/20 focus-within:border-forest transition-all shadow-sm">
                 <input
                   type="text"
                   placeholder="Escreva um comentário..."
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
-                  className="flex-1 bg-transparent text-sm focus:outline-none text-foreground"
+                  className="flex-1 bg-transparent text-sm focus:outline-none text-foreground placeholder:text-foreground/40"
                 />
                 <button
                   type="submit"
                   disabled={!newComment.trim() || isSubmittingComment}
-                  className="p-1.5 text-secondary hover:bg-secondary/10 rounded-full transition-colors disabled:opacity-40"
+                  className="p-1.5 text-forest hover:bg-forest/10 rounded-full transition-colors disabled:opacity-40"
                 >
                   {isSubmittingComment ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -476,7 +520,7 @@ export default function FeedPostCard({
           {/* Comments List */}
           {loadingComments ? (
             <div className="flex justify-center py-4">
-              <Loader2 className="w-6 h-6 animate-spin text-secondary/50" />
+              <Loader2 className="w-6 h-6 animate-spin text-forest/50" />
             </div>
           ) : comments.length === 0 ? (
             <p className="text-center text-sm text-foreground/50 py-2">Nenhum comentário ainda. Seja o primeiro!</p>
@@ -493,18 +537,18 @@ export default function FeedPostCard({
                       <img
                         src={comment.user.profileImage.startsWith('http') ? comment.user.profileImage : `${API_URL}${comment.user.profileImage}`}
                         alt={comment.user.name}
-                        className="w-8 h-8 rounded-full object-cover border border-secondary/20 flex-shrink-0"
+                        className="w-8 h-8 rounded-full object-cover border border-black/5 flex-shrink-0"
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center text-xs font-bold text-gray-600 flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-xs font-bold text-gray-500 flex-shrink-0 border border-black/5">
                         {commentInitials}
                       </div>
                     )}
                     
                     <div className="flex-1">
-                      <div className="bg-white rounded-2xl rounded-tl-none border border-border-custom p-3 shadow-sm inline-block min-w-[60%] relative group">
+                      <div className="bg-white rounded-2xl rounded-tl-none border border-black/5 p-3 shadow-sm inline-block min-w-[60%] relative group">
                         <div className="flex items-center justify-between gap-4 mb-1">
-                          <span className="font-semibold text-xs text-primary">{comment.user.name}</span>
+                          <span className="font-semibold text-xs text-forest">{comment.user.name}</span>
                           <span className="text-[10px] text-foreground/40">{formatDate(comment.createdAt)}</span>
                         </div>
                         <p className="text-sm text-foreground/80 break-words">{comment.comment}</p>
@@ -513,13 +557,22 @@ export default function FeedPostCard({
                         {canDeleteComment && (
                           <button
                             onClick={() => setCommentToDelete(comment.id)}
-                            className="absolute -right-2 -top-2 w-6 h-6 bg-white border border-border-custom rounded-full flex items-center justify-center text-foreground/30 hover:text-red-500 transition-all hover:bg-red-50 hover:scale-110 shadow-sm"
+                            className="absolute -right-2 -top-2 w-6 h-6 bg-white border border-black/5 rounded-full flex items-center justify-center text-foreground/30 hover:text-red-500 transition-all hover:bg-red-50 hover:scale-110 shadow-sm"
                             title="Excluir comentário"
                           >
                             <X className="w-3 h-3" />
                           </button>
                         )}
                       </div>
+                      
+                      {/* Like Comment Button */}
+                      <button
+                        onClick={() => handleLikeComment(comment.id)}
+                        className={`flex items-center gap-1.5 text-[11px] mt-1.5 ml-2 transition-colors ${comment.hasLiked ? 'text-forest font-semibold' : 'text-foreground/40 hover:text-forest'}`}
+                      >
+                        <Heart className={`w-3.5 h-3.5 ${comment.hasLiked ? 'fill-forest text-forest' : ''}`} />
+                        <span>{comment.likesCount || 0} curtidas</span>
+                      </button>
                     </div>
                   </div>
                 );
