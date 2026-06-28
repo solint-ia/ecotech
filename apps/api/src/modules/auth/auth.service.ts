@@ -27,12 +27,13 @@ export class AuthService {
 
     // Se for Escola, criar a escola primeiro (transação simplificada)
     if (registerDto.role === 'SCHOOL_MANAGER') {
-      if (!registerDto.schoolName || !registerDto.city || !registerDto.location) {
-        throw new BadRequestException('Faltam dados obrigatórios para criar a escola.');
+      if (!registerDto.schoolName || !registerDto.city || !registerDto.state || !registerDto.location) {
+        throw new BadRequestException('Faltam dados obrigatórios para criar a escola (nome, estado, cidade, endereço).');
       }
       const school = await this.prisma.school.create({
         data: {
           name: registerDto.schoolName,
+          state: registerDto.state,
           city: registerDto.city,
           location: registerDto.location,
           territory: registerDto.cnpj || 'Não informado', // Usando cnpj para territory caso necessario ou apenas deixar

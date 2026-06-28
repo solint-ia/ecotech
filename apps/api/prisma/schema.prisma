@@ -80,6 +80,7 @@ model User {
 model School {
   id              String           @id @default(uuid())
   name            String
+  state           String?
   city            String
   location        String
   territory       String
@@ -310,6 +311,7 @@ model Partner {
   description  String
   coverImage   String
   address      String
+  state        String?
   city         String
   phone        String
   whatsapp     String?

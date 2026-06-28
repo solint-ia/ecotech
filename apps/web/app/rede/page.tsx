@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { Store, MapPin, Search, Plus } from 'lucide-react';
 import { PartnerCard, Partner } from '../../components/rede/PartnerCard';
+import { StateCitySelect } from '@/components/shared/StateCitySelect';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -26,15 +27,19 @@ export default function RedePage() {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterState, setFilterState] = useState('');
+  const [filterCity, setFilterCity] = useState('');
 
   const fetchPartners = useCallback(async () => {
     setLoading(true);
     try {
-      let url = `${API_URL}/partners`;
-      if (selectedCategory !== 'Todos') {
-        url += `?category=${encodeURIComponent(selectedCategory)}`;
-      }
-      const res = await fetch(url);
+      let url = `${API_URL}/partners?`;
+      const params = new URLSearchParams();
+      if (selectedCategory !== 'Todos') params.append('category', selectedCategory);
+      if (filterState) params.append('state', filterState);
+      if (filterCity) params.append('city', filterCity);
+      
+      const res = await fetch(url + params.toString());
       if (!res.ok) throw new Error('Falha ao carregar parceiros.');
       const data = await res.json();
       setPartners(data);
@@ -43,7 +48,7 @@ export default function RedePage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory]);
+  }, [selectedCategory, filterState, filterCity]);
 
   useEffect(() => {
     fetchPartners();
@@ -73,16 +78,27 @@ export default function RedePage() {
         )}
       </div>
 
-      {/* Search Bar */}
-      <div className="mb-6 relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/40" />
-        <input
-          type="text"
-          placeholder="Buscar parceiro por nome..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-3 rounded-xl border border-border-custom bg-white focus:ring-2 focus:ring-secondary focus:outline-none shadow-sm"
-        />
+      {/* Search Bar and Filters */}
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="relative md:w-1/3">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/40" />
+          <input
+            type="text"
+            placeholder="Buscar parceiro por nome..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 rounded-xl border border-border-custom bg-white focus:ring-2 focus:ring-secondary focus:outline-none shadow-sm h-[50px]"
+          />
+        </div>
+        <div className="md:w-2/3">
+          <StateCitySelect
+            selectedState={filterState}
+            selectedCity={filterCity}
+            onStateChange={setFilterState}
+            onCityChange={setFilterCity}
+            inline={true}
+          />
+        </div>
       </div>
 
       {/* Category Tabs */}

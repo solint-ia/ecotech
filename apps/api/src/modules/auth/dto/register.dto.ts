@@ -31,6 +31,10 @@ export class RegisterDto {
 
   @IsOptional()
   @IsString()
+  state?: string;
+
+  @IsOptional()
+  @IsString()
   city?: string;
 
   @IsOptional()

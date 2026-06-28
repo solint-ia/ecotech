@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { Search, MapPin, Loader2, Library, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { StateCitySelect } from '@/components/shared/StateCitySelect';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -28,14 +29,18 @@ export default function SchoolsPage() {
 
   const [schools, setSchools] = useState<School[]>([]);
   const [search, setSearch] = useState('');
+  const [filterState, setFilterState] = useState('');
+  const [filterCity, setFilterCity] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const fetchSchools = useCallback(async (searchQuery = '') => {
+  const fetchSchools = useCallback(async (searchQuery = '', stateQuery = '', cityQuery = '') => {
     if (!accessToken) return;
     setLoading(true);
     try {
       const url = new URL(`${API_URL}/schools`);
       if (searchQuery) url.searchParams.append('search', searchQuery);
+      if (stateQuery) url.searchParams.append('state', stateQuery);
+      if (cityQuery) url.searchParams.append('city', cityQuery);
       
       const res = await fetch(url.toString(), {
         headers: { Authorization: `Bearer ${accessToken}` },
@@ -61,10 +66,10 @@ export default function SchoolsPage() {
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
-      if (status === 'authenticated') fetchSchools(search);
+      if (status === 'authenticated') fetchSchools(search, filterState, filterCity);
     }, 500);
     return () => clearTimeout(delayDebounceFn);
-  }, [search, fetchSchools, status]);
+  }, [search, filterState, filterCity, fetchSchools, status]);
 
   if (status === 'loading' || (loading && schools.length === 0)) {
     return (
@@ -77,24 +82,33 @@ export default function SchoolsPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Header & Search */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-border-custom shadow-sm">
-        <div>
-          <h1 className="text-2xl font-bold text-primary">Escolas Parceiras</h1>
-          <p className="text-sm text-foreground/70">
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 bg-white p-6 rounded-2xl border border-border-custom shadow-sm">
+        <div className="md:w-1/3">
+          <h1 className="text-2xl font-bold text-primary mb-2">Escolas Parceiras</h1>
+          <p className="text-sm text-foreground/70 mb-4">
             Descubra as escolas que estão transformando a educação ambiental.
           </p>
+          <div className="relative w-full">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-foreground/40" />
+            </div>
+            <input
+              type="text"
+              className="block w-full pl-10 pr-3 py-2.5 border border-border-custom rounded-xl bg-beige/30 focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
+              placeholder="Buscar por nome..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
         </div>
         
-        <div className="relative w-full md:w-80">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-foreground/40" />
-          </div>
-          <input
-            type="text"
-            className="block w-full pl-10 pr-3 py-2.5 border border-border-custom rounded-xl bg-beige/30 focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
-            placeholder="Buscar por nome..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+        <div className="md:w-2/3">
+          <StateCitySelect
+            selectedState={filterState}
+            selectedCity={filterCity}
+            onStateChange={setFilterState}
+            onCityChange={setFilterCity}
+            inline={true}
           />
         </div>
       </div>

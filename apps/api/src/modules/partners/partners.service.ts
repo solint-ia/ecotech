@@ -16,11 +16,13 @@ export class PartnersService {
     });
   }
 
-  async findAll(category?: string) {
+  async findAll(category?: string, state?: string, city?: string) {
     return this.prisma.partner.findMany({
       where: {
         status: true,
         ...(category && { category }),
+        ...(state && { state }),
+        ...(city && { city }),
       },
       include: {
         photos: true,

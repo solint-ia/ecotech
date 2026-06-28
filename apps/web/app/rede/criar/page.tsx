@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { ArrowLeft, Save } from 'lucide-react';
+import { StateCitySelect } from '@/components/shared/StateCitySelect';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -26,6 +27,7 @@ export default function CriarParceiroPage() {
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [description, setDescription] = useState('');
   const [address, setAddress] = useState('');
+  const [stateUF, setStateUF] = useState('');
   const [city, setCity] = useState('');
   const [phone, setPhone] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
@@ -57,6 +59,7 @@ export default function CriarParceiroPage() {
       formData.append('category', category);
       formData.append('description', description);
       formData.append('address', address);
+      formData.append('state', stateUF);
       formData.append('city', city);
       formData.append('phone', phone);
       formData.append('openingHours', openingHours);
@@ -170,20 +173,15 @@ export default function CriarParceiroPage() {
               placeholder="Rua, número, bairro"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-primary mb-1">
-              Município *
-            </label>
-            <input
-              required
-              type="text"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-border-custom bg-white text-sm focus:ring-2 focus:ring-secondary focus:outline-none"
-              placeholder="Cidade - UF"
-            />
-          </div>
         </div>
+
+        <StateCitySelect
+          selectedState={stateUF}
+          selectedCity={city}
+          onStateChange={setStateUF}
+          onCityChange={setCity}
+          inline={true}
+        />
 
         {/* Contacts */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
