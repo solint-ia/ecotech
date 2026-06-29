@@ -87,7 +87,7 @@ export default function TrilhasPage() {
     fetch(`${API_URL}/trails/biomes`)
       .then((r) => r.json())
       .then(setBiomes)
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const totalPages = Math.ceil(total / limit);
@@ -119,9 +119,8 @@ export default function TrilhasPage() {
         <div className="flex items-center gap-6 mb-8 border-b border-border-custom pb-3">
           <button
             onClick={() => setActiveTab('publicadas')}
-            className={`text-sm font-semibold transition-all relative ${
-              activeTab === 'publicadas' ? 'text-forest' : 'text-foreground/50 hover:text-foreground/80'
-            }`}
+            className={`text-sm font-semibold transition-all relative ${activeTab === 'publicadas' ? 'text-forest' : 'text-foreground/50 hover:text-foreground/80'
+              }`}
           >
             Publicadas
             {activeTab === 'publicadas' && (
@@ -130,9 +129,8 @@ export default function TrilhasPage() {
           </button>
           <button
             onClick={() => setActiveTab('rascunhos')}
-            className={`text-sm font-semibold transition-all relative ${
-              activeTab === 'rascunhos' ? 'text-forest' : 'text-foreground/50 hover:text-foreground/80'
-            }`}
+            className={`text-sm font-semibold transition-all relative ${activeTab === 'rascunhos' ? 'text-forest' : 'text-foreground/50 hover:text-foreground/80'
+              }`}
           >
             Meus Rascunhos
             {activeTab === 'rascunhos' && (
@@ -141,9 +139,8 @@ export default function TrilhasPage() {
           </button>
           <button
             onClick={() => setActiveTab('minhas-trilhas')}
-            className={`text-sm font-semibold transition-all relative ${
-              activeTab === 'minhas-trilhas' ? 'text-forest' : 'text-foreground/50 hover:text-foreground/80'
-            }`}
+            className={`text-sm font-semibold transition-all relative ${activeTab === 'minhas-trilhas' ? 'text-forest' : 'text-foreground/50 hover:text-foreground/80'
+              }`}
           >
             Minhas Trilhas
             {activeTab === 'minhas-trilhas' && (
@@ -181,11 +178,10 @@ export default function TrilhasPage() {
               id="filter-biome"
               value={selectedBiome}
               onChange={(e) => setSelectedBiome(e.target.value)}
-              className={`w-full sm:min-w-[160px] pl-4 pr-10 py-3 rounded-full border text-sm focus:outline-none focus:ring-2 focus:ring-forest appearance-none h-[46px] transition-all cursor-pointer shadow-sm ${
-                selectedBiome 
-                  ? 'bg-sage text-forest border-sage font-medium' 
+              className={`w-full sm:min-w-[160px] pl-4 pr-10 py-3 rounded-full border text-sm focus:outline-none focus:ring-2 focus:ring-forest appearance-none h-[46px] transition-all cursor-pointer shadow-sm ${selectedBiome
+                  ? 'bg-sage text-forest border-sage font-medium'
                   : 'bg-white border-border-custom text-foreground/80 hover:border-forest/30'
-              }`}
+                }`}
             >
               <option value="">Todos os biomas</option>
               {biomes.map((b) => (
@@ -201,11 +197,10 @@ export default function TrilhasPage() {
               id="filter-difficulty"
               value={selectedDifficulty}
               onChange={(e) => setSelectedDifficulty(e.target.value)}
-              className={`w-full sm:min-w-[140px] pl-4 pr-10 py-3 rounded-full border text-sm focus:outline-none focus:ring-2 focus:ring-forest appearance-none h-[46px] transition-all cursor-pointer shadow-sm ${
-                selectedDifficulty
+              className={`w-full sm:min-w-[140px] pl-4 pr-10 py-3 rounded-full border text-sm focus:outline-none focus:ring-2 focus:ring-forest appearance-none h-[46px] transition-all cursor-pointer shadow-sm ${selectedDifficulty
                   ? 'bg-sage text-forest border-sage font-medium'
                   : 'bg-white border-border-custom text-foreground/80 hover:border-forest/30'
-              }`}
+                }`}
             >
               <option value="">Dificuldade</option>
               <option value="FACIL">Fácil</option>
@@ -215,7 +210,7 @@ export default function TrilhasPage() {
             <ChevronDown className={`absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none transition-colors ${selectedDifficulty ? 'text-forest' : 'text-foreground/50'}`} />
           </div>
         </div>
-    </div>
+      </div>
 
       {/* Trails Grid */}
       {loading ? (

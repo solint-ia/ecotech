@@ -14,6 +14,8 @@ interface CreateStoryModalProps {
 export default function CreateStoryModal({ accessToken, onClose, onCreated }: CreateStoryModalProps) {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [caption, setCaption] = useState('');
+  const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -39,6 +41,8 @@ export default function CreateStoryModal({ accessToken, onClose, onCreated }: Cr
     try {
       const formData = new FormData();
       formData.append('image', imageFile);
+      if (caption) formData.append('caption', caption);
+      if (location) formData.append('location', location);
 
       const res = await fetch(`${API_URL}/stories`, {
         method: 'POST',
@@ -63,7 +67,7 @@ export default function CreateStoryModal({ accessToken, onClose, onCreated }: Cr
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div 
+      <div
         className="bg-white rounded-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
@@ -106,6 +110,24 @@ export default function CreateStoryModal({ accessToken, onClose, onCreated }: Cr
             className="hidden"
             onChange={handleImageChange}
           />
+
+          <div className="flex flex-col gap-3">
+            <input
+              type="text"
+              placeholder="Localização (ex: Parque Ibirapuera)"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              className="w-full px-4 py-2 bg-secondary/5 border border-border-custom rounded-xl focus:outline-none focus:ring-2 focus:ring-sage/50 text-sm"
+              maxLength={40}
+            />
+            <textarea
+              placeholder="Adicione uma legenda..."
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              className="w-full px-4 py-2 bg-secondary/5 border border-border-custom rounded-xl focus:outline-none focus:ring-2 focus:ring-sage/50 text-sm resize-none h-20"
+              maxLength={150}
+            />
+          </div>
 
           <button
             type="submit"

@@ -11,6 +11,7 @@ import {
   HttpStatus,
   Delete,
   Param,
+  Patch,
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -60,5 +61,38 @@ export class StoriesController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Param('id') id: string, @Request() req: any) {
     await this.storiesService.deleteStory(id, req.user.id, req.user.role);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id')
+  async updateStory(
+    @Param('id') id: string,
+    @Body() updateDto: { caption?: string; location?: string },
+    @Request() req: any,
+  ) {
+    return this.storiesService.updateStory(id, req.user.id, updateDto.caption, updateDto.location);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/comments')
+  async addComment(
+    @Param('id') id: string,
+    @Body('comment') comment: string,
+    @Request() req: any,
+  ) {
+    if (!comment) throw new BadRequestException('Comentário vazio.');
+    return this.storiesService.addComment(id, req.user.id, comment);
+  }
+
+  @Get(':id/comments')
+  async getComments(@Param('id') id: string) {
+    return this.storiesService.getComments(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('comments/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteComment(@Param('id') id: string, @Request() req: any) {
+    await this.storiesService.deleteComment(id, req.user.id, req.user.role);
   }
 }

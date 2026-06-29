@@ -75,6 +75,7 @@ model User {
   feedComments    FeedComment[]
   feedCommentLikes FeedCommentLike[]
   stories         Story[]
+  storyComments   StoryComment[]
   libraryContents LibraryContent[]
 }
 
@@ -293,12 +294,26 @@ model Story {
   schoolId  String?
   mediaType MediaType @default(IMAGE)
   mediaUrl  String
+  caption   String?
+  location  String?
   expiresAt DateTime
   status    Boolean   @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   user      User      @relation(fields: [userId], references: [id])
   school    School?   @relation(fields: [schoolId], references: [id])
+  comments  StoryComment[]
+}
+
+model StoryComment {
+  id        String   @id @default(uuid())
+  storyId   String
+  userId    String
+  comment   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model LibraryContent {

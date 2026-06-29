@@ -38,7 +38,7 @@ export default function RedePage() {
       if (selectedCategory !== 'Todos') params.append('category', selectedCategory);
       if (filterState) params.append('state', filterState);
       if (filterCity) params.append('city', filterCity);
-      
+
       const res = await fetch(url + params.toString());
       if (!res.ok) throw new Error('Falha ao carregar parceiros.');
       const data = await res.json();
@@ -116,8 +116,8 @@ export default function RedePage() {
             key={category}
             onClick={() => setSelectedCategory(category)}
             className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap snap-start transition-colors ${selectedCategory === category
-                ? 'bg-secondary text-white shadow-sm'
-                : 'bg-beige text-primary hover:bg-beige/80 border border-border-custom'
+              ? 'bg-secondary text-white shadow-sm'
+              : 'bg-beige text-primary hover:bg-beige/80 border border-border-custom'
               }`}
           >
             {category}
