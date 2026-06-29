@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { MapPin, Clock, Route, Heart, Eye, Plus, Search, Leaf, ChevronDown } from 'lucide-react';
+import { MapPin, Clock, Route, Heart, Eye, Plus, Search, Leaf, ChevronDown, SlidersHorizontal, X } from 'lucide-react';
 import { getImageUrl } from '../../lib/image-url';
 import { StateCitySelect } from '../../components/shared/StateCitySelect';
 
@@ -21,7 +21,6 @@ export default function TrilhasPage() {
   const isAdmin = user?.role === 'ADMIN';
 
   const [trails, setTrails] = useState<Trail[]>([]);
-  const [biomes, setBiomes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -32,6 +31,7 @@ export default function TrilhasPage() {
   const [selectedDifficulty, setSelectedDifficulty] = useState('');
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [showFiltersModal, setShowFiltersModal] = useState(false);
   const limit = 12;
 
   // Debounce search input
@@ -83,12 +83,14 @@ export default function TrilhasPage() {
     fetchTrails();
   }, [fetchTrails]);
 
-  useEffect(() => {
-    fetch(`${API_URL}/trails/biomes`)
-      .then((r) => r.json())
-      .then(setBiomes)
-      .catch(() => { });
-  }, []);
+  const BRAZILIAN_BIOMES = [
+    'Amazônia',
+    'Caatinga',
+    'Cerrado',
+    'Mata Atlântica',
+    'Pampa',
+    'Pantanal'
+  ];
 
   const totalPages = Math.ceil(total / limit);
 
@@ -152,18 +154,29 @@ export default function TrilhasPage() {
 
       {/* Search and Filters */}
       <div className="flex flex-col gap-4 mb-8">
-        <div className="relative w-full">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-forest/50" />
-          <input
-            id="search-trilhas"
-            type="text"
-            placeholder="Buscar trilhas..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 rounded-full border border-border-custom bg-white focus:outline-none focus:ring-2 focus:ring-forest text-sm transition-all shadow-sm"
-          />
+        <div className="flex gap-2 w-full">
+          <div className="relative w-full">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-forest/50" />
+            <input
+              id="search-trilhas"
+              type="text"
+              placeholder="Buscar trilhas..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-11 pr-4 py-3 rounded-full border border-border-custom bg-white focus:outline-none focus:ring-2 focus:ring-forest text-sm transition-all shadow-sm"
+            />
+          </div>
+          <button
+            onClick={() => setShowFiltersModal(true)}
+            className="md:hidden flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-900/10 bg-white text-emerald-950 font-medium whitespace-nowrap shadow-sm"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            Filtros
+          </button>
         </div>
-        <div className="flex flex-col sm:flex-row gap-4 items-center">
+        
+        {/* Desktop Filters (Hidden on Mobile) */}
+        <div className="hidden md:flex flex-row gap-4 items-center">
           <div className="flex-1 w-full sm:w-auto">
             <StateCitySelect
               selectedState={filterState}
@@ -184,7 +197,7 @@ export default function TrilhasPage() {
                 }`}
             >
               <option value="">Todos os biomas</option>
-              {biomes.map((b) => (
+              {BRAZILIAN_BIOMES.map((b) => (
                 <option key={b} value={b}>
                   {b}
                 </option>
@@ -262,6 +275,62 @@ export default function TrilhasPage() {
           >
             Próxima
           </button>
+        </div>
+      )}
+      {/* Mobile Filters Modal */}
+      {showFiltersModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm md:hidden">
+          <div className="bg-white w-full max-h-[85vh] rounded-t-2xl sm:rounded-2xl p-6 flex flex-col gap-6 overflow-y-auto animate-in slide-in-from-bottom-full duration-300">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-primary">Filtros</h2>
+              <button onClick={() => setShowFiltersModal(false)} className="p-2 text-foreground/50 hover:bg-black/5 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="flex flex-col gap-4">
+              <StateCitySelect
+                selectedState={filterState}
+                selectedCity={filterCity}
+                onStateChange={setFilterState}
+                onCityChange={setFilterCity}
+                inline={false}
+              />
+              <div className="relative">
+                <select
+                  value={selectedBiome}
+                  onChange={(e) => setSelectedBiome(e.target.value)}
+                  className="w-full pl-4 pr-10 py-3 rounded-xl border border-border-custom bg-white focus:outline-none focus:ring-2 focus:ring-forest text-sm appearance-none"
+                >
+                  <option value="">Todos os biomas</option>
+                  {BRAZILIAN_BIOMES.map((b) => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/50 pointer-events-none" />
+              </div>
+              <div className="relative">
+                <select
+                  value={selectedDifficulty}
+                  onChange={(e) => setSelectedDifficulty(e.target.value)}
+                  className="w-full pl-4 pr-10 py-3 rounded-xl border border-border-custom bg-white focus:outline-none focus:ring-2 focus:ring-forest text-sm appearance-none"
+                >
+                  <option value="">Dificuldade</option>
+                  <option value="FACIL">Fácil</option>
+                  <option value="MODERADA">Moderada</option>
+                  <option value="DIFICIL">Difícil</option>
+                </select>
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/50 pointer-events-none" />
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setShowFiltersModal(false)}
+              className="w-full py-3 bg-forest text-white rounded-xl font-bold mt-2 hover:bg-forest/90 transition-colors"
+            >
+              Aplicar Filtros
+            </button>
+          </div>
         </div>
       )}
     </div>

@@ -76,7 +76,8 @@ export class FeedController {
     @UploadedFiles() files?: Express.Multer.File[],
   ) {
     const imagesUrls = files?.map((f) => `/uploads/${f.filename}`) || [];
-    return this.feedService.createPost(req.user.id, createPostDto, imagesUrls);
+    const mediaType = files?.some(f => f.mimetype.startsWith('video/')) ? 'VIDEO' : 'IMAGE';
+    return this.feedService.createPost(req.user.id, createPostDto, imagesUrls, mediaType);
   }
 
   /** PATCH /feed/:id — Update a post (author or ADMIN) */
@@ -90,7 +91,8 @@ export class FeedController {
     @UploadedFiles() files?: Express.Multer.File[],
   ) {
     const imagesUrls = files?.length ? files.map((f) => `/uploads/${f.filename}`) : undefined;
-    return this.feedService.updatePost(id, req.user.id, req.user.role, updatePostDto, imagesUrls);
+    const mediaType = files?.length ? (files.some(f => f.mimetype.startsWith('video/')) ? 'VIDEO' : 'IMAGE') : undefined;
+    return this.feedService.updatePost(id, req.user.id, req.user.role, updatePostDto, imagesUrls, mediaType);
   }
 
   /** DELETE /feed/:id — Delete a post (author or ADMIN) */

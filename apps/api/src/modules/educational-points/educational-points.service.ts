@@ -84,9 +84,18 @@ async function generateQrCode(
   return { textContent, imagePath: `/uploads/qrcodes/${filename}` };
 }
 
+function cleanPdfText(text: string | null | undefined): string {
+  if (!text) return '';
+  // Remove \r to prevent rendering issues, remove Ð (\xD0) which may appear as an artifact
+  let t = text.replace(/\r/g, '').replace(/Ð/g, '');
+  // Remove emojis and non-latin symbols, keeping basic latin + latin-1 supplement + a few standard punctuations
+  return t.replace(/[^\x00-\xFF\u0152\u0153\u0178\u2013\u2014\u2018\u2019\u201A\u201C\u201D\u201E\u2020\u2021\u2022\u2026\u2030\u20AC]/g, '').trim();
+}
+
 async function generatePdf(point: {
   title: string;
   type: string;
+  order: number;
   shortDescription: string;
   fullDescription: string;
   curiosities?: string | null;
@@ -100,7 +109,12 @@ async function generatePdf(point: {
   const filePath = path.join(PDFS_DIR, filename);
 
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 0, info: { Title: point.title, Author: 'EcoTech' } });
+    const doc = new PDFDocument({ 
+      size: 'A4', 
+      margins: { top: 60, bottom: 60, left: 50, right: 50 }, 
+      info: { Title: point.title, Author: 'EcoTech' },
+      bufferPages: true
+    });
     const stream = fs.createWriteStream(filePath);
     doc.pipe(stream);
 
@@ -109,8 +123,14 @@ async function generatePdf(point: {
     const COLOR_DEEP_FOREST = '#0B5D3B';
     const COLOR_CREME = '#FAFCFA';
     const COLOR_TEXT = '#2d3748';
-    
-    // Background
+
+    // Handle new pages to keep background
+    doc.on('pageAdded', () => {
+      doc.rect(0, 0, pageWidth, pageHeight).fill(COLOR_CREME);
+      doc.fill(COLOR_TEXT);
+    });
+
+    // Background first page
     doc.rect(0, 0, pageWidth, pageHeight).fill(COLOR_CREME);
 
     const texturePath = path.resolve(process.cwd(), '../../apps/web/public/fundo-logo-pdf.jpg');
@@ -120,54 +140,45 @@ async function generatePdf(point: {
     }
 
     // --- Header Section ---
-    const logoPath = path.resolve(process.cwd(), '../../apps/web/public/EcoTechLogo.png');
+    // Full width green header
+    const headerHeight = 120;
+    doc.rect(0, 0, pageWidth, headerHeight).fill(COLOR_DEEP_FOREST);
+
+    const logoPath = path.resolve(process.cwd(), '../../apps/web/public/logo-header.png');
     let hasLogo = false;
     if (fs.existsSync(logoPath)) {
       hasLogo = true;
     }
 
-    const headerY = hasLogo ? 110 : 30;
-
-    // Top Background Texture
-    if (hasTexture) {
-      try {
-        doc.save();
-        doc.rect(0, 0, pageWidth, headerY).clip();
-        doc.image(texturePath, 0, 0, { width: pageWidth, height: headerY, cover: [pageWidth, headerY] });
-        doc.restore();
-      } catch (e) {
-        console.error('Error drawing top texture', e);
-      }
-    }
-
-    // Logo
+    // Logo on the left
     if (hasLogo) {
       try {
-        doc.image(logoPath, (pageWidth - 80) / 2, 20, { width: 80 });
+        const logoWidth = 70;
+        doc.image(logoPath, 40, 25, { width: logoWidth });
       } catch (e) {
         console.error('Error loading logo', e);
       }
     }
 
-    doc.rect(0, headerY, pageWidth, 90).fill(COLOR_DEEP_FOREST);
-
     // Title
-    doc.fill('#FFFFFF').fontSize(24).font('Helvetica-Bold').text(point.title.toUpperCase(), 0, headerY + 25, { align: 'center', width: pageWidth });
-    
-    // Subtitle (Using type or short desc as subtitle)
-    doc.fill('#EAF4EE').fontSize(12).font('Helvetica-Oblique').text(`Natureza e Educação Ambiental`, 0, headerY + 55, { align: 'center', width: pageWidth });
+    const safeTitle = cleanPdfText(point.title).toUpperCase();
+    doc.fill('#FFFFFF').fontSize(26).font('Helvetica-Bold').text(safeTitle, 0, 40, { align: 'center', width: pageWidth });
+
+    // Subtitle
+    doc.fill('#EAF4EE').fontSize(13).font('Helvetica-Oblique').text(`Natureza e Educação Ambiental`, 0, 75, { align: 'center', width: pageWidth });
 
     // --- Metadata Row (Chips) ---
-    let chipY = headerY + 110;
+    let chipY = headerHeight + 25;
     doc.font('Helvetica-Bold').fontSize(10);
+
+    const safeType = cleanPdfText(point.type);
+    const safeTrail = cleanPdfText(point.trail.title);
     
     const chips = [
-      `Tipo: ${point.type}`,
-      `Trilha: ${point.trail.title}`,
+      `Tipo: ${safeType}`,
+      `Trilha: ${safeTrail}`,
+      `Ordem: ${point.order}`
     ];
-    if (point.trail.school?.name) {
-      chips.push(`Escola: ${point.trail.school.name}`);
-    }
 
     // Calculate total width of chips to center them
     const chipPadding = 20;
@@ -179,10 +190,10 @@ async function generatePdf(point: {
     chips.forEach((chipText, i) => {
       const w = chipWidths[i];
       doc.roundedRect(currentX, chipY, w, 24, 12)
-         .lineWidth(1)
-         .strokeColor(COLOR_DEEP_FOREST)
-         .stroke();
-      
+        .lineWidth(1)
+        .strokeColor(COLOR_DEEP_FOREST)
+        .stroke();
+
       doc.fill(COLOR_DEEP_FOREST).text(chipText, currentX, chipY + 7, { width: w, align: 'center' });
       currentX += w + chipSpacing;
     });
@@ -194,22 +205,13 @@ async function generatePdf(point: {
       const localImgPath = path.resolve(process.cwd(), point.mainImage.replace(/^\//, ''));
       if (fs.existsSync(localImgPath)) {
         try {
-          const imgWidth = pageWidth - 100;
-          const imgHeight = 220;
-          
+          const imgWidth = 400;
+          const imgHeight = 250;
+
           doc.save();
-          // Shadow effect
-          doc.roundedRect(50 + 2, contentY + 2, imgWidth, imgHeight, 15).fillOpacity(0.1).fill('#000000');
-          doc.restore();
-          
-          doc.save();
-          doc.roundedRect(50, contentY, imgWidth, imgHeight, 15).clip();
           doc.image(localImgPath, 50, contentY, { width: imgWidth, height: imgHeight, fit: [imgWidth, imgHeight], align: 'center', valign: 'center' });
           doc.restore();
-          
-          // Draw a border just in case
-          doc.roundedRect(50, contentY, imgWidth, imgHeight, 15).lineWidth(1).strokeColor('#E2E8F0').stroke();
-          
+
           contentY += imgHeight + 40;
         } catch (e) {
           console.error('Error rendering image in PDF', e);
@@ -238,64 +240,59 @@ async function generatePdf(point: {
       }
     }
 
-    // --- Structured Content (Two Columns) ---
-    const colWidth = (pageWidth - 140) / 2;
-    const leftColX = 50;
-    const rightColX = leftColX + colWidth + 40;
+    // --- Space Before Content ---
+    contentY += 15;
+    
+    // --- Structured Content (Single Column - Fluid Flow) ---
+    const contentWidth = pageWidth - 100;
 
-    let leftY = contentY;
-    let rightY = contentY;
+    const sections = [
+      { title: 'Descrição Completa', content: point.fullDescription || point.shortDescription },
+      { title: 'Importância Ambiental', content: point.environmentalImportance },
+      { title: 'Curiosidades', content: point.curiosities },
+      { title: 'Cuidados e Preservação', content: point.preservationCare }
+    ].filter(s => !!s.content);
 
-    // Helper to draw a section
-    const drawSection = (title: string, content: string, x: number, y: number) => {
-      if (!content) return y;
-      
-      // Page break logic (simplified)
-      if (y > pageHeight - 120) {
-        doc.addPage();
-        doc.rect(0, 0, pageWidth, pageHeight).fill(COLOR_CREME);
-        leftY = 50; rightY = 50;
-        y = 50;
+    sections.forEach((sec, idx) => {
+      const isFirst = idx === 0;
+      const safeTitle = cleanPdfText(sec.title);
+      const safeContent = cleanPdfText(sec.content);
+
+      if (isFirst) {
+        doc.fill(COLOR_DEEP_FOREST).fontSize(14).font('Helvetica-Bold')
+           .text(safeTitle, 50, contentY, { width: contentWidth, align: 'left' });
+        doc.moveDown(0.5);
+        doc.fill(COLOR_TEXT).fontSize(10).font('Helvetica')
+           .text(safeContent, { width: contentWidth, align: 'justify' });
+      } else {
+        doc.moveDown(1.5);
+        doc.fill(COLOR_DEEP_FOREST).fontSize(14).font('Helvetica-Bold')
+           .text(safeTitle, { width: contentWidth, align: 'left' });
+        doc.moveDown(0.5);
+        doc.fill(COLOR_TEXT).fontSize(10).font('Helvetica')
+           .text(safeContent, { width: contentWidth, align: 'justify' });
       }
+    });
 
-      // Try drawing the title with emojis, fallback if PDFKit complains
-      let safeTitle = title;
-      try {
-        doc.fill(COLOR_DEEP_FOREST).fontSize(14).font('Helvetica-Bold').text(title, x, y);
-      } catch (e) {
-        safeTitle = title.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
-        doc.fill(COLOR_DEEP_FOREST).fontSize(14).font('Helvetica-Bold').text(safeTitle, x, y);
-      }
-
-      const titleHeight = doc.heightOfString(safeTitle, { width: colWidth });
+    // --- Footer Bar Text (Buffered Pages) ---
+    // Now loop over all pages and draw the footer background and text
+    const pages = doc.bufferedPageRange();
+    for (let i = 0; i < pages.count; i++) {
+      doc.switchToPage(i);
       
-      // Horizontal separator line (green)
-      doc.moveTo(x, y + titleHeight + 5).lineTo(x + colWidth, y + titleHeight + 5).lineWidth(1).strokeColor(COLOR_DEEP_FOREST).stroke();
+      const originalBottom = doc.page.margins.bottom;
+      doc.page.margins.bottom = 0;
 
-      // Content
-      doc.fill(COLOR_TEXT).fontSize(10).font('Helvetica').text(content, x, y + titleHeight + 15, { width: colWidth, align: 'justify', lineGap: 3 });
-      
-      const contentHeight = doc.heightOfString(content, { width: colWidth, lineGap: 3 });
-      return y + titleHeight + 15 + contentHeight + 30; // Return new Y
-    };
+      doc.rect(0, pageHeight - 40, pageWidth, 40).fill(COLOR_DEEP_FOREST);
+      doc.fill('#EAF4EE').fontSize(9).font('Helvetica').text(
+        'Educação Ambiental, Trilhas Educativas e Conexão com a Natureza. © 2026 Ecotech.',
+        0, pageHeight - 25, { align: 'center', width: pageWidth, lineBreak: false }
+      );
 
-    // Left Column
-    leftY = drawSection('📖 Descrição Completa', point.fullDescription || point.shortDescription, leftColX, leftY);
-    leftY = drawSection('🌳 Importância Ambiental', point.environmentalImportance, leftColX, leftY);
-
-    // Right Column
-    if (point.curiosities) {
-      rightY = drawSection('❓ Curiosidades', point.curiosities, rightColX, rightY);
+      doc.page.margins.bottom = originalBottom;
     }
-    rightY = drawSection('🌿 Cuidados e Preservação', point.preservationCare, rightColX, rightY);
-
-    // --- Footer Bar ---
-    // Draw footer on all pages? Just on the last page for simplicity
-    doc.rect(0, pageHeight - 40, pageWidth, 40).fill(COLOR_DEEP_FOREST);
-    doc.fill('#EAF4EE').fontSize(9).font('Helvetica').text(
-      'Educação Ambiental, Trilhas Educativas e Conexão com a Natureza. © 2026 Ecotech.',
-      0, pageHeight - 25, { align: 'center', width: pageWidth }
-    );
+    
+    doc.flushPages();
 
     doc.end();
 
@@ -306,7 +303,7 @@ async function generatePdf(point: {
 
 @Injectable()
 export class EducationalPointsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async findBySlug(slug: string) {
     const point = await this.prisma.educationalPoint.findFirst({
@@ -449,6 +446,7 @@ export class EducationalPointsService {
       title: string;
       slug: string;
       type: string;
+      order: number;
       shortDescription: string;
       fullDescription: string;
       curiosities?: string | null;

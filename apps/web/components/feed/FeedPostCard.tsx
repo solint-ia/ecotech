@@ -388,16 +388,27 @@ export default function FeedPostCard({
                 }
               `}</style>
               
-              {post.images.sort((a, b) => a.order - b.order).map((img, i) => (
-                <div key={img.id || i} className="w-full flex-shrink-0 snap-center aspect-video">
-                  <img
-                    src={img.url.startsWith('http') ? img.url : `${API_URL}${img.url}`}
-                    alt={`${post.title} - imagem ${i + 1}`}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
-                    loading="lazy"
-                  />
-                </div>
-              ))}
+              {post.images.sort((a, b) => a.order - b.order).map((img, i) => {
+                const isVideo = img.url.match(/\.(mp4|webm|ogg)$/i);
+                return (
+                  <div key={img.id || i} className="w-full flex-shrink-0 snap-center aspect-video bg-black">
+                    {isVideo ? (
+                      <video
+                        src={img.url.startsWith('http') ? img.url : `${API_URL}${img.url}`}
+                        controls
+                        className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-[1.02]"
+                      />
+                    ) : (
+                      <img
+                        src={img.url.startsWith('http') ? img.url : `${API_URL}${img.url}`}
+                        alt={`${post.title} - imagem ${i + 1}`}
+                        className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-[1.02]"
+                        loading="lazy"
+                      />
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             {post.images.length > 1 && (

@@ -1,0 +1,75 @@
+import { Injectable, Logger } from '@nestjs/common';
+
+@Injectable()
+export class MailService {
+  private readonly logger = new Logger(MailService.name);
+  private readonly apiKey = '3608ff3ef1335724a6bad079a41d4efa112977a66b3d035240b75a81237b2fdc';
+  private readonly apiUrl = 'https://smtp.maileroo.com/api/v2/emails';
+
+  async sendOtpEmail(email: string, type: 'EMAIL_VERIFICATION' | 'PASSWORD_RESET', otpCode: string): Promise<boolean> {
+    const isVerification = type === 'EMAIL_VERIFICATION';
+    const subject = isVerification ? 'Confirme seu e-mail na EcoTech' : 'Recuperação de Senha - EcoTech';
+    
+    const htmlContent = isVerification 
+      ? `
+      <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; background-color: #f9f9f9; padding: 20px; border-radius: 8px;">
+        <h2 style="color: #0B3B24; text-align: center;">Bem-vindo(a) à EcoTech!</h2>
+        <p style="color: #333; font-size: 16px;">Olá! Falta pouco para você explorar as trilhas. Use o código de 6 dígitos abaixo para ativar sua conta na EcoTech:</p>
+        <div style="background-color: #0B3B24; color: #fff; text-align: center; font-size: 28px; font-weight: bold; padding: 15px; margin: 20px 0; border-radius: 6px; letter-spacing: 5px;">
+          ${otpCode}
+        </div>
+        <p style="color: #666; font-size: 12px; text-align: center;">Este código expira em 10 minutos. Se você não solicitou este e-mail, pode ignorá-lo.</p>
+      </div>
+      `
+      : `
+      <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; background-color: #f9f9f9; padding: 20px; border-radius: 8px;">
+        <h2 style="color: #0B3B24; text-align: center;">Recuperação de Senha</h2>
+        <p style="color: #333; font-size: 16px;">Recebemos um pedido para redefinir sua senha. Insira o código a seguir no aplicativo:</p>
+        <div style="background-color: #0B3B24; color: #fff; text-align: center; font-size: 28px; font-weight: bold; padding: 15px; margin: 20px 0; border-radius: 6px; letter-spacing: 5px;">
+          ${otpCode}
+        </div>
+        <p style="color: #666; font-size: 12px; text-align: center;">Este código expira em 10 minutos. Se você não solicitou este e-mail, pode ignorá-lo com segurança.</p>
+      </div>
+      `;
+
+    // Hardcoded para teste conforme solicitado pelo usuário.
+    // O ideal seria usar o parametro 'email' recebido na função.
+    const targetEmail = 'andrefelipesi@academico.ufs.br';
+
+    const payload = {
+      from: {
+        address: 'nao-responda@16bdb343e15cb89f.maileroo.org',
+        display_name: 'EcoTech'
+      },
+      to: [
+        {
+          address: targetEmail
+        }
+      ],
+      subject: subject,
+      html: htmlContent
+    };
+
+    try {
+      const response = await fetch(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': this.apiKey
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.logger.error(`Maileroo error: ${response.status} ${errorText}`);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      this.logger.error('Failed to send email via Maileroo', error);
+      return false;
+    }
+  }
+}

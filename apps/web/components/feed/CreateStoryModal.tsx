@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef, FormEvent } from 'react';
+import { useState, useRef, FormEvent, useEffect } from 'react';
 import { X, ImagePlus, Loader2, Send } from 'lucide-react';
+import AlertModal from './AlertModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -17,15 +18,50 @@ export default function CreateStoryModal({ accessToken, onClose, onCreated }: Cr
   const [caption, setCaption] = useState('');
   const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(false);
+  const [trails, setTrails] = useState<{ id: string; title: string }[]>([]);
+  const [alertMessage, setAlertMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const fetchTrails = async () => {
+      try {
+        const res = await fetch(`${API_URL}/trails?limit=100`);
+        if (res.ok) {
+          const data = await res.json();
+          const items = Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
+          setTrails(items);
+        }
+      } catch (error) {
+        console.error('Failed to fetch trails for location dropdown:', error);
+      }
+    };
+    fetchTrails();
+  }, []);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
+      if (file.type.startsWith('video/')) {
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.onloadedmetadata = () => {
+          URL.revokeObjectURL(video.src);
+          if (video.duration > 60) {
+            setAlertMessage('O vídeo deve ter no máximo 1 minuto de duração.');
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            return;
+          }
+          setImageFile(file);
+          setImagePreview(URL.createObjectURL(file));
+        };
+        video.src = URL.createObjectURL(file);
+      } else {
+        setImageFile(file);
+        setImagePreview(URL.createObjectURL(file));
+      }
+    } else {
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
-    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const removeImage = () => {
@@ -81,8 +117,12 @@ export default function CreateStoryModal({ accessToken, onClose, onCreated }: Cr
         <form onSubmit={handleSubmit} className="p-4 flex flex-col gap-4">
           <div className="flex justify-center">
             {imagePreview ? (
-              <div className="relative w-full aspect-[9/16] bg-black rounded-xl overflow-hidden max-h-[60vh]">
-                <img src={imagePreview} alt="Preview" className="w-full h-full object-contain" />
+              <div className="relative w-full aspect-[4/5] sm:aspect-square bg-black rounded-xl overflow-hidden max-h-[40vh]">
+                {imageFile?.type.startsWith('video/') ? (
+                  <video src={imagePreview} controls className="w-full h-full object-contain" />
+                ) : (
+                  <img src={imagePreview} alt="Preview" className="w-full h-full object-contain" />
+                )}
                 <button
                   type="button"
                   onClick={removeImage}
@@ -95,10 +135,10 @@ export default function CreateStoryModal({ accessToken, onClose, onCreated }: Cr
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full aspect-[9/16] max-h-[60vh] flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-secondary/40 bg-secondary/5 text-secondary hover:bg-secondary/10 hover:border-secondary transition-all"
+                className="w-full aspect-[4/5] sm:aspect-square max-h-[40vh] flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-secondary/40 bg-secondary/5 text-secondary hover:bg-secondary/10 hover:border-secondary transition-all"
               >
                 <ImagePlus className="w-10 h-10" />
-                <span className="text-sm font-medium">Selecionar Foto</span>
+                <span className="text-sm font-medium">Selecionar Mídia</span>
               </button>
             )}
           </div>
@@ -106,20 +146,24 @@ export default function CreateStoryModal({ accessToken, onClose, onCreated }: Cr
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/jpeg,image/png,image/webp,video/mp4,video/webm"
             className="hidden"
             onChange={handleImageChange}
           />
 
           <div className="flex flex-col gap-3">
-            <input
-              type="text"
-              placeholder="Localização (ex: Parque Ibirapuera)"
+            <select
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              className="w-full px-4 py-2 bg-secondary/5 border border-border-custom rounded-xl focus:outline-none focus:ring-2 focus:ring-sage/50 text-sm"
-              maxLength={40}
-            />
+              className="w-full px-4 py-2 bg-secondary/5 border border-border-custom rounded-xl focus:outline-none focus:ring-2 focus:ring-sage/50 text-sm appearance-none"
+            >
+              <option value="">Nenhuma localização selecionada</option>
+              {trails.map((trail) => (
+                <option key={trail.id} value={trail.title}>
+                  {trail.title}
+                </option>
+              ))}
+            </select>
             <textarea
               placeholder="Adicione uma legenda..."
               value={caption}
@@ -139,6 +183,14 @@ export default function CreateStoryModal({ accessToken, onClose, onCreated }: Cr
           </button>
         </form>
       </div>
+
+      {alertMessage && (
+        <AlertModal
+          title="Aviso"
+          message={alertMessage}
+          onClose={() => setAlertMessage('')}
+        />
+      )}
     </div>
   );
 }

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { Leaf, Camera, UploadCloud, Mail, Lock, Compass } from 'lucide-react';
 import { AuthFooter } from '@/components/AuthFooter';
+import ActivationModal from '@/components/shared/ActivationModal';
+import ForgotPasswordModal from '@/components/shared/ForgotPasswordModal';
 import { StateCitySelect } from '@/components/shared/StateCitySelect';
 import {
   validateCPF,
@@ -20,6 +22,8 @@ export default function LoginPage() {
   const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
+  const [showActivationModal, setShowActivationModal] = useState(false);
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
 
   // Base fields
   const [name, setName] = useState('');
@@ -141,37 +145,15 @@ export default function LoginPage() {
         router.push('/trilhas');
         return;
       } else {
-        // Register via API directly, then use signIn to establish session
-        const formData = new FormData();
-        formData.append('name', name);
-        formData.append('email', email);
-        formData.append('password', password);
-        formData.append('role', role);
-
-        if (phone) formData.append('phone', phone);
-        if (profileImage) formData.append('profileImage', profileImage);
-
-        if (role === 'SCHOOL_MANAGER') {
-          formData.append('schoolName', schoolName);
-          formData.append('state', stateUF);
-          formData.append('city', city);
-          formData.append('location', location);
-          if (cnpj) formData.append('cnpj', cnpj);
-          formData.append('managerName', name);
-          if (cpfManager) formData.append('cpfManager', cpfManager);
-        } else {
-          if (schoolId) formData.append('schoolId', schoolId);
-        }
-
+        // Pre-register: send OTP
         const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-        const res = await fetch(`${apiBaseUrl}/auth/register`, {
+        const res = await fetch(`${apiBaseUrl}/auth/send-register-otp`, {
           method: 'POST',
-          body: formData,
-          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
         });
 
         const data = await res.json();
-
         if (!res.ok) {
           let errorMsg = data.message || 'Erro ao processar a solicitação';
           if (Array.isArray(data.message)) {
@@ -180,17 +162,8 @@ export default function LoginPage() {
           throw new Error(errorMsg);
         }
 
-        userData = data.user;
-
-        // After successful register, use signIn to establish NextAuth session
-        await signIn('credentials', {
-          email,
-          password,
-          redirect: false,
-        });
-
-        // Redirect to trilhas
-        router.push('/trilhas');
+        // Open activation modal
+        setShowActivationModal(true);
         return;
       }
     } catch (error: any) {
@@ -203,18 +176,87 @@ export default function LoginPage() {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#0B5D3B] overflow-y-auto">
+  const handleRegisterConfirm = async (otp: string) => {
+    setIsLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('email', email);
+      formData.append('password', password);
+      formData.append('role', role);
+      formData.append('otp', otp);
 
-      {/* Soft Radial Lighting Background */}
-      <div className="fixed inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at center, rgba(255,255,255,0.6) 0%, transparent 70%)' }} />
+      if (phone) formData.append('phone', phone);
+      if (profileImage) formData.append('profileImage', profileImage);
+
+      if (role === 'SCHOOL_MANAGER') {
+        formData.append('schoolName', schoolName);
+        formData.append('state', stateUF);
+        formData.append('city', city);
+        formData.append('location', location);
+        if (cnpj) formData.append('cnpj', cnpj);
+        formData.append('managerName', name);
+        if (cpfManager) formData.append('cpfManager', cpfManager);
+      } else {
+        if (schoolId) formData.append('schoolId', schoolId);
+      }
+
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const res = await fetch(`${apiBaseUrl}/auth/register`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        let errorMsg = data.message || 'Erro ao processar a solicitação';
+        if (Array.isArray(data.message)) {
+          errorMsg = data.message.join(', ');
+        }
+        throw new Error(errorMsg); // This will be caught by the modal
+      }
+
+      // After successful verify and register, NextAuth auto-login
+      await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
+
+      setShowActivationModal(false);
+      router.push('/trilhas');
+    } catch (error: any) {
+      throw error; // Throw so ActivationModal can show the error
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-[#0B5D3B] to-[#07472B] overflow-y-auto">
+
+      {/* Topographic/Trail Texture Background */}
+      <div className="absolute inset-0 z-0 pointer-events-none opacity-40">
+        <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="trail-pattern" width="160" height="160" patternUnits="userSpaceOnUse">
+              <path d="M0,40 Q40,60 80,40 T160,40" fill="none" className="stroke-white/20" strokeWidth="1.5" />
+              <path d="M0,80 Q40,100 80,80 T160,80" fill="none" className="stroke-white/20" strokeWidth="1.5" />
+              <path d="M0,120 Q40,140 80,120 T160,120" fill="none" className="stroke-white/20" strokeWidth="1.5" />
+              <path d="M-40,80 Q20,20 80,80 T200,80" fill="none" className="stroke-emerald-400/30" strokeWidth="1.5" strokeDasharray="6 6" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#trail-pattern)" />
+        </svg>
+      </div>
 
       {/* Main Login Area */}
       <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 pb-12 md:pb-20 relative z-10">
         <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-700 py-4 relative z-10">
 
           {/* The Premium Card */}
-          <div className="bg-white/90 backdrop-blur-[12px] rounded-[24px] shadow-[0_20px_60px_rgba(0,0,0,0.08)] border border-white/60 p-5 sm:p-8 relative overflow-hidden">
+          <div className="bg-white/90 backdrop-blur-[12px] rounded-[24px] shadow-2xl shadow-black/20 border border-white/60 p-5 sm:p-8 relative z-10 overflow-hidden">
 
             {/* Logotipo Centralizado */}
             <div className="flex flex-col items-center mb-8 relative z-10">
@@ -551,7 +593,11 @@ export default function LoginPage() {
 
             <div className="mt-6 flex flex-col items-center gap-3 relative z-10">
               {isLogin && (
-                <button type="button" className="text-[0.85rem] text-primary/60 hover:text-primary font-medium transition-colors focus:outline-none">
+                <button 
+                  type="button" 
+                  onClick={() => setShowForgotPasswordModal(true)}
+                  className="text-[0.85rem] text-primary/60 hover:text-primary font-medium transition-colors focus:outline-none"
+                >
                   Esqueceu sua senha?
                 </button>
               )}
@@ -577,6 +623,18 @@ export default function LoginPage() {
 
       {/* Macro-Footer */}
       <AuthFooter />
+      
+      {showActivationModal && (
+        <ActivationModal 
+          email={email} 
+          onClose={() => setShowActivationModal(false)} 
+          onConfirm={handleRegisterConfirm}
+          isSubmitting={isLoading}
+        />
+      )}
+      {showForgotPasswordModal && (
+        <ForgotPasswordModal onClose={() => setShowForgotPasswordModal(false)} />
+      )}
     </div>
   );
 }

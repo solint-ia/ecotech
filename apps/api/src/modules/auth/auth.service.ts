@@ -1,24 +1,72 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private mailService: MailService,
   ) {}
 
-  async register(registerDto: RegisterDto, filename?: string) {
+  private generateOtp(): string {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
+  async sendRegisterOtp(email: string) {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      throw new BadRequestException('E-mail já está em uso.');
+    }
+
+    const otpCode = this.generateOtp();
+
+    await this.prisma.verificationToken.deleteMany({
+      where: { email, type: 'EMAIL_VERIFICATION' }
+    });
+
+    await this.prisma.verificationToken.create({
+      data: {
+        email,
+        token: otpCode,
+        expiresAt: new Date(Date.now() + 10 * 60000), // 10 minutes
+        type: 'EMAIL_VERIFICATION'
+      }
+    });
+
+    await this.mailService.sendOtpEmail(email, 'EMAIL_VERIFICATION', otpCode);
+
+    return { success: true };
+  }
+
+  async register(registerDto: RegisterDto, otpCode: string, filename?: string) {
     const existingUser = await this.prisma.user.findUnique({
       where: { email: registerDto.email },
     });
 
     if (existingUser) {
       throw new BadRequestException('E-mail já está em uso.');
+    }
+
+    // Validate OTP
+    const record = await this.prisma.verificationToken.findFirst({
+      where: { email: registerDto.email, token: otpCode, type: 'EMAIL_VERIFICATION' }
+    });
+
+    if (!record) {
+      throw new BadRequestException('Código inválido.');
+    }
+
+    if (record.expiresAt < new Date()) {
+      throw new BadRequestException('Código expirado.');
     }
 
     const hashedPassword = await bcrypt.hash(registerDto.password, 10);
@@ -48,16 +96,28 @@ export class AuthService {
       schoolId = school.id;
     }
 
+    // SECURITY FIX: Prevent Privilege Escalation
+    // Block users from registering as ADMIN or TEACHER via public endpoints
+    const allowedPublicRoles = ['STUDENT', 'SCHOOL_MANAGER'];
+    const assignedRole = (registerDto.role && allowedPublicRoles.includes(registerDto.role))
+      ? registerDto.role
+      : 'STUDENT';
+
     const user = await this.prisma.user.create({
       data: {
         name: registerDto.name,
         email: registerDto.email,
         phone: registerDto.phone,
         password: hashedPassword,
-        role: registerDto.role || 'STUDENT',
+        role: assignedRole,
         schoolId: schoolId || null,
         profileImage: filename ? `/uploads/${filename}` : null,
+        emailVerified: new Date(), // verified right away
       },
+    });
+
+    await this.prisma.verificationToken.deleteMany({
+      where: { email: user.email, type: 'EMAIL_VERIFICATION' }
     });
 
     const { password: _, ...result } = user;
@@ -96,5 +156,99 @@ export class AuthService {
         profileImage: user.role === 'SCHOOL_MANAGER' && user.school ? user.school.coverImage : user.profileImage,
       },
     };
+  }
+
+  async verifyEmail(email: string, token: string) {
+    const record = await this.prisma.verificationToken.findFirst({
+      where: { email, token, type: 'EMAIL_VERIFICATION' }
+    });
+
+    if (!record) {
+      throw new BadRequestException('Código inválido.');
+    }
+
+    if (record.expiresAt < new Date()) {
+      throw new BadRequestException('Código expirado.');
+    }
+
+    const user = await this.prisma.user.update({
+      where: { email },
+      data: { emailVerified: new Date() }
+    });
+
+    await this.prisma.verificationToken.deleteMany({
+      where: { email, type: 'EMAIL_VERIFICATION' }
+    });
+
+    return { success: true, user };
+  }
+
+  async forgotPassword(email: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      throw new NotFoundException('E-mail não está cadastrado na plataforma.');
+    }
+
+    const otpCode = this.generateOtp();
+    
+    await this.prisma.verificationToken.deleteMany({
+      where: { email, type: 'PASSWORD_RESET' }
+    });
+
+    await this.prisma.verificationToken.create({
+      data: {
+        email,
+        token: otpCode,
+        expiresAt: new Date(Date.now() + 10 * 60000),
+        type: 'PASSWORD_RESET'
+      }
+    });
+
+    await this.mailService.sendOtpEmail(email, 'PASSWORD_RESET', otpCode);
+    
+    return { success: true };
+  }
+
+  async verifyResetOtp(email: string, token: string) {
+    const record = await this.prisma.verificationToken.findFirst({
+      where: { email, token, type: 'PASSWORD_RESET' }
+    });
+
+    if (!record) {
+      throw new BadRequestException('Código inválido.');
+    }
+
+    if (record.expiresAt < new Date()) {
+      throw new BadRequestException('Código expirado.');
+    }
+
+    return { success: true };
+  }
+
+  async resetPassword(email: string, token: string, newPassword: string) {
+    const record = await this.prisma.verificationToken.findFirst({
+      where: { email, token, type: 'PASSWORD_RESET' }
+    });
+
+    if (!record) {
+      throw new BadRequestException('Código inválido.');
+    }
+
+    if (record.expiresAt < new Date()) {
+      throw new BadRequestException('Código expirado.');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await this.prisma.user.update({
+      where: { email },
+      data: { password: hashedPassword }
+    });
+
+    await this.prisma.verificationToken.deleteMany({
+      where: { email, type: 'PASSWORD_RESET' }
+    });
+
+    return { success: true };
   }
 }

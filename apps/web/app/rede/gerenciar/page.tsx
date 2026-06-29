@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Store, ArrowLeft, Edit2, Trash2, CheckCircle2, XCircle, Search } from 'lucide-react';
 import { Partner } from '../../../components/rede/PartnerCard';
+import ConfirmDeleteModal from '../../../components/feed/ConfirmDeleteModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -19,6 +20,8 @@ export default function GerenciarParceirosPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState('');
+  const [partnerToDelete, setPartnerToDelete] = useState<{ id: string, name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -50,13 +53,12 @@ export default function GerenciarParceirosPage() {
     }
   }, [isAdmin, fetchPartners]);
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Tem certeza que deseja excluir permanentemente o parceiro "${name}"? Esta ação não pode ser desfeita.`)) {
-      return;
-    }
+  const confirmDelete = async () => {
+    if (!partnerToDelete) return;
+    setIsDeleting(true);
 
     try {
-      const res = await fetch(`${API_URL}/partners/${id}`, {
+      const res = await fetch(`${API_URL}/partners/${partnerToDelete.id}`, {
         method: 'DELETE',
         headers: user?.accessToken ? { Authorization: `Bearer ${user.accessToken}` } : {},
       });
@@ -64,9 +66,12 @@ export default function GerenciarParceirosPage() {
       if (!res.ok && res.status !== 204) throw new Error('Falha ao excluir o parceiro.');
       
       // Remove from list
-      setPartners(prev => prev.filter(p => p.id !== id));
+      setPartners(prev => prev.filter(p => p.id !== partnerToDelete.id));
+      setPartnerToDelete(null);
     } catch (err: any) {
       alert(err.message || 'Erro ao excluir.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -185,7 +190,7 @@ export default function GerenciarParceirosPage() {
                           <Edit2 className="w-4 h-4" />
                         </Link>
                         <button
-                          onClick={() => handleDelete(partner.id, partner.name)}
+                          onClick={() => setPartnerToDelete({ id: partner.id, name: partner.name })}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Excluir permanentemente"
                         >
@@ -200,6 +205,16 @@ export default function GerenciarParceirosPage() {
           </table>
         </div>
       </div>
+
+      {partnerToDelete && (
+        <ConfirmDeleteModal
+          title="Excluir Parceiro"
+          description={`Tem certeza que deseja excluir permanentemente o parceiro "${partnerToDelete.name}"? Esta ação não pode ser desfeita.`}
+          loading={isDeleting}
+          onConfirm={confirmDelete}
+          onClose={() => !isDeleting && setPartnerToDelete(null)}
+        />
+      )}
     </div>
   );
 }

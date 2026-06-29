@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, ChevronDown } from 'lucide-react';
 import { StateCitySelect } from '../../../../components/shared/StateCitySelect';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -200,18 +200,25 @@ export default function EditarTrilhaPage() {
 
         {/* Bioma */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
+          <div className="relative">
             <label htmlFor="trail-biome" className="block text-sm font-medium mb-1.5 text-foreground">
-              Bioma
+              Bioma Predominante
             </label>
-            <input
+            <select
               id="trail-biome"
-              type="text"
               value={biome}
               onChange={(e) => setBiome(e.target.value)}
-              placeholder="Mata Atlântica"
-              className="w-full px-4 py-2.5 rounded-xl border border-border-custom bg-background focus:outline-none focus:ring-2 focus:ring-secondary text-sm transition-all"
-            />
+              className="w-full rounded-xl border border-border-custom px-4 py-2.5 outline-none focus:border-secondary transition-colors appearance-none bg-white"
+            >
+              <option value="">Selecione o Bioma</option>
+              <option value="Amazônia">Amazônia</option>
+              <option value="Caatinga">Caatinga</option>
+              <option value="Cerrado">Cerrado</option>
+              <option value="Mata Atlântica">Mata Atlântica</option>
+              <option value="Pampa">Pampa</option>
+              <option value="Pantanal">Pantanal</option>
+            </select>
+            <ChevronDown className="absolute right-4 top-[38px] w-4 h-4 text-foreground/50 pointer-events-none" />
           </div>
         </div>
 

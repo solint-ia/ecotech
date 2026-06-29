@@ -114,7 +114,11 @@ export default function PerfilPage() {
       
       // Force next-auth to update session if name/email changed (needs page reload to reflect smoothly)
       if (updatedUser.name !== user.name || updatedUser.email !== user.email || profileImageFile) {
-        await update(); 
+        await update({
+          name: updatedUser.name,
+          email: updatedUser.email,
+          profileImage: updatedUser.profileImage
+        }); 
       }
     } catch (err: any) {
       setError(err.message);
@@ -145,13 +149,13 @@ export default function PerfilPage() {
       {/* Header Profile Area */}
       <div className="bg-white rounded-3xl border border-border-custom shadow-sm overflow-hidden mb-6">
         <div className="h-32 bg-primary w-full relative">
-          <div className="absolute -bottom-16 left-8 flex items-end gap-6">
-            <div className="relative group">
-              <div className="w-32 h-32 rounded-full border-4 border-white bg-beige flex items-center justify-center overflow-hidden shadow-md">
+          <div className="absolute -bottom-12 sm:-bottom-16 left-4 sm:left-8 flex items-end gap-4 sm:gap-6">
+            <div className="relative group shrink-0">
+              <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-white bg-beige flex items-center justify-center overflow-hidden shadow-md">
                 {previewImage ? (
                   <img src={previewImage} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
-                  <User className="w-16 h-16 text-primary/30" />
+                  <User className="w-12 h-12 sm:w-16 sm:h-16 text-primary/30" />
                 )}
               </div>
               
@@ -174,9 +178,9 @@ export default function PerfilPage() {
               />
             </div>
             
-            <div className="mb-2">
-              <h1 className="text-2xl font-bold text-primary">{profileData.name}</h1>
-              <div className="flex items-center gap-2 mt-1">
+            <div className="mb-1 sm:mb-2 max-w-[200px] sm:max-w-none">
+              <h1 className="text-xl sm:text-2xl font-bold text-primary truncate">{profileData.name}</h1>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-secondary bg-secondary/10 px-2 py-0.5 rounded-full">
                   <Shield className="w-3 h-3" />
                   {roleLabels[profileData.role] || profileData.role}
@@ -193,7 +197,7 @@ export default function PerfilPage() {
         </div>
         
         {/* Empty space to compensate for absolute positioned avatar */}
-        <div className="h-20 flex justify-end px-8 pt-4">
+        <div className="h-auto sm:h-20 flex justify-end px-4 sm:px-8 pt-16 sm:pt-4 pb-4 sm:pb-0">
           {!isEditing ? (
             <button
               onClick={() => setIsEditing(true)}
@@ -203,7 +207,7 @@ export default function PerfilPage() {
               Editar Perfil
             </button>
           ) : (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 justify-end">
               <button
                 type="button"
                 onClick={handleCancel}

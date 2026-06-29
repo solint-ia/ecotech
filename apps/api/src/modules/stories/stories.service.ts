@@ -6,7 +6,12 @@ import { CreateStoryDto } from './dto/create-story.dto';
 export class StoriesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createStory(userId: string, createStoryDto: CreateStoryDto, mediaUrl: string) {
+  async createStory(
+    userId: string, 
+    createStoryDto: CreateStoryDto, 
+    mediaUrl: string, 
+    mediaType: 'IMAGE' | 'VIDEO' = 'IMAGE'
+  ) {
     // 24 hours from now
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
@@ -14,7 +19,7 @@ export class StoriesService {
       data: {
         userId,
         mediaUrl,
-        mediaType: 'IMAGE',
+        mediaType,
         caption: createStoryDto.caption || null,
         location: createStoryDto.location || null,
         expiresAt,

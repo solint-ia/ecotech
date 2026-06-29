@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { ArrowLeft, Plus, Trash2, Save, ChevronDown, ChevronUp, Edit2 } from 'lucide-react';
 import { getImageUrl } from '../../../../lib/image-url';
+import ConfirmDeleteModal from '../../../../components/feed/ConfirmDeleteModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -42,6 +43,8 @@ export default function PontosPage() {
 
   const [trail, setTrail] = useState<any>(null);
   const [points, setPoints] = useState<Point[]>([]);
+  const [deletingPointId, setDeletingPointId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [expandedPointId, setExpandedPointId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -196,17 +199,21 @@ export default function PontosPage() {
     }
   };
 
-  const handleDeletePoint = async (pointId: string) => {
-    if (!confirm('Tem certeza que deseja excluir este ponto?')) return;
+  const handleDeletePoint = async () => {
+    if (!deletingPointId) return;
+    setIsDeleting(true);
     try {
-      const res = await fetch(`${API_URL}/educational-points/${pointId}`, {
+      const res = await fetch(`${API_URL}/educational-points/${deletingPointId}`, {
         method: 'DELETE',
         headers: user?.accessToken ? { Authorization: `Bearer ${user.accessToken}` } : {},
       });
       if (!res.ok && res.status !== 204) throw new Error('Falha ao excluir ponto.');
-      setPoints((prev) => prev.filter((p) => p.id !== pointId));
+      setPoints((prev) => prev.filter((p) => p.id !== deletingPointId));
+      setDeletingPointId(null);
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -301,7 +308,7 @@ export default function PontosPage() {
                   <Edit2 className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => handleDeletePoint(point.id)}
+                  onClick={() => setDeletingPointId(point.id)}
                   className="ml-1 p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                   title="Excluir ponto"
                 >
@@ -533,6 +540,16 @@ export default function PontosPage() {
             </button>
           </div>
         </form>
+      )}
+      {/* Confirm Delete Modal */}
+      {deletingPointId && (
+        <ConfirmDeleteModal
+          title="Excluir Ponto Educativo"
+          description="Tem certeza que deseja excluir este ponto educativo? Esta ação não poderá ser desfeita e todos os arquivos gerados (QR Code, PDF) serão removidos."
+          loading={isDeleting}
+          onClose={() => setDeletingPointId(null)}
+          onConfirm={handleDeletePoint}
+        />
       )}
     </div>
   );

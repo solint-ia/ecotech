@@ -4,8 +4,9 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { CheckCircle2, XCircle, Clock, BookOpen, ExternalLink, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, BookOpen, ExternalLink, ArrowLeft, Trash2 } from 'lucide-react';
 import { getImageUrl } from '../../../lib/image-url';
+import ConfirmDeleteModal from '../../../components/feed/ConfirmDeleteModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -27,6 +28,8 @@ export default function AdminBibliotecaPage() {
 
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingMaterialId, setDeletingMaterialId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchSubmissions = useCallback(async () => {
     if (!user?.accessToken) return;
@@ -60,20 +63,36 @@ export default function AdminBibliotecaPage() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${user.accessToken}`,
+          Authorization: `Bearer ${user.accessToken}`
         },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: newStatus })
       });
-
       if (res.ok) {
-        setSubmissions((prev) =>
-          prev.map((sub) => (sub.id === id ? { ...sub, approvalStatus: newStatus as any } : sub))
+        setSubmissions(prev =>
+          prev.map(sub => sub.id === id ? { ...sub, approvalStatus: newStatus as any } : sub)
         );
-      } else {
-        alert('Erro ao atualizar status.');
       }
     } catch {
-      alert('Erro ao atualizar status.');
+      console.error('Failed to change status');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletingMaterialId || !user?.accessToken) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`${API_URL}/library/${deletingMaterialId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${user.accessToken}` }
+      });
+      if (!res.ok) throw new Error('Falha ao excluir material');
+      setSubmissions(prev => prev.filter(s => s.id !== deletingMaterialId));
+      setDeletingMaterialId(null);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao excluir o material.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -92,10 +111,10 @@ export default function AdminBibliotecaPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-primary flex items-center gap-2 mb-2">
           <BookOpen className="w-6 h-6 text-secondary" />
-          Aprovações da Biblioteca
+          Gerenciamento da Biblioteca
         </h1>
         <p className="text-foreground/70 text-sm">
-          Gerencie os materiais enviados pelos professores e gestores escolares.
+          Aprove novos materiais pendentes e gerencie ou exclua os conteúdos já publicados na plataforma.
         </p>
       </div>
 
@@ -188,6 +207,13 @@ export default function AdminBibliotecaPage() {
                             <XCircle className="w-5 h-5" />
                           </button>
                         )}
+                        <button
+                          onClick={() => setDeletingMaterialId(sub.id)}
+                          className="p-2 text-foreground/50 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50"
+                          title="Excluir Permanentemente"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -197,6 +223,16 @@ export default function AdminBibliotecaPage() {
           </div>
         )}
       </div>
+
+      {deletingMaterialId && (
+        <ConfirmDeleteModal
+          title="Excluir Material"
+          description="Tem certeza que deseja excluir este material permanentemente? Esta ação removerá os arquivos e não poderá ser desfeita."
+          loading={isDeleting}
+          onClose={() => setDeletingMaterialId(null)}
+          onConfirm={handleDelete}
+        />
+      )}
     </div>
   );
 }

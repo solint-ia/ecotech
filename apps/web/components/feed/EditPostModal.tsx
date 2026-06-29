@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, FormEvent } from 'react';
 import { ImagePlus, Send, X, Loader2, Save } from 'lucide-react';
 import { FeedPost } from './FeedPostCard';
+import AlertModal from './AlertModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -36,6 +37,7 @@ export default function EditPostModal({
   const [loading, setLoading] = useState(false);
   const [schools, setSchools] = useState<School[]>([]);
   const [trails, setTrails] = useState<Trail[]>([]);
+  const [alertMessage, setAlertMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch schools and trails for dropdowns
@@ -57,12 +59,37 @@ export default function EditPostModal({
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
-      // Limit to max 5 images
-      const newFiles = [...imageFiles, ...files].slice(0, 5);
-      setImageFiles(newFiles);
-      
-      const newPreviews = newFiles.map(file => URL.createObjectURL(file));
-      setImagePreviews(newPreviews);
+      const validFiles: File[] = [];
+      const promises = files.map(file => {
+        return new Promise<void>((resolve) => {
+          if (file.type.startsWith('video/')) {
+            const video = document.createElement('video');
+            video.preload = 'metadata';
+            video.onloadedmetadata = () => {
+              URL.revokeObjectURL(video.src);
+              if (video.duration <= 60) {
+                validFiles.push(file);
+              } else {
+                setAlertMessage(`O vídeo "${file.name}" possui mais de 1 minuto e foi ignorado.`);
+              }
+              resolve();
+            };
+            video.src = URL.createObjectURL(file);
+          } else {
+            validFiles.push(file);
+            resolve();
+          }
+        });
+      });
+
+      Promise.all(promises).then(() => {
+        if (validFiles.length > 0) {
+          const newFiles = [...imageFiles, ...validFiles].slice(0, 5);
+          setImageFiles(newFiles);
+          const newPreviews = newFiles.map(f => URL.createObjectURL(f));
+          setImagePreviews(newPreviews);
+        }
+      });
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -193,18 +220,25 @@ export default function EditPostModal({
             
             {imagePreviews.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {imagePreviews.map((preview, index) => (
-                  <div key={index} className="relative rounded-xl overflow-hidden border border-border-custom bg-black/5 aspect-square group">
-                    <img src={preview} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => removeImage(index)}
-                      className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80 shadow-sm backdrop-blur-sm"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+                {imagePreviews.map((preview, index) => {
+                  const isVideo = preview.match(/\.(mp4|webm|ogg)$/i) || imageFiles[index]?.type.startsWith('video/');
+                  return (
+                    <div key={index} className="relative rounded-xl overflow-hidden border border-border-custom bg-black/5 aspect-square group">
+                      {isVideo ? (
+                        <video src={preview} className="w-full h-full object-cover" />
+                      ) : (
+                        <img src={preview} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80 shadow-sm backdrop-blur-sm"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             ) : null}
 
@@ -223,7 +257,7 @@ export default function EditPostModal({
             ref={fileInputRef}
             type="file"
             multiple
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/jpeg,image/png,image/webp,video/mp4,video/webm"
             className="hidden"
             onChange={handleImageChange}
           />
@@ -253,6 +287,14 @@ export default function EditPostModal({
           </div>
         </form>
       </div>
+
+      {alertMessage && (
+        <AlertModal
+          title="Aviso"
+          message={alertMessage}
+          onClose={() => setAlertMessage('')}
+        />
+      )}
     </div>
   );
 }

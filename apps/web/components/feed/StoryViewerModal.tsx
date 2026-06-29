@@ -4,11 +4,13 @@ import { useState, useEffect, useRef } from 'react';
 import { X, ChevronLeft, ChevronRight, MoreHorizontal, Trash2, Link, Cloud, MapPin, Send, Pencil } from 'lucide-react';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import ConfirmDeleteModal from './ConfirmDeleteModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export interface Story {
   id: string;
+  mediaType?: string;
   mediaUrl: string;
   createdAt: string;
   caption?: string;
@@ -33,6 +35,7 @@ export default function StoryViewerModal({ stories, initialIndex, onClose, curre
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [showMenu, setShowMenu] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editCaption, setEditCaption] = useState('');
   const [editLocation, setEditLocation] = useState('');
@@ -116,7 +119,7 @@ export default function StoryViewerModal({ stories, initialIndex, onClose, curre
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (showComments || isEditing) return;
+      if (showComments || isEditing || isDeleteModalOpen) return;
       if (e.key === 'ArrowLeft') {
         if (currentIndex > 0) setCurrentIndex(prev => prev - 1);
       } else if (e.key === 'ArrowRight') {
@@ -128,11 +131,13 @@ export default function StoryViewerModal({ stories, initialIndex, onClose, curre
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex, stories.length, onClose, showComments, isEditing]);
+  }, [currentIndex, stories.length, onClose, showComments, isEditing, isDeleteModalOpen]);
 
   // Timer
   useEffect(() => {
-    if (showMenu || showComments || isEditing) return; // Pause timer
+    if (showMenu || showComments || isEditing || isDeleteModalOpen) return; // Pause timer
+    if (currentStory?.mediaType === 'VIDEO' || currentStory?.mediaUrl.match(/\.(mp4|webm|ogg)$/i)) return; // Let video onEnded handle it
+
     const timer = setTimeout(() => {
       if (currentIndex < stories.length - 1) {
         setCurrentIndex(currentIndex + 1);
@@ -141,7 +146,7 @@ export default function StoryViewerModal({ stories, initialIndex, onClose, curre
       }
     }, 15000);
     return () => clearTimeout(timer);
-  }, [currentIndex, stories.length, onClose, showMenu, showComments, isEditing]);
+  }, [currentIndex, stories.length, onClose, showMenu, showComments, isEditing, isDeleteModalOpen, currentStory]);
 
   if (!currentStory) return null;
 
@@ -159,8 +164,7 @@ export default function StoryViewerModal({ stories, initialIndex, onClose, curre
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDelete = async () => {
     if (!accessToken || !isOwner || isDeleting) return;
 
     setIsDeleting(true);
@@ -184,6 +188,7 @@ export default function StoryViewerModal({ stories, initialIndex, onClose, curre
     } finally {
       setIsDeleting(false);
       setShowMenu(false);
+      setIsDeleteModalOpen(false);
     }
   };
 
@@ -227,10 +232,10 @@ export default function StoryViewerModal({ stories, initialIndex, onClose, curre
                 className={`h-full bg-white`}
                 style={{
                   width: i < userStoryIndex ? '100%' : i === userStoryIndex ? '100%' : '0%',
-                  transition: i === userStoryIndex && !showMenu && !showComments && !isEditing ? 'width 15s linear' : 'none'
+                  transition: i === userStoryIndex && !showMenu && !showComments && !isEditing && !isDeleteModalOpen ? 'width 15s linear' : 'none'
                 }}
                 ref={(el) => {
-                  if (el && i === userStoryIndex && !showMenu && !showComments && !isEditing) {
+                  if (el && i === userStoryIndex && !showMenu && !showComments && !isEditing && !isDeleteModalOpen) {
                     el.style.width = '0%';
                     void el.offsetWidth;
                     el.style.width = '100%';
@@ -298,11 +303,10 @@ export default function StoryViewerModal({ stories, initialIndex, onClose, curre
                         <Pencil className="w-4 h-4" /> Editar Story
                       </button>
                       <button
-                        onClick={handleDelete}
-                        disabled={isDeleting}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                        onClick={(e) => { e.stopPropagation(); setIsDeleteModalOpen(true); setShowMenu(false); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
                       >
-                        <Trash2 className="w-4 h-4" /> {isDeleting ? 'Excluindo...' : 'Excluir Story'}
+                        <Trash2 className="w-4 h-4" /> Excluir Story
                       </button>
                     </>
                   )}
@@ -318,12 +322,26 @@ export default function StoryViewerModal({ stories, initialIndex, onClose, curre
           </div>
         </div>
 
-        {/* Image */}
-        <img
-          src={currentStory.mediaUrl.startsWith('http') ? currentStory.mediaUrl : `${API_URL}${currentStory.mediaUrl}`}
-          alt="Story"
-          className="w-full h-full object-contain"
-        />
+        {/* Media */}
+        {(currentStory.mediaType === 'VIDEO' || currentStory.mediaUrl.match(/\.(mp4|webm|ogg)$/i)) ? (
+          <video
+            src={currentStory.mediaUrl.startsWith('http') ? currentStory.mediaUrl : `${API_URL}${currentStory.mediaUrl}`}
+            autoPlay
+            playsInline
+            controls
+            onEnded={() => {
+              if (currentIndex < stories.length - 1) setCurrentIndex(currentIndex + 1);
+              else onClose();
+            }}
+            className="w-full h-full object-contain"
+          />
+        ) : (
+          <img
+            src={currentStory.mediaUrl.startsWith('http') ? currentStory.mediaUrl : `${API_URL}${currentStory.mediaUrl}`}
+            alt="Story"
+            className="w-full h-full object-contain"
+          />
+        )}
 
         {/* Location and Caption overlays */}
         <div className="absolute bottom-16 left-0 right-0 p-4 pointer-events-none z-10 bg-gradient-to-t from-black/80 to-transparent">
@@ -473,6 +491,16 @@ export default function StoryViewerModal({ stories, initialIndex, onClose, curre
           </div>
         )}
 
+        {/* Delete Modal */}
+        {isDeleteModalOpen && (
+          <ConfirmDeleteModal
+            title="Excluir Story"
+            description="Tem certeza que deseja excluir este story? Esta ação não poderá ser desfeita."
+            loading={isDeleting}
+            onClose={() => setIsDeleteModalOpen(false)}
+            onConfirm={handleDelete}
+          />
+        )}
       </div>
     </div>
   );

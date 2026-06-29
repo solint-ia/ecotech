@@ -91,7 +91,7 @@ export default function BibliotecaPage() {
               href="/admin/biblioteca"
               className="px-4 py-2 bg-white border border-border-custom text-primary rounded-lg text-sm font-semibold hover:bg-beige transition-colors shadow-sm"
             >
-              Aprovações
+              Gerenciar Materiais
             </Link>
           )}
           {canSubmit && (

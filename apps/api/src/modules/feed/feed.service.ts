@@ -15,7 +15,12 @@ export class FeedService {
    * Create a new feed post.
    * Any authenticated user can publish.
    */
-  async createPost(userId: string, createPostDto: CreatePostDto, imagesUrls: string[] = []) {
+  async createPost(
+    userId: string, 
+    createPostDto: CreatePostDto, 
+    imagesUrls: string[] = [],
+    mediaType: 'IMAGE' | 'VIDEO' = 'IMAGE'
+  ) {
     return this.prisma.feedPost.create({
       data: {
         userId,
@@ -23,6 +28,7 @@ export class FeedService {
         description: createPostDto.description,
         schoolId: createPostDto.schoolId || null,
         trailId: createPostDto.trailId || null,
+        mediaType,
         images: {
           create: imagesUrls.map((url, index) => ({ url, order: index })),
         },
@@ -141,7 +147,8 @@ export class FeedService {
     userId: string,
     userRole: string,
     updatePostDto: UpdatePostDto,
-    imagesUrls?: string[]
+    imagesUrls?: string[],
+    mediaType?: 'IMAGE' | 'VIDEO'
   ) {
     const post = await this.findOne(postId);
 
@@ -150,6 +157,10 @@ export class FeedService {
     }
 
     const dataPayload: any = { ...updatePostDto };
+    
+    if (mediaType) {
+      dataPayload.mediaType = mediaType;
+    }
     
     if (imagesUrls) {
       dataPayload.images = {

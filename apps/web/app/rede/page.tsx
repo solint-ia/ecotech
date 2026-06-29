@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { Store, MapPin, Search, Plus } from 'lucide-react';
+import { Store, MapPin, Search, Plus, SlidersHorizontal, X, ChevronDown } from 'lucide-react';
 import { PartnerCard, Partner } from '../../components/rede/PartnerCard';
 import { StateCitySelect } from '@/components/shared/StateCitySelect';
 
@@ -29,6 +29,7 @@ export default function RedePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterState, setFilterState] = useState('');
   const [filterCity, setFilterCity] = useState('');
+  const [showFiltersModal, setShowFiltersModal] = useState(false);
 
   const fetchPartners = useCallback(async () => {
     setLoading(true);
@@ -57,27 +58,26 @@ export default function RedePage() {
   return (
     <div>
       {/* Page Header */}
-      <div className="flex items-start justify-between mb-8">
-        <div className="flex flex-col">
-          <h1 className="text-3xl font-bold text-primary mb-2 flex items-center gap-2">
-            <Store className="w-8 h-8 text-secondary" />
-            Rede de Parceiros
-          </h1>
-          <p className="text-base text-foreground/70">
-            Apoie a economia local! Conheça os serviços, guias e comércios da nossa região.
-          </p>
-        </div>
+      <div className="flex flex-col mb-4">
+        <h1 className="w-full flex items-center gap-2 text-3xl font-bold text-primary mb-2">
+          <Store className="w-8 h-8 text-secondary" />
+          Rede de Parceiros
+        </h1>
+        <p className="text-sm md:text-base text-gray-600 mb-4">
+          Apoie a economia local! Conheça os serviços, guias e comércios da nossa região.
+        </p>
+        
         {isAdmin && (
-          <div className="flex items-center gap-3">
+          <div className="w-full flex gap-3 mb-4">
             <Link
               href="/rede/gerenciar"
-              className="flex items-center gap-2 px-4 py-2 bg-white text-primary border border-border-custom rounded-lg text-sm font-semibold hover:bg-beige transition-colors shadow-sm whitespace-nowrap"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-primary border border-border-custom rounded-xl text-xs md:text-sm font-medium hover:bg-beige transition-colors shadow-sm"
             >
               Gerenciar Parceiros
             </Link>
             <Link
               href="/rede/criar"
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm whitespace-nowrap"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-forest text-white rounded-xl text-xs md:text-sm font-medium hover:bg-forest/90 transition-colors shadow-sm"
             >
               <Plus className="w-4 h-4" />
               Novo Parceiro
@@ -88,17 +88,27 @@ export default function RedePage() {
 
       {/* Search Bar and Filters */}
       <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <div className="relative md:w-1/3">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/40" />
-          <input
-            type="text"
-            placeholder="Buscar parceiro por nome..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 rounded-xl border border-border-custom bg-white focus:ring-2 focus:ring-secondary focus:outline-none shadow-sm h-[50px]"
-          />
+        <div className="flex gap-2 w-full md:w-1/3">
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/40" />
+            <input
+              type="text"
+              placeholder="Buscar parceiro..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 rounded-xl border border-border-custom bg-white focus:ring-2 focus:ring-secondary focus:outline-none shadow-sm h-[50px]"
+            />
+          </div>
+          <button
+            onClick={() => setShowFiltersModal(true)}
+            className="md:hidden flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-900/10 bg-white text-emerald-950 font-medium shadow-sm"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            Filtros
+          </button>
         </div>
-        <div className="md:w-2/3">
+        
+        <div className="hidden md:block md:w-2/3">
           <StateCitySelect
             selectedState={filterState}
             selectedCity={filterCity}
@@ -109,20 +119,20 @@ export default function RedePage() {
         </div>
       </div>
 
-      {/* Category Tabs */}
-      <div className="flex overflow-x-auto pb-4 mb-6 gap-2 snap-x scrollbar-hide">
-        {CATEGORIES.map((category) => (
-          <button
-            key={category}
-            onClick={() => setSelectedCategory(category)}
-            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap snap-start transition-colors ${selectedCategory === category
-              ? 'bg-secondary text-white shadow-sm'
-              : 'bg-beige text-primary hover:bg-beige/80 border border-border-custom'
-              }`}
-          >
-            {category}
-          </button>
-        ))}
+      {/* Categories Dropdown */}
+      <div className="relative mb-6 md:w-1/3">
+        <select
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value)}
+          className="w-full pl-4 pr-10 py-3 rounded-xl border border-sage/50 focus:outline-none focus:ring-2 focus:ring-forest text-sm font-medium appearance-none cursor-pointer shadow-sm bg-sage text-forest"
+        >
+          {CATEGORIES.map((category) => (
+            <option key={category} value={category}>
+              {category === 'Todos' ? 'Todas as Categorias' : category}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-forest pointer-events-none" />
       </div>
 
       {/* Partners Grid */}
@@ -152,6 +162,37 @@ export default function RedePage() {
           {partners.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map((partner) => (
             <PartnerCard key={partner.id} partner={partner} />
           ))}
+        </div>
+      )}
+
+      {/* Mobile Filters Modal */}
+      {showFiltersModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm md:hidden">
+          <div className="bg-white w-full max-h-[85vh] rounded-t-2xl p-6 flex flex-col gap-6 overflow-y-auto animate-in slide-in-from-bottom-full duration-300">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-primary">Filtros de Localização</h2>
+              <button onClick={() => setShowFiltersModal(false)} className="p-2 text-foreground/50 hover:bg-black/5 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="flex flex-col gap-4">
+              <StateCitySelect
+                selectedState={filterState}
+                selectedCity={filterCity}
+                onStateChange={setFilterState}
+                onCityChange={setFilterCity}
+                inline={false}
+              />
+            </div>
+
+            <button 
+              onClick={() => setShowFiltersModal(false)}
+              className="w-full py-3 bg-forest text-white rounded-xl font-bold mt-2 hover:bg-forest/90 transition-colors"
+            >
+              Aplicar Filtros
+            </button>
+          </div>
         </div>
       )}
     </div>

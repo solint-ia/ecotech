@@ -11,6 +11,12 @@ import { RegisterDto } from './dto/register.dto';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Post('send-register-otp')
+  @HttpCode(HttpStatus.OK)
+  async sendRegisterOtp(@Body() body: { email: string }) {
+    return this.authService.sendRegisterOtp(body.email);
+  }
+
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('profileImage', {
@@ -24,12 +30,16 @@ export class AuthController {
     }),
   }))
   async register(
-    @Body() registerDto: RegisterDto,
+    @Body() registerDto: any,
     @Res({ passthrough: true }) response: express.Response,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    const user = await this.authService.register(registerDto, file?.filename);
-    // Auto-login: issue JWT cookie immediately after registration
+    if (!registerDto.otp) {
+      throw new BadRequestException('Código OTP é obrigatório.');
+    }
+    const user = await this.authService.register(registerDto, registerDto.otp, file?.filename);
+    
+    // Auto-login since OTP is already verified at this stage
     const result = await this.authService.login(user);
 
     response.cookie('token', result.access_token, {
@@ -39,7 +49,46 @@ export class AuthController {
       maxAge: 24 * 60 * 60 * 1000, // 24 horas
     });
 
-    return { user: result.user, accessToken: result.access_token };
+    return { success: true, user: result.user, accessToken: result.access_token };
+  }
+
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  async verifyEmail(
+    @Body() body: { email: string; token: string },
+    @Res({ passthrough: true }) response: express.Response,
+  ) {
+    // Left for backwards compatibility or manual verification
+    const { user } = await this.authService.verifyEmail(body.email, body.token);
+    
+    const result = await this.authService.login(user);
+    
+    response.cookie('token', result.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+
+    return { success: true, user: result.user, accessToken: result.access_token };
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body() body: { email: string }) {
+    return this.authService.forgotPassword(body.email);
+  }
+
+  @Post('verify-reset-otp')
+  @HttpCode(HttpStatus.OK)
+  async verifyResetOtp(@Body() body: { email: string; token: string }) {
+    return this.authService.verifyResetOtp(body.email, body.token);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() body: { email: string; token: string; newPassword: string }) {
+    return this.authService.resetPassword(body.email, body.token, body.newPassword);
   }
 
   @Post('login')

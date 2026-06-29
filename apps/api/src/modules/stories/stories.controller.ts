@@ -44,10 +44,12 @@ export class StoriesController {
     @UploadedFile() file?: Express.Multer.File,
   ) {
     if (!file) {
-      throw new BadRequestException('A imagem do story é obrigatória.');
+      throw new BadRequestException('A imagem ou vídeo do story é obrigatório.');
     }
     const mediaUrl = `/uploads/${file.filename}`;
-    return this.storiesService.createStory(req.user.id, createStoryDto, mediaUrl);
+    const mediaType = file.mimetype.startsWith('video/') ? 'VIDEO' : 'IMAGE';
+    
+    return this.storiesService.createStory(req.user.id, createStoryDto, mediaUrl, mediaType);
   }
 
   @UseGuards(JwtAuthGuard)

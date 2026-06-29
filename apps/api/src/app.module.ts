@@ -13,6 +13,7 @@ import { StoriesModule } from './modules/stories/stories.module';
 import { LibraryModule } from './modules/library/library.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { UsersModule } from './modules/users/users.module';
+import { MailModule } from './modules/mail/mail.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 
@@ -30,6 +31,7 @@ import { join } from 'path';
     LibraryModule,
     AnalyticsModule,
     UsersModule,
+    MailModule,
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',

@@ -54,6 +54,11 @@ enum ApprovalStatus {
   REPROVADO
 }
 
+enum VerificationType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
 model User {
   id              String           @id @default(uuid())
   name            String
@@ -63,6 +68,7 @@ model User {
   role            Role             @default(STUDENT)
   schoolId        String?
   profileImage    String?
+  emailVerified   DateTime?
   status          Boolean          @default(true)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -77,6 +83,17 @@ model User {
   stories         Story[]
   storyComments   StoryComment[]
   libraryContents LibraryContent[]
+}
+
+model VerificationToken {
+  id        String           @id @default(uuid())
+  email     String
+  token     String
+  expiresAt DateTime
+  type      VerificationType
+  createdAt DateTime         @default(now())
+  
+  @@unique([email, token])
 }
 
 model School {
@@ -150,7 +167,7 @@ model TrailPhoto {
   trailId   String
   image     String
   createdAt DateTime @default(now())
-  trail     Trail    @relation(fields: [trailId], references: [id])
+  trail     Trail    @relation(fields: [trailId], references: [id], onDelete: Cascade)
 }
 
 model TrailLike {
@@ -158,7 +175,7 @@ model TrailLike {
   trailId   String
   userId    String
   createdAt DateTime @default(now())
-  trail     Trail    @relation(fields: [trailId], references: [id])
+  trail     Trail    @relation(fields: [trailId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id])
 
   @@unique([trailId, userId])
@@ -169,7 +186,7 @@ model SavedTrail {
   trailId   String
   userId    String
   createdAt DateTime @default(now())
-  trail     Trail    @relation(fields: [trailId], references: [id])
+  trail     Trail    @relation(fields: [trailId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id])
 
   @@unique([trailId, userId])
@@ -193,7 +210,7 @@ model EducationalPoint {
   status                  Boolean          @default(false)
   createdAt               DateTime         @default(now())
   updatedAt               DateTime         @updatedAt
-  trail                   Trail            @relation(fields: [trailId], references: [id])
+  trail                   Trail            @relation(fields: [trailId], references: [id], onDelete: Cascade)
   qrCodes                 QrCode[]
 }
 
@@ -204,7 +221,7 @@ model QrCode {
   qrImage            String
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
-  point              EducationalPoint @relation(fields: [educationalPointId], references: [id])
+  point              EducationalPoint @relation(fields: [educationalPointId], references: [id], onDelete: Cascade)
 }
 
 model BiodiversityItem {
@@ -219,7 +236,7 @@ model BiodiversityItem {
   environmentalImportance String
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
-  trail                   Trail    @relation(fields: [trailId], references: [id])
+  trail                   Trail    @relation(fields: [trailId], references: [id], onDelete: Cascade)
 }
 
 model FeedPost {
@@ -238,7 +255,7 @@ model FeedPost {
   updatedAt     DateTime      @updatedAt
   user          User          @relation(fields: [userId], references: [id])
   school        School?       @relation(fields: [schoolId], references: [id])
-  trail         Trail?        @relation(fields: [trailId], references: [id])
+  trail         Trail?        @relation(fields: [trailId], references: [id], onDelete: SetNull)
   images        FeedPostImage[]
   likes         FeedLike[]
   comments      FeedComment[]
