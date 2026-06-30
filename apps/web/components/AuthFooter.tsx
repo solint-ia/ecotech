@@ -17,10 +17,10 @@ export function AuthFooter() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-12 xl:gap-16">
 
           {/* SECTION 1 — BRAND */}
-          <div className="space-y-4 lg:col-span-1 pr-4 -mt-1 lg:-mt-1.5">
+          <div className="space-y-5 lg:col-span-1 pr-4">
             <div className="flex items-center gap-3">
-              <img src="/EcoTechLogo.png" alt="Ecotech" className="w-20 h-20 object-contain" />
-              <span className="font-bold text-[#0B5D3B] text-xl tracking-tight mt-1">Ecotech</span>
+              <img src="/EcoTechLogo.png" alt="Ecotech" className="w-25 h-25 object-contain" />
+              <span className="font-bold text-[#0B5D3B] text-xl tracking-tight">Ecotech</span>
             </div>
             <h3 className="text-[#4F8A4C] font-semibold text-sm tracking-wide">
               Educação Ambiental e Trilhas Educativas
