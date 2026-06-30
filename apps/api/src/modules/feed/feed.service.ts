@@ -49,11 +49,15 @@ export class FeedService {
    * @param take  – number of items to return (default 10)
    * @param cursor – ISO date string; returns posts *before* this date
    */
-  async findAll(take = 10, cursor?: string, userId?: string, currentUserId?: string) {
+  async findAll(take = 10, cursor?: string, userId?: string, currentUserId?: string, trailId?: string) {
     const whereClause: any = { status: true };
 
     if (userId) {
       whereClause.userId = userId;
+    }
+
+    if (trailId) {
+      whereClause.trailId = trailId;
     }
 
     if (cursor) {

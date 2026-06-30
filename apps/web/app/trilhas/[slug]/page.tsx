@@ -5,6 +5,7 @@ import { getImageUrl } from '../../../lib/image-url';
 import TrailDetailTabs from '../../../components/trilhas/TrailDetailTabs';
 import TrailActions from '../../../components/trilhas/TrailActions';
 import { TrailGallery } from '../../../components/trilhas/TrailGallery';
+import { CommunityGallery } from '../../../components/trilhas/CommunityGallery';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -124,8 +125,11 @@ export default async function TrailDetailPage({ params }: { params: Promise<{ sl
       {/* Tabs (Client Component) */}
       <TrailDetailTabs trail={trail} />
 
-      {/* Gallery Section */}
+      {/* Official Gallery Section */}
       <TrailGallery trailId={trail.id} photos={trail.photos || []} />
+
+      {/* Community Gallery Section */}
+      <CommunityGallery trailId={trail.id} />
     </div>
   );
 }

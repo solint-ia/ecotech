@@ -50,12 +50,14 @@ export class FeedController {
     @Query('cursor') cursor?: string,
     @Query('userId') userId?: string,
     @Query('currentUserId') currentUserId?: string,
+    @Query('trailId') trailId?: string,
   ) {
     return this.feedService.findAll(
       take ? parseInt(take, 10) : 10,
       cursor || undefined,
       userId,
       currentUserId,
+      trailId,
     );
   }
 
