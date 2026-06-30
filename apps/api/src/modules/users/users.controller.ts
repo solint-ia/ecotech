@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Body, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Get, Patch, Body, UseGuards, UseInterceptors, UploadedFile, Param } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
@@ -14,6 +14,26 @@ export class UsersController {
   @Get('me')
   getMe(@CurrentUser() user: any) {
     return this.usersService.getMe(user.id);
+  }
+
+  @Get('pending')
+  getPendingUsers(@CurrentUser() user: any) {
+    return this.usersService.getPendingUsers(user);
+  }
+
+  @Patch(':id/approve')
+  approveUser(@Param('id') id: string) {
+    return this.usersService.approveUser(id);
+  }
+
+  @Patch(':id/reject')
+  rejectUser(@Param('id') id: string) {
+    return this.usersService.rejectUser(id);
+  }
+
+  @Get(':id')
+  getUser(@Param('id') id: string) {
+    return this.usersService.getMe(id);
   }
 
   @Patch('me')

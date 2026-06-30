@@ -126,13 +126,13 @@ export default async function PointDetailPage({ params }: { params: Promise<{ sl
             target="_blank"
             rel="noopener noreferrer"
             id="btn-wikiloc-point"
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-all active:scale-95 ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95 ${
               !pdfUrl 
                 ? 'bg-forest text-white shadow-md hover:bg-forest/90 hover:shadow-lg' 
                 : 'border border-forest text-forest hover:bg-forest/5 shadow-sm'
             }`}
           >
-            <ExternalLink className="w-4 h-4" />
+            <ExternalLink className="w-3.5 h-3.5" />
             Ver no Wikiloc
           </a>
         )}

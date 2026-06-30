@@ -74,4 +74,47 @@ export class UsersService {
 
     return this.getMe(userId);
   }
+
+  async getPendingUsers(currentUser: any) {
+    if (currentUser.role === 'ADMIN') {
+      const users = await this.prisma.user.findMany({
+        where: { role: 'SCHOOL_MANAGER', roleStatus: { in: ['PENDENTE', 'REPROVADO'] } },
+        include: { school: true },
+        orderBy: { createdAt: 'desc' }
+      });
+      return users.map(user => {
+        const { password, ...rest } = user;
+        return rest;
+      });
+    }
+
+    if (currentUser.role === 'SCHOOL_MANAGER' && currentUser.schoolId) {
+      const users = await this.prisma.user.findMany({
+        where: { role: 'TEACHER', roleStatus: { in: ['PENDENTE', 'REPROVADO'] }, schoolId: currentUser.schoolId },
+        orderBy: { createdAt: 'desc' }
+      });
+      return users.map(user => {
+        const { password, ...rest } = user;
+        return rest;
+      });
+    }
+
+    return [];
+  }
+
+  async approveUser(userId: string) {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { roleStatus: 'APROVADO' }
+    });
+    return { success: true, user: { id: user.id, roleStatus: user.roleStatus } };
+  }
+
+  async rejectUser(userId: string) {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { roleStatus: 'REPROVADO' }
+    });
+    return { success: true, user: { id: user.id, roleStatus: user.roleStatus } };
+  }
 }

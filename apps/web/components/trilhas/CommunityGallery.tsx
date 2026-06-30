@@ -43,14 +43,17 @@ export function CommunityGallery({ trailId }: CommunityGalleryProps) {
       data.items.forEach((post: any) => {
         if (post.images && post.images.length > 0) {
           post.images.forEach((img: any) => {
-            extractedImages.push({
-              id: img.id,
-              url: img.url,
-              postId: post.id,
-              userName: post.user?.name || 'Usuário Anônimo',
-              userAvatar: post.user?.profileImage || null,
-              postTitle: post.title,
-            });
+            const isVideo = img.url.match(/\.(mp4|webm|ogg)$/i);
+            if (!isVideo) {
+              extractedImages.push({
+                id: img.id,
+                url: img.url,
+                postId: post.id,
+                userName: post.user?.name || 'Usuário Anônimo',
+                userAvatar: post.user?.profileImage || null,
+                postTitle: post.title,
+              });
+            }
           });
         }
       });

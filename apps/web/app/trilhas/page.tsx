@@ -18,7 +18,7 @@ import TrailCard, { Trail } from '../../components/trilhas/TrailCard';
 export default function TrilhasPage() {
   const { data: session } = useSession();
   const user = session?.user as any;
-  const isAdmin = user?.role === 'ADMIN';
+  const canManageTrails = user?.role === 'ADMIN' || user?.role === 'SCHOOL_MANAGER';
 
   const [trails, setTrails] = useState<Trail[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,13 +104,13 @@ export default function TrilhasPage() {
             Explore trilhas educativas e conheça a biodiversidade local
           </p>
         </div>
-        {isAdmin && (
+        {canManageTrails && (
           <Link
             href="/trilhas/criar"
             id="btn-nova-trilha"
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" />
             Nova Trilha
           </Link>
         )}

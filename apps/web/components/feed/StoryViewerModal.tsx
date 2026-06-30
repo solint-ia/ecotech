@@ -249,7 +249,7 @@ export default function StoryViewerModal({ stories, initialIndex, onClose, curre
         {/* Header */}
         <div className="absolute top-5 left-0 right-0 z-10 px-4 py-2 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full overflow-hidden border border-white/40 bg-gray-600 flex items-center justify-center text-white text-xs font-bold">
+            <a href={`/perfil/${currentStory.user.id}`} className="w-8 h-8 rounded-full overflow-hidden border border-white/40 bg-gray-600 flex items-center justify-center text-white text-xs font-bold hover:scale-105 transition-transform">
               {currentStory.user.profileImage ? (
                 <img
                   src={currentStory.user.profileImage.startsWith('http') ? currentStory.user.profileImage : `${API_URL}${currentStory.user.profileImage}`}
@@ -259,10 +259,10 @@ export default function StoryViewerModal({ stories, initialIndex, onClose, curre
               ) : (
                 currentStory.user.name.substring(0, 2).toUpperCase()
               )}
-            </div>
-            <span className="text-white font-semibold text-sm drop-shadow-md">
+            </a>
+            <a href={`/perfil/${currentStory.user.id}`} className="text-white font-semibold text-sm drop-shadow-md hover:underline">
               {currentStory.user.name}
-            </span>
+            </a>
             <span className="text-white/70 text-xs font-medium drop-shadow-md">
               {timeAgo}
             </span>

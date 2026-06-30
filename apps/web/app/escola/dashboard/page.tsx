@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { 
+import {
   Users, School, Compass, MapPin, MessageSquare, Library, Clock, ArrowRight, LayoutDashboard,
   CheckCircle2, XCircle
 } from 'lucide-react';
@@ -93,7 +93,7 @@ export default function EscolaDashboardPage() {
               Novo Envio <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
-          
+
           <div className="grid grid-cols-3 gap-4 mb-6">
             <div className="bg-emerald-50 rounded-xl p-3 text-center border border-emerald-100">
               <span className="block text-xl font-bold text-emerald-600">{libraryStats.approved}</span>
@@ -149,7 +149,7 @@ export default function EscolaDashboardPage() {
                   <div className="w-[calc(100%-3rem)] md:w-[calc(50%-2rem)] bg-beige/40 p-4 rounded-xl border border-border-custom shadow-sm">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs font-bold text-secondary">{act.type}</span>
-                      <time className="text-[10px] font-medium text-foreground/50">{new Date(act.date).toLocaleDateString('pt-BR')} {new Date(act.date).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</time>
+                      <time className="text-[10px] font-medium text-foreground/50">{new Date(act.date).toLocaleDateString('pt-BR')} {new Date(act.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</time>
                     </div>
                     <p className="text-sm text-primary font-medium">{act.label}</p>
                   </div>

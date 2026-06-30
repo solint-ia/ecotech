@@ -126,7 +126,7 @@ export default async function TrailDetailPage({ params }: { params: Promise<{ sl
       <TrailDetailTabs trail={trail} />
 
       {/* Official Gallery Section */}
-      <TrailGallery trailId={trail.id} photos={trail.photos || []} />
+      <TrailGallery trailId={trail.id} trailSchoolId={trail.schoolId} photos={trail.photos || []} />
 
       {/* Community Gallery Section */}
       <CommunityGallery trailId={trail.id} />

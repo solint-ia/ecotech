@@ -66,6 +66,7 @@ model User {
   phone           String?
   password        String
   role            Role             @default(STUDENT)
+  roleStatus      ApprovalStatus   @default(APROVADO)
   schoolId        String?
   profileImage    String?
   emailVerified   DateTime?

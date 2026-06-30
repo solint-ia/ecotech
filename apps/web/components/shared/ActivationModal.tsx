@@ -1,20 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import { Mail, ArrowRight } from 'lucide-react';
+import { Mail, ArrowRight, Clock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 
 interface ActivationModalProps {
   email: string;
   onClose: () => void;
-  onConfirm: (otp: string) => Promise<void> | void;
+  onConfirm: (otp: string) => Promise<any> | any;
   isSubmitting?: boolean;
 }
 
 export default function ActivationModal({ email, onClose, onConfirm, isSubmitting = false }: ActivationModalProps) {
+  const router = useRouter();
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
+  const [isPendingApproval, setIsPendingApproval] = useState(false);
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,11 +27,44 @@ export default function ActivationModal({ email, onClose, onConfirm, isSubmittin
 
     setError('');
     try {
-      await onConfirm(code);
+      const result = await onConfirm(code);
+      if (result?.roleStatus === 'PENDENTE') {
+        setIsPendingApproval(true);
+      }
     } catch (err: any) {
       setError(err.message || 'Código inválido ou erro no servidor.');
     }
   };
+
+  if (isPendingApproval) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
+        <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-md relative overflow-hidden animate-in zoom-in-95">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Clock className="w-8 h-8 text-amber-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">Conta Criada com Sucesso!</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Seu e-mail <strong>{email}</strong> foi verificado.
+            </p>
+            <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-xl text-sm mb-6 text-left">
+              Como você solicitou um perfil com privilégios específicos (Escola ou Professor), seu cargo real aguarda <strong>aprovação do administrador</strong>. 
+              <br/><br/>
+              Enquanto isso, você já pode acessar o sistema e navegar pelas trilhas como visitante!
+            </div>
+          </div>
+          <button
+            onClick={() => router.push('/trilhas')}
+            className="w-full bg-[#0B3B24] text-white py-3 rounded-xl font-semibold hover:bg-[#082a19] transition-all flex items-center justify-center gap-2"
+          >
+            Acessar Sistema
+            <ArrowRight className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">

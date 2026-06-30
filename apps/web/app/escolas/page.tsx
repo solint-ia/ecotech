@@ -81,14 +81,19 @@ export default function SchoolsPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      {/* Header & Search */}
-      <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 bg-white p-6 rounded-2xl border border-border-custom shadow-sm">
-        <div className="md:w-1/3">
-          <h1 className="text-2xl font-bold text-primary mb-2">Escolas Parceiras</h1>
-          <p className="text-sm text-foreground/70 mb-4">
-            Descubra as escolas que estão transformando a educação ambiental.
-          </p>
-          <div className="relative w-full max-w-md">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-primary mb-2">Escolas Parceiras</h1>
+        <p className="text-sm text-foreground/70 mb-4">
+          Descubra as escolas que estão transformando a educação ambiental.
+        </p>
+      </div>
+
+      {/* Barra de Ações Unificada */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-border-custom shadow-sm">
+        
+        <div className="flex flex-col md:flex-row md:items-center gap-4 flex-1 order-2 md:order-1">
+          <div className="relative w-full md:w-auto md:min-w-[250px]">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
               <Search className="h-4 w-4 text-foreground/40" />
             </div>
@@ -100,17 +105,27 @@ export default function SchoolsPage() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+          
+          <div className="w-full md:w-auto">
+            <StateCitySelect
+              selectedState={filterState}
+              selectedCity={filterCity}
+              onStateChange={setFilterState}
+              onCityChange={setFilterCity}
+              inline={true}
+            />
+          </div>
         </div>
-        
-        <div className="md:w-2/3">
-          <StateCitySelect
-            selectedState={filterState}
-            selectedCity={filterCity}
-            onStateChange={setFilterState}
-            onCityChange={setFilterCity}
-            inline={true}
-          />
-        </div>
+
+        {((session?.user as any)?.role === 'ADMIN' || (session?.user as any)?.role === 'SCHOOL_MANAGER') && (
+          <Link 
+            href="/escolas/aprovacoes" 
+            className="order-1 md:order-2 w-full md:w-auto justify-center inline-flex items-center gap-2 px-5 py-2.5 bg-amber-100 text-amber-800 text-sm font-semibold rounded-xl hover:bg-amber-200 transition-colors shrink-0"
+          >
+            <Users className="w-4 h-4" />
+            Gerenciar Solicitações
+          </Link>
+        )}
       </div>
 
       {/* Grid de Escolas */}

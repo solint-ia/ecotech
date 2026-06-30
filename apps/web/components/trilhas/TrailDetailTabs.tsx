@@ -30,7 +30,7 @@ export default function TrailDetailTabs({ trail }: TrailDetailTabsProps) {
   const [activeTab, setActiveTab] = useState('sobre');
   const { data: session } = useSession();
   const user = session?.user as any;
-  const isAdminOrManager = user?.role === 'ADMIN' || user?.role === 'SCHOOL_MANAGER';
+  const isAdminOrManager = user?.role === 'ADMIN' || (user?.role === 'SCHOOL_MANAGER' && user?.schoolId === trail.schoolId);
 
   const biodiversity: any[] = trail.biodiversity ?? trail.biodiversityItems ?? [];
 

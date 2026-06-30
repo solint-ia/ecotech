@@ -35,6 +35,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               name: data.user.name,
               email: data.user.email,
               role: data.user.role,
+              roleStatus: data.user.roleStatus,
               schoolId: data.user.schoolId,
               profileImage: data.user.profileImage,
               accessToken: data.accessToken,
@@ -51,7 +52,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as any).role;
+        token.realRole = (user as any).role;
+        token.roleStatus = (user as any).roleStatus;
+        
+        const isPendingOrRejected = token.roleStatus === 'PENDENTE' || token.roleStatus === 'REPROVADO';
+        token.role = isPendingOrRejected ? 'STUDENT' : token.realRole;
+        
         token.schoolId = (user as any).schoolId;
         token.profileImage = (user as any).profileImage;
         token.accessToken = (user as any).accessToken;
@@ -67,6 +73,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token) {
         session.user.id = token.id as string;
         (session.user as any).role = token.role;
+        (session.user as any).realRole = token.realRole;
+        (session.user as any).roleStatus = token.roleStatus;
         (session.user as any).schoolId = token.schoolId;
         (session.user as any).profileImage = token.profileImage;
         (session.user as any).accessToken = token.accessToken;

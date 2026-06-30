@@ -10,8 +10,10 @@ export interface Partner {
   coverImage: string;
   address: string;
   city: string;
+  state?: string;
   phone: string;
   whatsapp?: string;
+  status?: boolean;
 }
 
 interface PartnerCardProps {

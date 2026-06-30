@@ -11,10 +11,16 @@ import { RegisterDto } from './dto/register.dto';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Post('check-availability')
+  @HttpCode(HttpStatus.OK)
+  async checkAvailability(@Body() body: { email?: string; phone?: string; cpfManager?: string; cnpj?: string }) {
+    return this.authService.checkAvailability(body);
+  }
+
   @Post('send-register-otp')
   @HttpCode(HttpStatus.OK)
-  async sendRegisterOtp(@Body() body: { email: string }) {
-    return this.authService.sendRegisterOtp(body.email);
+  async sendRegisterOtp(@Body() body: { email: string; phone?: string; cpfManager?: string; cnpj?: string }) {
+    return this.authService.sendRegisterOtp(body);
   }
 
   @Post('register')

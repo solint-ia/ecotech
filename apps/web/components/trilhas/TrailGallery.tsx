@@ -22,13 +22,14 @@ interface TrailPhoto {
 
 interface TrailGalleryProps {
   trailId: string;
+  trailSchoolId?: string;
   photos: TrailPhoto[];
 }
 
-export function TrailGallery({ trailId, photos: initialPhotos }: TrailGalleryProps) {
+export function TrailGallery({ trailId, trailSchoolId, photos: initialPhotos }: TrailGalleryProps) {
   const { data: session } = useSession();
   const user = session?.user as any;
-  const canManage = user?.role === 'ADMIN' || user?.role === 'SCHOOL_MANAGER';
+  const canManage = user?.role === 'ADMIN' || (user?.role === 'SCHOOL_MANAGER' && user?.schoolId === trailSchoolId);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -211,12 +212,12 @@ export function TrailGallery({ trailId, photos: initialPhotos }: TrailGalleryPro
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
-                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg font-medium transition-all shadow-md hover:shadow-lg disabled:opacity-50 active:scale-95"
+                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-md hover:shadow-lg disabled:opacity-50 active:scale-95"
               >
                 {isUploading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  <Plus className="w-5 h-5" />
+                  <Plus className="w-4 h-4" />
                 )}
                 Adicionar Imagem
               </button>

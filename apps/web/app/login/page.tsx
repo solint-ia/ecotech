@@ -82,7 +82,8 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage({ type: '', text: '' });
-    const totalSteps = isLogin ? 1 : (role === 'SCHOOL_MANAGER' ? 4 : 2);
+
+    const totalSteps = isLogin ? 1 : (role === 'SCHOOL_MANAGER' ? 4 : 2);
     const newErrors: Record<string, string> = {};
 
     if (!isLogin && currentStep < totalSteps) {
@@ -107,6 +108,39 @@ export default function LoginPage() {
         setMessage({ type: 'error', text: 'Por favor, corrija os erros apontados.' });
         return;
       }
+
+      // Check availability before advancing
+      setIsLoading(true);
+      try {
+        const payload: any = {};
+        if (currentStep === 1) {
+          payload.email = email;
+          if (phone) payload.phone = phone;
+        } else if (role === 'SCHOOL_MANAGER' && currentStep === 2) {
+          if (cnpj) payload.cnpj = cnpj;
+        } else if (role === 'SCHOOL_MANAGER' && currentStep === 3) {
+          if (cpfManager) payload.cpfManager = cpfManager;
+        }
+
+        if (Object.keys(payload).length > 0) {
+          const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+          const res = await fetch(`${apiBaseUrl}/auth/check-availability`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          if (data && !data.available && data.errors) {
+            setErrors(data.errors);
+            setMessage({ type: 'error', text: 'Por favor, corrija os erros apontados.' });
+            setIsLoading(false);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Error checking availability:', err);
+      }
+      setIsLoading(false);
       
       setErrors({});
       setCurrentStep(prev => prev + 1);
@@ -150,7 +184,12 @@ export default function LoginPage() {
         const res = await fetch(`${apiBaseUrl}/auth/send-register-otp`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ 
+            email, 
+            ...(phone ? { phone } : {}), 
+            ...(role === 'SCHOOL_MANAGER' && cpfManager ? { cpfManager } : {}), 
+            ...(role === 'SCHOOL_MANAGER' && cnpj ? { cnpj } : {}) 
+          }),
         });
 
         const data = await res.json();
@@ -223,6 +262,10 @@ export default function LoginPage() {
         password,
         redirect: false,
       });
+
+      if (data.user?.roleStatus === 'PENDENTE') {
+        return { roleStatus: 'PENDENTE' };
+      }
 
       setShowActivationModal(false);
       router.push('/trilhas');
@@ -350,7 +393,7 @@ export default function LoginPage() {
                             if (errors.phone) setErrors(prev => { const c = { ...prev }; delete c.phone; return c; });
                           }}
                           className={`w-full px-4 py-3.5 rounded-xl border bg-transparent text-primary focus:outline-none focus:ring-1 transition-all ${errors.phone ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-primary/30 focus:border-primary focus:ring-primary'}`}
-                          placeholder="(00) 00000-0000"
+                          placeholder="(00) 9 0000-0000"
                         />
                         {errors.phone && (
                           <p className="text-xs text-red-500 font-medium mt-1 animate-in fade-in duration-200">
@@ -370,7 +413,7 @@ export default function LoginPage() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         className={`w-full pl-11 pr-4 py-3 rounded-xl border bg-white/60 text-primary text-sm focus:bg-white focus:outline-none focus:ring-4 transition-all ${errors.email ? 'border-red-500 focus:border-red-500 focus:ring-red-500/12' : 'border-primary/10 focus:border-[#2E8B57] focus:ring-[#2E8B57]/12'}`}
-                        placeholder="seu@email.com"
+                        placeholder="ex.: usuario@email.com"
                         required
                       />
                     </div>

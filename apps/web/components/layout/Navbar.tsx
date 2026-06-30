@@ -63,13 +63,13 @@ export default function Navbar() {
         fixed top-0 left-0 right-0 w-full bg-[#FAFCFA]/80 backdrop-blur-md border-b border-emerald-900/5
         md:sticky md:top-4 md:mt-4 md:w-[95%] md:max-w-5xl md:mx-auto md:rounded-full md:bg-[#073D26] md:shadow-md md:border md:border-white/10 md:backdrop-blur-none
       ">
-        <div className="flex items-center justify-between px-4 md:px-6 lg:px-8 py-3 md:py-3.5">
+        <div className="flex items-center justify-between px-4 md:px-6 lg:px-8 py-2 md:py-3.5 h-14 md:h-auto">
           {/* Canto Esquerdo: Branding */}
-          <Link href="/trilhas" className="flex items-center gap-2 md:gap-3 shrink-0">
+          <Link href="/trilhas" className="flex items-center gap-6 md:gap-3 shrink-0">
             {/* Mobile Logo (Verde) */}
-            <img src="/EcoTechLogo.png" alt="Ecotech Logo" className="w-12 h-12 object-contain md:hidden" />
+            <img src="/EcoTechLogo.png" alt="Ecotech Logo" className="w-10 h-10 object-contain transform scale-150 origin-left md:hidden" />
             {/* Desktop Logo (Branca) */}
-            <img src="/logo-header.png" alt="Ecotech Logo" className="w-12 h-12 object-contain hidden md:block" />
+            <img src="/logo-header.png" alt="Ecotech Logo" className="w-10 h-10 object-contain hidden md:block" />
 
             <span className="text-xl font-bold md:font-semibold text-[#0B5D3B] md:text-white tracking-tight">Ecotech</span>
           </Link>
@@ -149,24 +149,13 @@ export default function Navbar() {
                 <div className="p-2 space-y-1">
                   {/* Profile Link */}
                   <Link
-                    href="/perfil"
+                    href={user?.id ? `/perfil/${user.id}` : '/login'}
                     onClick={() => setDropdownOpen(false)}
                     className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-foreground/80 hover:text-primary hover:bg-beige rounded-xl transition-colors"
                     role="menuitem"
                   >
                     <User className="w-4 h-4 opacity-70" />
                     Meu Perfil
-                  </Link>
-
-                  {/* Meus Posts Link */}
-                  <Link
-                    href="/feed/meus-posts"
-                    onClick={() => setDropdownOpen(false)}
-                    className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-foreground/80 hover:text-primary hover:bg-beige rounded-xl transition-colors"
-                    role="menuitem"
-                  >
-                    <BookHeart className="w-4 h-4 opacity-70 text-forest" />
-                    Meus Posts
                   </Link>
 
                   {/* Dashboard Link for Admins and Schools */}

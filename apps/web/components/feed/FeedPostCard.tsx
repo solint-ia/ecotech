@@ -298,20 +298,24 @@ export default function FeedPostCard({
       {/* Author Header */}
       <div className="flex items-center justify-between px-5 pt-5 pb-3">
         <div className="flex items-center gap-3">
-          {post.user.profileImage ? (
-            <img
-              src={post.user.profileImage.startsWith('http') ? post.user.profileImage : `${API_URL}${post.user.profileImage}`}
-              alt={post.user.name}
-              className="w-11 h-11 rounded-full object-cover border-2 border-secondary/30"
-            />
-          ) : (
-            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary to-secondary text-white flex items-center justify-center text-sm font-bold shadow-sm">
-              {initials}
-            </div>
-          )}
+          <a href={`/perfil/${post.userId}`} className="shrink-0 transition-transform hover:scale-105">
+            {post.user.profileImage ? (
+              <img
+                src={post.user.profileImage.startsWith('http') ? post.user.profileImage : `${API_URL}${post.user.profileImage}`}
+                alt={post.user.name}
+                className="w-11 h-11 rounded-full object-cover border-2 border-secondary/30"
+              />
+            ) : (
+              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary to-secondary text-white flex items-center justify-center text-sm font-bold shadow-sm">
+                {initials}
+              </div>
+            )}
+          </a>
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-primary text-sm">{post.user.name}</span>
+              <a href={`/perfil/${post.userId}`} className="font-semibold text-primary text-sm hover:underline">
+                {post.user.name}
+              </a>
               <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${roleBadgeColor(post.user.role)}`}>
                 {roleLabel(post.user.role)}
               </span>
@@ -323,7 +327,9 @@ export default function FeedPostCard({
                 <>
                   <span className="text-foreground/30">•</span>
                   <MapPin className="w-3 h-3" />
-                  <span>{post.school.name}</span>
+                  <a href={`/escolas/${post.school.id}`} className="hover:underline hover:text-primary transition-colors">
+                    {post.school.name}
+                  </a>
                 </>
               )}
             </div>

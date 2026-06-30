@@ -276,9 +276,11 @@ export class TrailsService {
   async create(dto: CreateTrailDto, requestingUser: { id: string; role: string; schoolId?: string }) {
     // Validate school ownership: SCHOOL_MANAGER can only create trails for their school
     if (requestingUser.role === 'SCHOOL_MANAGER') {
-      if (!requestingUser.schoolId || dto.schoolId !== requestingUser.schoolId) {
-        throw new ForbiddenException('Você só pode criar trilhas para a sua escola.');
+      if (!requestingUser.schoolId) {
+        throw new ForbiddenException('Você precisa estar vinculado a uma escola para criar trilhas.');
       }
+      dto.schoolId = requestingUser.schoolId;
+      dto.status = true; // Automatically make it public
     }
 
     // Validate that the school exists if provided

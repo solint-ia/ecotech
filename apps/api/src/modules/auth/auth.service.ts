@@ -18,13 +18,73 @@ export class AuthService {
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
-  async sendRegisterOtp(email: string) {
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email },
+  async checkAvailability(data: { email?: string; phone?: string; cpfManager?: string; cnpj?: string }) {
+    const { email, phone, cpfManager, cnpj } = data;
+    const errors: Record<string, string> = {};
+
+    if (email || phone) {
+      const existingUser = await this.prisma.user.findFirst({
+        where: {
+          OR: [
+            ...(email ? [{ email }] : []),
+            ...(phone ? [{ phone }] : [])
+          ]
+        }
+      });
+      if (existingUser) {
+        if (email && existingUser.email === email) errors.email = 'E-mail já está em uso.';
+        if (phone && existingUser.phone === phone) errors.phone = 'Telefone já está em uso.';
+      }
+    }
+
+    if (cpfManager || cnpj) {
+      const existingSchool = await this.prisma.school.findFirst({
+        where: {
+          OR: [
+            ...(cpfManager ? [{ cpfManager }] : []),
+            ...(cnpj ? [{ cnpj }] : [])
+          ]
+        }
+      });
+      if (existingSchool) {
+        if (cpfManager && existingSchool.cpfManager === cpfManager) errors.cpfManager = 'CPF já está em uso por outra escola.';
+        if (cnpj && existingSchool.cnpj === cnpj) errors.cnpj = 'CNPJ já está em uso por outra escola.';
+      }
+    }
+    
+    return { available: Object.keys(errors).length === 0, errors };
+  }
+
+  async sendRegisterOtp(data: { email: string; phone?: string; cpfManager?: string; cnpj?: string }) {
+    const { email, phone, cpfManager, cnpj } = data;
+
+    const existingUser = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email },
+          ...(phone ? [{ phone }] : [])
+        ]
+      }
     });
 
     if (existingUser) {
-      throw new BadRequestException('E-mail já está em uso.');
+      if (existingUser.email === email) throw new BadRequestException('E-mail já está em uso.');
+      if (existingUser.phone === phone) throw new BadRequestException('Telefone já está em uso.');
+    }
+
+    if (cpfManager || cnpj) {
+      const existingSchool = await this.prisma.school.findFirst({
+        where: {
+          OR: [
+            ...(cpfManager ? [{ cpfManager }] : []),
+            ...(cnpj ? [{ cnpj }] : [])
+          ]
+        }
+      });
+      if (existingSchool) {
+        if (existingSchool.cpfManager === cpfManager) throw new BadRequestException('CPF já está em uso por outra escola.');
+        if (existingSchool.cnpj === cnpj) throw new BadRequestException('CNPJ já está em uso por outra escola.');
+      }
     }
 
     const otpCode = this.generateOtp();
@@ -97,11 +157,13 @@ export class AuthService {
     }
 
     // SECURITY FIX: Prevent Privilege Escalation
-    // Block users from registering as ADMIN or TEACHER via public endpoints
-    const allowedPublicRoles = ['STUDENT', 'SCHOOL_MANAGER'];
+    // Block users from registering as ADMIN via public endpoints
+    const allowedPublicRoles = ['STUDENT', 'SCHOOL_MANAGER', 'TEACHER'];
     const assignedRole = (registerDto.role && allowedPublicRoles.includes(registerDto.role))
       ? registerDto.role
       : 'STUDENT';
+
+    const roleStatus = (assignedRole === 'SCHOOL_MANAGER' || assignedRole === 'TEACHER') ? 'PENDENTE' : 'APROVADO';
 
     const user = await this.prisma.user.create({
       data: {
@@ -110,6 +172,7 @@ export class AuthService {
         phone: registerDto.phone,
         password: hashedPassword,
         role: assignedRole,
+        roleStatus: roleStatus,
         schoolId: schoolId || null,
         profileImage: filename ? `/uploads/${filename}` : null,
         emailVerified: new Date(), // verified right away
@@ -152,6 +215,7 @@ export class AuthService {
         name: user.role === 'SCHOOL_MANAGER' && user.school ? user.school.name : user.name,
         email: user.email,
         role: user.role,
+        roleStatus: user.roleStatus,
         schoolId: user.schoolId,
         profileImage: user.role === 'SCHOOL_MANAGER' && user.school ? user.school.coverImage : user.profileImage,
       },

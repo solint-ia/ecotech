@@ -3,10 +3,19 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class SchoolsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async findAllActive(query?: { search?: string; state?: string; city?: string }) {
-    const where: any = { status: true };
+    const where: any = {
+      status: true,
+      users: {
+        some: {
+          role: 'SCHOOL_MANAGER',
+          roleStatus: 'APROVADO'
+        }
+      }
+    };
+
     if (query?.search) {
       where.name = { contains: query.search, mode: 'insensitive' };
     }
@@ -28,9 +37,9 @@ export class SchoolsService {
         description: true,
         coverImage: true,
         _count: {
-          select: { 
-            trails: { where: { status: true } }, 
-            followers: true 
+          select: {
+            trails: { where: { status: true } },
+            followers: true
           },
         },
       },
@@ -40,12 +49,21 @@ export class SchoolsService {
 
   async findOne(id: string) {
     const school = await this.prisma.school.findFirst({
-      where: { id, status: true },
+      where: {
+        id,
+        status: true,
+        users: {
+          some: {
+            role: 'SCHOOL_MANAGER',
+            roleStatus: 'APROVADO'
+          }
+        }
+      },
       include: {
         _count: {
-          select: { 
-            trails: { where: { status: true } }, 
-            followers: true 
+          select: {
+            trails: { where: { status: true } },
+            followers: true
           },
         },
         trails: {

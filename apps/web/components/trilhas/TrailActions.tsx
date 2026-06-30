@@ -189,9 +189,9 @@ export default function TrailActions({ trail }: TrailActionsProps) {
               href={trail.wikilocUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 text-sm font-bold bg-[#8cc63f] hover:bg-[#7ab133] text-white px-5 py-2.5 rounded-full transition-all shadow-md hover:shadow-lg active:scale-95"
+              className="flex items-center gap-1.5 text-xs font-bold bg-[#8cc63f] hover:bg-[#7ab133] text-white px-3 py-1.5 rounded-full transition-all shadow-md hover:shadow-lg active:scale-95"
             >
-              <ExternalLink className="w-4 h-4" />
+              <ExternalLink className="w-3.5 h-3.5" />
               Ver no Wikiloc
             </a>
           )}

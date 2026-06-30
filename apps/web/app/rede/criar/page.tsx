@@ -7,6 +7,8 @@ import Link from 'next/link';
 import { ArrowLeft, Save } from 'lucide-react';
 import { StateCitySelect } from '@/components/shared/StateCitySelect';
 
+import { formatPhone, validatePhone } from '../../../lib/validation';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 const CATEGORIES = [
@@ -52,6 +54,18 @@ export default function CriarParceiroPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
+
+    if (!validatePhone(phone)) {
+      setError('Telefone principal inválido.');
+      setLoading(false);
+      return;
+    }
+
+    if (whatsapp && !validatePhone(whatsapp)) {
+      setError('WhatsApp inválido.');
+      setLoading(false);
+      return;
+    }
 
     try {
       const formData = new FormData();
@@ -193,9 +207,9 @@ export default function CriarParceiroPage() {
               required
               type="text"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => setPhone(formatPhone(e.target.value))}
               className="w-full px-3 py-2 rounded-lg border border-border-custom bg-white text-sm focus:ring-2 focus:ring-secondary focus:outline-none"
-              placeholder="(11) 99999-9999"
+              placeholder="(00) 9 0000-0000"
             />
           </div>
           <div>
@@ -205,9 +219,9 @@ export default function CriarParceiroPage() {
             <input
               type="text"
               value={whatsapp}
-              onChange={(e) => setWhatsapp(e.target.value)}
+              onChange={(e) => setWhatsapp(formatPhone(e.target.value))}
               className="w-full px-3 py-2 rounded-lg border border-border-custom bg-white text-sm focus:ring-2 focus:ring-secondary focus:outline-none"
-              placeholder="(11) 99999-9999"
+              placeholder="(00) 9 0000-0000"
             />
           </div>
           <div>
