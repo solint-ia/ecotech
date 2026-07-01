@@ -7,8 +7,8 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 export class SchoolsController {
   constructor(private readonly schoolsService: SchoolsService) {}
 
-  @UseInterceptors(CacheInterceptor)
-  @CacheTTL(3600000)
+  // @UseInterceptors(CacheInterceptor)
+  // @CacheTTL(3600000)
   @Get()
   @HttpCode(HttpStatus.OK)
   async findAll(

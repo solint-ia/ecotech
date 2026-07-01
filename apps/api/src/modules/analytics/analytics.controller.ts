@@ -12,16 +12,16 @@ export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
   @Roles('ADMIN')
-  @UseInterceptors(CacheInterceptor)
-  @CacheTTL(600000) // 10 minutes
+  // @UseInterceptors(CacheInterceptor)
+  // @CacheTTL(600000) // 10 minutes
   @Get('admin')
   getAdminDashboard() {
     return this.analyticsService.getAdminMetrics();
   }
 
   @Roles('SCHOOL_MANAGER')
-  @UseInterceptors(CacheInterceptor)
-  @CacheTTL(600000) // 10 minutes
+  // @UseInterceptors(CacheInterceptor)
+  // @CacheTTL(600000) // 10 minutes
   @Get('school')
   getSchoolDashboard(@CurrentUser() user: any) {
     return this.analyticsService.getSchoolMetrics(user.schoolId);

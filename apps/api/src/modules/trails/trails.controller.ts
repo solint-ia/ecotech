@@ -36,8 +36,6 @@ export class TrailsController {
   ) {}
 
   /** GET /trails - Public list of published trails with filters */
-  @UseInterceptors(CacheInterceptor)
-  @CacheTTL(3600000) // 1 hour (v5 uses milliseconds)
   @Get()
   findAll(
     @Query('page') page?: string,
@@ -102,8 +100,6 @@ export class TrailsController {
   }
 
   /** GET /trails/:slug - Public details of a published trail */
-  @UseInterceptors(CacheInterceptor)
-  @CacheTTL(3600000)
   @Get(':slug')
   findOne(@Param('slug') slug: string) {
     return this.trailsService.findBySlug(slug);

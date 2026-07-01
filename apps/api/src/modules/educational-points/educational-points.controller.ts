@@ -35,8 +35,6 @@ export class EducationalPointsController {
   ) {}
 
   /** GET /educational-points/trail/:trailId - All points for a trail */
-  @UseInterceptors(CacheInterceptor)
-  @CacheTTL(3600000)
   @Get('trail/:trailId')
   findByTrail(@Param('trailId') trailId: string) {
     return this.educationalPointsService.findByTrail(trailId, false);
@@ -51,8 +49,6 @@ export class EducationalPointsController {
   }
 
   /** GET /educational-points/:slug - Public detail view of a specific point */
-  @UseInterceptors(CacheInterceptor)
-  @CacheTTL(3600000)
   @Get(':slug')
   findOne(@Param('slug') slug: string) {
     return this.educationalPointsService.findBySlug(slug);

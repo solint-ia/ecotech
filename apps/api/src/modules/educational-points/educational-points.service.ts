@@ -110,7 +110,7 @@ async function generatePdf(point: {
   const filename = `ponto-${point.slug}.pdf`;
   const filePath = path.join(PDFS_DIR, filename);
 
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     const doc = new PDFDocument({ 
       size: 'A4', 
       margins: { top: 60, bottom: 60, left: 50, right: 50 }, 
@@ -142,8 +142,13 @@ async function generatePdf(point: {
     }
 
     // --- Header Section ---
+    // Calculate Title Height to make header dynamic
+    const safeTitle = cleanPdfText(point.title).toUpperCase();
+    doc.fontSize(26).font('Helvetica-Bold');
+    const titleHeight = doc.heightOfString(safeTitle, { width: pageWidth - 220 });
+    const headerHeight = Math.max(120, 35 + titleHeight + 45);
+
     // Full width green header
-    const headerHeight = 120;
     doc.rect(0, 0, pageWidth, headerHeight).fill(COLOR_DEEP_FOREST);
 
     const logoPath = path.resolve(process.cwd(), '../../apps/web/public/logo-header.png');
@@ -163,11 +168,10 @@ async function generatePdf(point: {
     }
 
     // Title
-    const safeTitle = cleanPdfText(point.title).toUpperCase();
-    doc.fill('#FFFFFF').fontSize(26).font('Helvetica-Bold').text(safeTitle, 0, 40, { align: 'center', width: pageWidth });
+    doc.fill('#FFFFFF').fontSize(26).font('Helvetica-Bold').text(safeTitle, 110, 35, { align: 'center', width: pageWidth - 220 });
 
     // Subtitle
-    doc.fill('#EAF4EE').fontSize(13).font('Helvetica-Oblique').text(`Natureza e Educação Ambiental`, 0, 75, { align: 'center', width: pageWidth });
+    doc.fill('#EAF4EE').fontSize(13).font('Helvetica-Oblique').text(`Natureza e Educação Ambiental`, 110, doc.y + 5, { align: 'center', width: pageWidth - 220 });
 
     // --- Metadata Row (Chips) ---
     let chipY = headerHeight + 25;
@@ -204,22 +208,34 @@ async function generatePdf(point: {
 
     // --- Main Image ---
     if (point.mainImage) {
-      const localImgPath = path.resolve(process.cwd(), point.mainImage.replace(/^\//, ''));
-      if (fs.existsSync(localImgPath)) {
-        try {
+      try {
+        let imageBuffer: Buffer | null = null;
+        if (point.mainImage.startsWith('http')) {
+          const response = await fetch(point.mainImage);
+          if (response.ok) {
+            const arrayBuffer = await response.arrayBuffer();
+            imageBuffer = Buffer.from(arrayBuffer);
+          }
+        } else {
+          const localImgPath = path.resolve(process.cwd(), point.mainImage.replace(/^\//, ''));
+          if (fs.existsSync(localImgPath)) {
+            imageBuffer = fs.readFileSync(localImgPath);
+          }
+        }
+
+        if (imageBuffer) {
           const imgWidth = 400;
           const imgHeight = 250;
-
           doc.save();
-          doc.image(localImgPath, 50, contentY, { width: imgWidth, height: imgHeight, fit: [imgWidth, imgHeight], align: 'center', valign: 'center' });
+          const imgX = (pageWidth - imgWidth) / 2;
+          doc.image(imageBuffer, imgX, contentY, { width: imgWidth, height: imgHeight, fit: [imgWidth, imgHeight], align: 'center', valign: 'center' });
           doc.restore();
-
           contentY += imgHeight + 40;
-        } catch (e) {
-          console.error('Error rendering image in PDF', e);
+        } else {
           contentY += 20;
         }
-      } else {
+      } catch (e) {
+        console.error('Error rendering image in PDF', e);
         contentY += 20;
       }
     } else {

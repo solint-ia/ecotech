@@ -35,8 +35,8 @@ export class PartnersController {
   ) {}
 
   /** GET /partners - Public list of partners with optional category filter */
-  @UseInterceptors(CacheInterceptor)
-  @CacheTTL(3600000)
+  // @UseInterceptors(CacheInterceptor)
+  // @CacheTTL(3600000)
   @Get()
   findAll(
     @Query('category') category?: string,
@@ -48,8 +48,8 @@ export class PartnersController {
   }
 
   /** GET /partners/:id - Public detail view of a specific partner */
-  @UseInterceptors(CacheInterceptor)
-  @CacheTTL(3600000)
+  // @UseInterceptors(CacheInterceptor)
+  // @CacheTTL(3600000)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.partnersService.findOne(id);
