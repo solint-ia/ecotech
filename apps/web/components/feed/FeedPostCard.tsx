@@ -402,6 +402,10 @@ export default function FeedPostCard({
                       <video
                         src={img.url.startsWith('http') ? img.url : `${API_URL}${img.url}`}
                         controls
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
                         className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-[1.02]"
                       />
                     ) : (
