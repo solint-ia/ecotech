@@ -141,7 +141,7 @@ export default function LoginPage() {
         console.error('Error checking availability:', err);
       }
       setIsLoading(false);
-      
+
       setErrors({});
       setCurrentStep(prev => prev + 1);
       return;
@@ -164,6 +164,19 @@ export default function LoginPage() {
       let userData: any = null;
 
       if (isLogin) {
+        // Pre-flight check para capturar o erro exato da API
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const resCheck = await fetch(`${apiBaseUrl}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        if (!resCheck.ok) {
+          const errData = await resCheck.json();
+          throw new Error(errData.message || 'E-mail ou senha incorretos.');
+        }
+
         // Use NextAuth signIn so the session is established client-side
         const result = await signIn('credentials', {
           email,
@@ -172,7 +185,7 @@ export default function LoginPage() {
         });
 
         if (result?.error) {
-          throw new Error('E-mail ou senha incorretos.');
+          throw new Error('Erro ao estabelecer sessão.');
         }
 
         // Redirect to trilhas
@@ -184,11 +197,11 @@ export default function LoginPage() {
         const res = await fetch(`${apiBaseUrl}/auth/send-register-otp`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            email, 
-            ...(phone ? { phone } : {}), 
-            ...(role === 'SCHOOL_MANAGER' && cpfManager ? { cpfManager } : {}), 
-            ...(role === 'SCHOOL_MANAGER' && cnpj ? { cnpj } : {}) 
+          body: JSON.stringify({
+            email,
+            ...(phone ? { phone } : {}),
+            ...(role === 'SCHOOL_MANAGER' && cpfManager ? { cpfManager } : {}),
+            ...(role === 'SCHOOL_MANAGER' && cnpj ? { cnpj } : {})
           }),
         });
 
@@ -332,8 +345,8 @@ export default function LoginPage() {
                   const isActive = step === currentStep;
                   const isPast = step < currentStep;
                   return (
-                    <div 
-                      key={step} 
+                    <div
+                      key={step}
                       className={`h-2 rounded-full transition-all duration-300 ${isActive ? 'w-6 bg-[#0B5D3B]' : (isPast ? 'w-2 bg-[#0B5D3B]/60' : 'w-2 bg-primary/20')}`}
                     />
                   );
@@ -413,7 +426,7 @@ export default function LoginPage() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         className={`w-full pl-11 pr-4 py-3 rounded-xl border bg-white/60 text-primary text-sm focus:bg-white focus:outline-none focus:ring-4 transition-all ${errors.email ? 'border-red-500 focus:border-red-500 focus:ring-red-500/12' : 'border-primary/10 focus:border-[#2E8B57] focus:ring-[#2E8B57]/12'}`}
-                        placeholder="ex.: usuario@email.com"
+                        placeholder="usuario@email.com"
                         required
                       />
                     </div>
@@ -495,7 +508,7 @@ export default function LoginPage() {
               {!isLogin && role === 'SCHOOL_MANAGER' && currentStep === 3 && (
                 <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
                   <h3 className="font-bold text-primary text-sm uppercase tracking-widest text-center mb-2">Endereço e Gestor</h3>
-                  
+
                   <StateCitySelect
                     selectedState={stateUF}
                     selectedCity={city}
@@ -619,7 +632,7 @@ export default function LoginPage() {
                     VOLTAR
                   </button>
                 )}
-                
+
                 <button
                   type="submit"
                   disabled={isLoading}
@@ -636,8 +649,8 @@ export default function LoginPage() {
 
             <div className="mt-6 flex flex-col items-center gap-3 relative z-10">
               {isLogin && (
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setShowForgotPasswordModal(true)}
                   className="text-[0.85rem] text-primary/60 hover:text-primary font-medium transition-colors focus:outline-none"
                 >
@@ -666,11 +679,11 @@ export default function LoginPage() {
 
       {/* Macro-Footer */}
       <AuthFooter />
-      
+
       {showActivationModal && (
-        <ActivationModal 
-          email={email} 
-          onClose={() => setShowActivationModal(false)} 
+        <ActivationModal
+          email={email}
+          onClose={() => setShowActivationModal(false)}
           onConfirm={handleRegisterConfirm}
           isSubmitting={isLoading}
         />

@@ -1,8 +1,10 @@
-import { Controller, Get, Patch, Body, UseGuards, UseInterceptors, UploadedFile, Param } from '@nestjs/common';
+import { Controller, Get, Patch, Body, UseGuards, UseInterceptors, UploadedFile, Param, Query } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { SupabaseService } from '../supabase/supabase.service';
 
@@ -13,6 +15,30 @@ export class UsersController {
     private readonly usersService: UsersService,
     private readonly supabaseService: SupabaseService,
   ) {}
+
+  @Get('admin/list')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  findAllForAdmin(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('role') role?: string,
+  ) {
+    return this.usersService.findAllForAdmin({
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 10,
+      search,
+      role,
+    });
+  }
+
+  @Patch(':id/toggle-status')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  toggleUserStatus(@Param('id') id: string) {
+    return this.usersService.toggleUserStatus(id);
+  }
 
   @Get('me')
   getMe(@CurrentUser() user: any) {

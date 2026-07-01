@@ -117,4 +117,83 @@ export class UsersService {
     });
     return { success: true, user: { id: user.id, roleStatus: user.roleStatus } };
   }
+
+  async findAllForAdmin(params: { page: number; limit: number; search?: string; role?: string }) {
+    const { page, limit, search, role } = params;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (role && role !== 'ALL') {
+      where.role = role;
+    }
+
+    // Não retornar o próprio ADMIN master se não quiser, mas vamos retornar todos.
+    // where.role = { not: 'ADMIN' }; // opcional
+
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          school: {
+            select: { name: true }
+          }
+        }
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    // Calcular stats gerais (independente de paginação e filtros de busca, apenas gerais ou baseados na query atual?)
+    // O requisito pede Total, Ativos, Suspensos. Geralmente é o total do sistema.
+    const [totalUsers, activeUsers, suspendedUsers] = await Promise.all([
+      this.prisma.user.count(),
+      this.prisma.user.count({ where: { status: true } }),
+      this.prisma.user.count({ where: { status: false } }),
+    ]);
+
+    return {
+      data: users.map(user => {
+        const { password, ...rest } = user;
+        return rest;
+      }),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+      stats: {
+        total: totalUsers,
+        active: activeUsers,
+        suspended: suspendedUsers,
+      }
+    };
+  }
+
+  async toggleUserStatus(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('Usuário não encontrado.');
+
+    if (user.role === 'ADMIN') {
+      throw new Error('Não é possível alterar o status de um administrador principal.');
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id },
+      data: { status: !user.status },
+    });
+
+    const { password, ...rest } = updatedUser;
+    return rest;
+  }
 }

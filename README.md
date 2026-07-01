@@ -34,39 +34,46 @@ git clone <url-do-repositorio>
 cd ecotechh
 ```
 
-### 2. Subir a Infraestrutura (Banco de Dados PostgreSQL)
-Utilize o Docker Compose para subir o banco de dados local. A partir da raiz do projeto, execute:
+### 2. Instalar Dependências
+O projeto utiliza npm workspaces (versão 10+). Na raiz do monorepo, instale as dependências:
+```bash
+npm install
+```
+
+### 3. Configurar as Variáveis de Ambiente
+Na pasta `apps/api`, crie o arquivo `.env` e defina a URL do banco de dados (que agora está no Supabase) e outras chaves necessárias (veja o `.env.example` se disponível):
+```env
+DATABASE_URL="postgresql://postgres:sua-senha-do-supabase@db.seu-id.supabase.co:5432/postgres"
+```
+No frontend (`apps/web`), também defina suas variáveis em um arquivo `.env.local` (ex: `NEXT_PUBLIC_API_URL`, `AUTH_SECRET`).
+
+### 4. Subir a Infraestrutura Local (Docker)
+Utilize o Docker Compose para subir serviços locais auxiliares, como o Redis. A partir da raiz do projeto, execute:
 ```bash
 docker-compose -f docker/docker-compose.yml up -d
 ```
-> O banco de dados estará disponível na porta `5432` com usuário `postgres` e senha `postgres`.
-
-### 3. Instalar Dependências
-Na raiz do monorepo, instale todas as dependências do projeto:
-```bash
-pnpm install
-```
-
-### 4. Configurar as Variáveis de Ambiente
-Copie o arquivo de exemplo `.env.example` para `.env` tanto no Frontend quanto no Backend (se existirem) ou configure de acordo com a infra.
-As principais variáveis (como `DATABASE_URL` e `NEXTAUTH_SECRET`) geralmente já vêm pré-configuradas para o ambiente de desenvolvimento local.
 
 ### 5. Configurar o Banco de Dados (Prisma)
-Acesse a pasta da API para rodar as migrações e popular o banco de dados inicial (Seed):
+Para sincronizar seu código com o banco do Supabase, acesse a pasta da API e execute os comandos do Prisma:
 
 ```bash
-# Gere o client do Prisma
-npm run db:generate -w api
+cd apps/api
 
-# Rode as migrações no banco
-npm run db:migrate -w api
+# 1. Gere o client do Prisma (atualiza a tipagem do TypeScript)
+npx prisma generate
 
-# Popule o banco de dados (Escolas, Biomas, Admin padrão)
-npm run db:seed -w api
+# 2. Sincronize o schema com o banco de dados (Cria/atualiza tabelas no Supabase sem apagar dados, ideal para dev)
+npx prisma db push
+# (Obs: se estiver usando sistema estrito de migrações, use "npx prisma migrate dev")
+
+# 3. (Opcional) Popule o banco de dados com dados iniciais (Escolas, Admin padrão)
+npx prisma db seed
 ```
-> **Credenciais de Teste Geradas pelo Seed:**
-> - Admin: `admin@ecotech.com` / `Senha@123`
-> - Escola: `escola@ecotech.com` / `Senha@123`
+
+> **Credenciais de Teste Geradas pelo Seed (caso execute):**
+> - Admin: `admin@ecotech.com` / `AdminEcotech123`
+> - Escola: `escola@ecotech.com` / `EscolaEcotech123`
+> - Professor: `professor@ecotech.com` / `ProfessorEcotech123`
 
 ---
 

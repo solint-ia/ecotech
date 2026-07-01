@@ -86,7 +86,7 @@ export default function AdminDashboardPage() {
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-        <MetricCard title="Usuários" value={metrics.totalUsers} icon={Users} main />
+        <MetricCard title="Usuários" value={metrics.totalUsers} icon={Users} main link="/admin/usuarios" linkText="Gerenciar Usuários" />
         <MetricCard title="Escolas" value={metrics.totalSchools} icon={School} main />
         <MetricCard title="Trilhas" value={metrics.totalTrails} icon={Compass} main />
         <MetricCard title="Estudantes" value={metrics.totalStudents} icon={Users} />
@@ -269,16 +269,25 @@ export default function AdminDashboardPage() {
   );
 }
 
-function MetricCard({ title, value, icon: Icon, main }: { title: string, value: number, icon: any, main?: boolean }) {
+function MetricCard({ title, value, icon: Icon, main, link, linkText }: { title: string, value: number, icon: any, main?: boolean, link?: string, linkText?: string }) {
   return (
     <div className={`rounded-2xl p-4 shadow-sm flex flex-col justify-between border ${main ? 'bg-sage/10 border-sage/20' : 'bg-white border-border-custom'}`}>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold tracking-wider text-foreground/50 uppercase">{title}</span>
-        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${main ? 'bg-sage/20 text-forest' : 'bg-beige text-foreground/60'}`}>
-          <Icon className="w-4 h-4" />
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-semibold tracking-wider text-foreground/50 uppercase">{title}</span>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${main ? 'bg-sage/20 text-forest' : 'bg-beige text-foreground/60'}`}>
+            <Icon className="w-4 h-4" />
+          </div>
         </div>
+        <span className="text-3xl font-bold text-emerald-950 mt-2">{value}</span>
       </div>
-      <span className="text-3xl font-bold text-emerald-950 mt-2">{value}</span>
+      {link && linkText && (
+        <div className="mt-4 pt-4 border-t border-emerald-900/10">
+          <Link href={link} className="text-xs font-bold text-forest hover:text-forest/80 flex items-center justify-center w-full transition-colors">
+            {linkText}
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

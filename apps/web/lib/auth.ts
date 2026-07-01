@@ -26,7 +26,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             },
           );
 
-          if (!res.ok) return null;
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.message || 'Credenciais inválidas.');
+          }
 
           const data = await res.json();
           if (data && data.user) {
@@ -43,7 +46,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
           return null;
         } catch (error) {
-          return null;
+          throw error;
         }
       },
     }),

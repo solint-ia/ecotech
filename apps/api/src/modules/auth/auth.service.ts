@@ -197,8 +197,12 @@ export class AuthService {
       include: { school: true },
     });
 
-    if (!user || !user.status) {
-      throw new UnauthorizedException('Credenciais inválidas ou conta inativa.');
+    if (!user) {
+      throw new UnauthorizedException('Credenciais inválidas.');
+    }
+
+    if (!user.status) {
+      throw new UnauthorizedException('Conta suspensa. Por favor, contate o suporte.');
     }
 
     const isPasswordMatching = await bcrypt.compare(loginDto.password, user.password);
