@@ -37,18 +37,14 @@ export class MailService {
       </div>
       `;
 
-    // Hardcoded para teste conforme solicitado pelo usuário.
-    // O ideal seria usar o parametro 'email' recebido na função.
-    const targetEmail = 'andrefelipesi@academico.ufs.br';
-
     const payload = {
       from: {
-        address: 'nao-responda@16bdb343e15cb89f.maileroo.org',
+        address: 'nao-responda@projetoecotech.online',
         display_name: 'EcoTech'
       },
       to: [
         {
-          address: targetEmail
+          address: email
         }
       ],
       subject: subject,

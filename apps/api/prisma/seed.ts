@@ -67,7 +67,7 @@ async function main() {
   console.log('Seeded School:', school.name);
 
   // 4. Criar Usuários vinculados à Escola
-  const escolaManager = await prisma.user.create({
+  await prisma.user.create({
     data: {
       name: 'Maria Gestora',
       email: 'escola@ecotech.com',
@@ -78,7 +78,7 @@ async function main() {
     },
   });
 
-  const professor = await prisma.user.create({
+  await prisma.user.create({
     data: {
       name: 'João Professor',
       email: 'professor@ecotech.com',
@@ -89,7 +89,7 @@ async function main() {
     },
   });
 
-  const estudante = await prisma.user.create({
+  await prisma.user.create({
     data: {
       name: 'Gabriel Aluno',
       email: 'estudante@ecotech.com',
