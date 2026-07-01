@@ -40,12 +40,26 @@ O projeto utiliza npm workspaces (versão 10+). Na raiz do monorepo, instale as 
 npm install
 ```
 
-### 3. Configurar as Variáveis de Ambiente
-Na pasta `apps/api`, crie o arquivo `.env` e defina a URL do banco de dados (que agora está no Supabase) e outras chaves necessárias (veja o `.env.example` se disponível):
+### 3. Configurar Conexões na Nuvem (Supabase e Upstash Redis)
+Na pasta `apps/api`, crie (ou edite) o arquivo `.env` para inserir as conexões externas. 
+
+**1. Supabase (Banco de Dados PostgreSQL):**
+Pegue a URL de conexão no painel do Supabase (Settings > Database) e insira:
 ```env
 DATABASE_URL="postgresql://postgres:sua-senha-do-supabase@db.seu-id.supabase.co:5432/postgres"
 ```
-No frontend (`apps/web`), também defina suas variáveis em um arquivo `.env.local` (ex: `NEXT_PUBLIC_API_URL`, `AUTH_SECRET`).
+
+**2. Upstash (Cache e Filas BullMQ):**
+Pegue a URL de conexão segura no painel do Upstash. Certifique-se de usar `rediss://` (com dois `s`) para ativar a criptografia TLS:
+```env
+REDIS_URL="rediss://default:sua-senha-upstash@seu-endpoint.upstash.io:6379"
+```
+*(Para o frontend em `apps/web`, configure seu `.env.local` com `NEXT_PUBLIC_API_URL` e `AUTH_SECRET`).*
+
+**✅ Como checar se as conexões deram certo?**
+- **Terminal:** Ao rodar `npm run dev` na raiz do projeto, observe os logs da API. Se ela exibir `[NestApplication] Nest application successfully started` sem jogar erros vermelhos de `ECONNREFUSED` (relacionados ao BullMQ/Redis) e sem travar, as conexões iniciais deram certo.
+- **Supabase:** O comando `npx prisma db push` deve retornar sucesso. Além disso, ao tentar fazer login ou listar dados na plataforma, não devem ocorrer erros de `PrismaClientInitializationError`.
+- **Painéis (Dashboards):** Acesse as abas "Metrics" (Métricas) no site do Supabase e do Upstash. Você verá as linhas gráficas de conexões ativas subindo logo após iniciar o projeto na sua máquina.
 
 ### 4. Subir a Infraestrutura Local (Docker)
 Utilize o Docker Compose para subir serviços locais auxiliares, como o Redis. A partir da raiz do projeto, execute:
