@@ -17,8 +17,39 @@ import { MailModule } from './modules/mail/mail.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 
+import { CacheModule } from '@nestjs/cache-manager';
+import { BullModule } from '@nestjs/bullmq';
+import * as redisStore from 'cache-manager-redis-store';
+
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { SupabaseModule } from './modules/supabase/supabase.module';
+
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+    }),
+    CacheModule.registerAsync({
+      isGlobal: true,
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        store: redisStore,
+        host: configService.get('REDIS_HOST') || 'localhost',
+        port: parseInt(configService.get('REDIS_PORT') || '6379', 10),
+      }),
+      inject: [ConfigService],
+    }),
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        connection: {
+          host: configService.get('REDIS_HOST') || 'localhost',
+          port: parseInt(configService.get('REDIS_PORT') || '6379', 10),
+        },
+      }),
+      inject: [ConfigService],
+    }),
     AuthModule,
     PrismaModule,
     SchoolsModule,
@@ -36,6 +67,7 @@ import { join } from 'path';
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
     }),
+    SupabaseModule,
   ],
   controllers: [AppController],
   providers: [AppService],

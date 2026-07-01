@@ -3,7 +3,10 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  Inject,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTrailDto } from './dto/create-trail.dto';
 import { UpdateTrailDto } from './dto/update-trail.dto';
@@ -21,7 +24,10 @@ function slugify(text: string): string {
 
 @Injectable()
 export class TrailsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache
+  ) {}
 
   async findAll(query: {
     page?: number;
@@ -300,7 +306,7 @@ export class TrailsService {
       slug = `${baseSlug}-${attempt}`;
     }
 
-    return this.prisma.trail.create({
+    const trail = await this.prisma.trail.create({
       data: {
         title: dto.title,
         slug,
@@ -320,6 +326,9 @@ export class TrailsService {
       },
       include: { school: { select: { id: true, name: true } } },
     });
+    
+    await this.cacheManager.clear();
+    return trail;
   }
 
   async update(
@@ -336,7 +345,7 @@ export class TrailsService {
       }
     }
 
-    return this.prisma.trail.update({
+    const updatedTrail = await this.prisma.trail.update({
       where: { id },
       data: {
         ...(dto.title && { title: dto.title }),
@@ -354,6 +363,9 @@ export class TrailsService {
         ...(dto.status !== undefined && { status: dto.status }),
       },
     });
+
+    await this.cacheManager.clear();
+    return updatedTrail;
   }
 
   async remove(id: string, requestingUser: { id: string; role: string; schoolId?: string }) {
@@ -364,7 +376,8 @@ export class TrailsService {
       throw new ForbiddenException('Você não tem permissão para excluir esta trilha.');
     }
 
-    return this.prisma.trail.delete({ where: { id } });
+    await this.prisma.trail.delete({ where: { id } });
+    await this.cacheManager.clear();
   }
 
   async getBiomes(): Promise<string[]> {

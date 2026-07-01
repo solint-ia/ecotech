@@ -1,31 +1,12 @@
 services:
-  db:
-    image: postgres:15-alpine
-    container_name: ecotech-db
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: ecotech
+  redis:
+    image: redis:alpine
+    container_name: ecotech-redis
     ports:
-      - '5433:5432'
+      - '6379:6379'
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: always
-
-  storage:
-    image: minio/minio
-    container_name: ecotech-storage
-    ports:
-      - '9000:9000'
-      - '9001:9001'
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    command: server /data --console-address ":9001"
-    volumes:
-      - minio_data:/data
+      - redis_data:/data
     restart: always
 
 volumes:
-  postgres_data:
-  minio_data:
+  redis_data:

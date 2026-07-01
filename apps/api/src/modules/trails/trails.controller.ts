@@ -14,9 +14,9 @@ import {
   UploadedFile,
   BadRequestException,
 } from '@nestjs/common';
+import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { memoryStorage } from 'multer';
 import { TrailsService } from './trails.service';
 import { CreateTrailDto } from './dto/create-trail.dto';
 import { UpdateTrailDto } from './dto/update-trail.dto';
@@ -24,21 +24,20 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { SupabaseService } from '../supabase/supabase.service';
 
-const storage = diskStorage({
-  destination: './uploads',
-  filename: (req, file, callback) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = extname(file.originalname);
-    callback(null, `${uniqueSuffix}${ext}`);
-  },
-});
+const storage = memoryStorage();
 
 @Controller('trails')
 export class TrailsController {
-  constructor(private readonly trailsService: TrailsService) {}
+  constructor(
+    private readonly trailsService: TrailsService,
+    private readonly supabaseService: SupabaseService,
+  ) {}
 
   /** GET /trails - Public list of published trails with filters */
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(3600000) // 1 hour (v5 uses milliseconds)
   @Get()
   findAll(
     @Query('page') page?: string,
@@ -102,7 +101,9 @@ export class TrailsController {
     });
   }
 
-  /** GET /trails/:slug - Public detail view of a specific trail */
+  /** GET /trails/:slug - Public details of a published trail */
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(3600000)
   @Get(':slug')
   findOne(@Param('slug') slug: string) {
     return this.trailsService.findBySlug(slug);
@@ -114,13 +115,13 @@ export class TrailsController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('coverImage', { storage }))
-  create(
+  async create(
     @Body() createTrailDto: CreateTrailDto,
     @CurrentUser() user: any,
     @UploadedFile() file?: Express.Multer.File,
   ) {
     if (file) {
-      createTrailDto.coverImage = `/uploads/${file.filename}`;
+      createTrailDto.coverImage = await this.supabaseService.uploadFile(file, 'trails');
     }
     return this.trailsService.create(createTrailDto, {
       id: user.id,
@@ -134,14 +135,14 @@ export class TrailsController {
   @Roles('ADMIN', 'SCHOOL_MANAGER')
   @Patch(':id')
   @UseInterceptors(FileInterceptor('coverImage', { storage }))
-  update(
+  async update(
     @Param('id') id: string,
     @Body() updateTrailDto: UpdateTrailDto,
     @CurrentUser() user: any,
     @UploadedFile() file?: Express.Multer.File,
   ) {
     if (file) {
-      updateTrailDto.coverImage = `/uploads/${file.filename}`;
+      updateTrailDto.coverImage = await this.supabaseService.uploadFile(file, 'trails');
     }
     return this.trailsService.update(id, updateTrailDto, {
       id: user.id,
@@ -197,7 +198,7 @@ export class TrailsController {
     if (!file) {
       throw new BadRequestException('Imagem não fornecida');
     }
-    const imagePath = `/uploads/${file.filename}`;
+    const imagePath = await this.supabaseService.uploadFile(file, 'trails/photos');
     return this.trailsService.addPhoto(id, imagePath, {
       id: user.id,
       role: user.role,

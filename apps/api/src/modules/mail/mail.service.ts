@@ -1,10 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  private readonly apiKey = '3608ff3ef1335724a6bad079a41d4efa112977a66b3d035240b75a81237b2fdc';
+  private readonly apiKey: string;
   private readonly apiUrl = 'https://smtp.maileroo.com/api/v2/emails';
+
+  constructor(private configService: ConfigService) {
+    this.apiKey = this.configService.get<string>('MAILEROO_API_KEY') || '';
+  }
 
   async sendOtpEmail(email: string, type: 'EMAIL_VERIFICATION' | 'PASSWORD_RESET', otpCode: string): Promise<boolean> {
     const isVerification = type === 'EMAIL_VERIFICATION';

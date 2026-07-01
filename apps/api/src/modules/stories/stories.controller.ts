@@ -15,24 +15,20 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { StoriesService } from './stories.service';
 import { CreateStoryDto } from './dto/create-story.dto';
+import { SupabaseService } from '../supabase/supabase.service';
 
-const storage = diskStorage({
-  destination: './uploads',
-  filename: (req, file, callback) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = extname(file.originalname);
-    callback(null, `story-${uniqueSuffix}${ext}`);
-  },
-});
+const storage = memoryStorage();
 
 @Controller('stories')
 export class StoriesController {
-  constructor(private readonly storiesService: StoriesService) {}
+  constructor(
+    private readonly storiesService: StoriesService,
+    private readonly supabaseService: SupabaseService,
+  ) {}
 
   @UseGuards(JwtAuthGuard)
   @Post()
@@ -46,7 +42,7 @@ export class StoriesController {
     if (!file) {
       throw new BadRequestException('A imagem ou vídeo do story é obrigatório.');
     }
-    const mediaUrl = `/uploads/${file.filename}`;
+    const mediaUrl = await this.supabaseService.uploadFile(file, 'stories');
     const mediaType = file.mimetype.startsWith('video/') ? 'VIDEO' : 'IMAGE';
     
     return this.storiesService.createStory(req.user.id, createStoryDto, mediaUrl, mediaType);

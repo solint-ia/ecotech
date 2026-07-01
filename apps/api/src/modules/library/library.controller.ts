@@ -14,9 +14,9 @@ import {
   UploadedFiles,
   BadRequestException,
 } from '@nestjs/common';
+import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { memoryStorage } from 'multer';
 import { LibraryService } from './library.service';
 import { CreateLibraryContentDto } from './dto/create-library-content.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -25,20 +25,19 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ApprovalStatus } from '@prisma/client';
 import { OptionalJwtAuthGuard } from '../../common/guards/optional-jwt-auth.guard';
+import { SupabaseService } from '../supabase/supabase.service';
 
-const storage = diskStorage({
-  destination: './uploads',
-  filename: (req, file, callback) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = extname(file.originalname);
-    callback(null, `${uniqueSuffix}${ext}`);
-  },
-});
+const storage = memoryStorage();
 
 @Controller('library')
 export class LibraryController {
-  constructor(private readonly libraryService: LibraryService) {}
+  constructor(
+    private readonly libraryService: LibraryService,
+    private readonly supabaseService: SupabaseService,
+  ) {}
 
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(3600000)
   @Get()
   findAll(
     @Query('page') page?: string,
@@ -71,6 +70,8 @@ export class LibraryController {
 
   // Use Optional Guard so guests can view approved items, but authors/admins can view their pending items
   @UseGuards(OptionalJwtAuthGuard)
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(3600000)
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() user: any) {
     return this.libraryService.findOne(id, user);
@@ -86,19 +87,19 @@ export class LibraryController {
       { name: 'file', maxCount: 1 },
     ], { storage }),
   )
-  create(
+  async create(
     @Body() createDto: CreateLibraryContentDto,
     @CurrentUser() user: any,
     @UploadedFiles() files: { coverImage?: Express.Multer.File[]; file?: Express.Multer.File[] },
   ) {
     if (files?.coverImage?.[0]) {
-      createDto.coverImage = `/uploads/${files.coverImage[0].filename}`;
+      createDto.coverImage = await this.supabaseService.uploadFile(files.coverImage[0], 'library');
     } else {
       throw new BadRequestException('Imagem de capa é obrigatória.');
     }
 
     if (files?.file?.[0]) {
-      createDto.fileUrl = `/uploads/${files.file[0].filename}`;
+      createDto.fileUrl = await this.supabaseService.uploadFile(files.file[0], 'library/files');
     }
 
     // validate logic: if it's a doc, requires file. if video, requires url.

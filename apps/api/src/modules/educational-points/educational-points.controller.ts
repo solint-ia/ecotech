@@ -13,9 +13,9 @@ import {
   UploadedFiles,
   UploadedFile,
 } from '@nestjs/common';
+import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import { FileInterceptor, AnyFilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { memoryStorage } from 'multer';
 import { EducationalPointsService } from './educational-points.service';
 import { CreateEducationalPointDto } from './dto/create-educational-point.dto';
 import { UpdateEducationalPointDto } from './dto/update-educational-point.dto';
@@ -23,21 +23,20 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { SupabaseService } from '../supabase/supabase.service';
 
-const storage = diskStorage({
-  destination: './uploads',
-  filename: (req, file, callback) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = extname(file.originalname);
-    callback(null, `${uniqueSuffix}${ext}`);
-  },
-});
+const storage = memoryStorage();
 
 @Controller('educational-points')
 export class EducationalPointsController {
-  constructor(private readonly educationalPointsService: EducationalPointsService) {}
+  constructor(
+    private readonly educationalPointsService: EducationalPointsService,
+    private readonly supabaseService: SupabaseService,
+  ) {}
 
   /** GET /educational-points/trail/:trailId - All points for a trail */
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(3600000)
   @Get('trail/:trailId')
   findByTrail(@Param('trailId') trailId: string) {
     return this.educationalPointsService.findByTrail(trailId, false);
@@ -52,6 +51,8 @@ export class EducationalPointsController {
   }
 
   /** GET /educational-points/:slug - Public detail view of a specific point */
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(3600000)
   @Get(':slug')
   findOne(@Param('slug') slug: string) {
     return this.educationalPointsService.findBySlug(slug);
@@ -63,16 +64,14 @@ export class EducationalPointsController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(AnyFilesInterceptor({ storage }))
-  create(
+  async create(
     @Body() dto: CreateEducationalPointDto,
     @CurrentUser() user: any,
     @UploadedFiles() files?: Array<Express.Multer.File>,
   ) {
-    console.log('DTO RECEIVED:', dto);
-    console.log('FILES RECEIVED:', files);
     const file = files?.find(f => f.fieldname === 'mainImage');
     if (file) {
-      dto.mainImage = `/uploads/${file.filename}`;
+      dto.mainImage = await this.supabaseService.uploadFile(file, 'educational-points');
     }
     return this.educationalPointsService.create(dto, {
       id: user.id,
@@ -86,7 +85,7 @@ export class EducationalPointsController {
   @Roles('ADMIN', 'SCHOOL_MANAGER')
   @Patch(':id')
   @UseInterceptors(AnyFilesInterceptor({ storage }))
-  update(
+  async update(
     @Param('id') id: string,
     @Body() dto: UpdateEducationalPointDto,
     @CurrentUser() user: any,
@@ -94,7 +93,7 @@ export class EducationalPointsController {
   ) {
     const file = files?.find(f => f.fieldname === 'mainImage');
     if (file) {
-      dto.mainImage = `/uploads/${file.filename}`;
+      dto.mainImage = await this.supabaseService.uploadFile(file, 'educational-points');
     }
     return this.educationalPointsService.update(id, dto, {
       id: user.id,

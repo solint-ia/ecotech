@@ -1,4 +1,5 @@
-import { Controller, Get, Param, Post, Query, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Param, Post, Query, UseGuards, Request, HttpCode, HttpStatus, UseInterceptors } from '@nestjs/common';
+import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import { SchoolsService } from './schools.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
@@ -6,6 +7,8 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 export class SchoolsController {
   constructor(private readonly schoolsService: SchoolsService) {}
 
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(3600000)
   @Get()
   @HttpCode(HttpStatus.OK)
   async findAll(

@@ -4,6 +4,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { MailService } from '../mail/mail.service';
 
 @Injectable()
@@ -12,6 +14,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private mailService: MailService,
+    @InjectQueue('mail-queue') private mailQueue: Queue,
   ) {}
 
   private generateOtp(): string {
@@ -102,12 +105,13 @@ export class AuthService {
       }
     });
 
-    await this.mailService.sendOtpEmail(email, 'EMAIL_VERIFICATION', otpCode);
+    // Adiciona na fila ao invés de enviar de forma síncrona
+    await this.mailQueue.add('send-otp', { email, name: 'EMAIL_VERIFICATION', code: otpCode });
 
     return { success: true };
   }
 
-  async register(registerDto: RegisterDto, otpCode: string, filename?: string) {
+  async register(registerDto: RegisterDto, otpCode: string, publicUrl?: string) {
     const existingUser = await this.prisma.user.findUnique({
       where: { email: registerDto.email },
     });
@@ -174,7 +178,7 @@ export class AuthService {
         role: assignedRole,
         roleStatus: roleStatus,
         schoolId: schoolId || null,
-        profileImage: filename ? `/uploads/${filename}` : null,
+        profileImage: publicUrl || null,
         emailVerified: new Date(), // verified right away
       },
     });
@@ -268,7 +272,7 @@ export class AuthService {
       }
     });
 
-    await this.mailService.sendOtpEmail(email, 'PASSWORD_RESET', otpCode);
+    await this.mailQueue.add('send-otp', { email, name: 'PASSWORD_RESET', code: otpCode });
     
     return { success: true };
   }

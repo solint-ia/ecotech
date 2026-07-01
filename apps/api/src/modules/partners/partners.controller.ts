@@ -14,30 +14,29 @@ import {
   UploadedFile,
   BadRequestException,
 } from '@nestjs/common';
+import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { memoryStorage } from 'multer';
 import { PartnersService } from './partners.service';
 import { CreatePartnerDto } from './dto/create-partner.dto';
 import { UpdatePartnerDto } from './dto/update-partner.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { SupabaseService } from '../supabase/supabase.service';
 
-const storage = diskStorage({
-  destination: './uploads',
-  filename: (req, file, callback) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = extname(file.originalname);
-    callback(null, `${uniqueSuffix}${ext}`);
-  },
-});
+const storage = memoryStorage();
 
 @Controller('partners')
 export class PartnersController {
-  constructor(private readonly partnersService: PartnersService) {}
+  constructor(
+    private readonly partnersService: PartnersService,
+    private readonly supabaseService: SupabaseService,
+  ) {}
 
   /** GET /partners - Public list of partners with optional category filter */
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(3600000)
   @Get()
   findAll(
     @Query('category') category?: string,
@@ -49,6 +48,8 @@ export class PartnersController {
   }
 
   /** GET /partners/:id - Public detail view of a specific partner */
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(3600000)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.partnersService.findOne(id);
@@ -60,12 +61,12 @@ export class PartnersController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('coverImage', { storage }))
-  create(
+  async create(
     @Body() createPartnerDto: CreatePartnerDto,
     @UploadedFile() file?: Express.Multer.File,
   ) {
     if (file) {
-      createPartnerDto.coverImage = `/uploads/${file.filename}`;
+      createPartnerDto.coverImage = await this.supabaseService.uploadFile(file, 'partners');
     }
     return this.partnersService.create(createPartnerDto);
   }
@@ -75,13 +76,13 @@ export class PartnersController {
   @Roles('ADMIN')
   @Patch(':id')
   @UseInterceptors(FileInterceptor('coverImage', { storage }))
-  update(
+  async update(
     @Param('id') id: string,
     @Body() updatePartnerDto: UpdatePartnerDto,
     @UploadedFile() file?: Express.Multer.File,
   ) {
     if (file) {
-      updatePartnerDto.coverImage = `/uploads/${file.filename}`;
+      updatePartnerDto.coverImage = await this.supabaseService.uploadFile(file, 'partners');
     }
     return this.partnersService.update(id, updatePartnerDto);
   }
@@ -107,7 +108,7 @@ export class PartnersController {
     if (!file) {
       throw new BadRequestException('Imagem não fornecida');
     }
-    const imagePath = `/uploads/${file.filename}`;
+    const imagePath = await this.supabaseService.uploadFile(file, 'partners/photos');
     return this.partnersService.addPhoto(id, imagePath);
   }
 

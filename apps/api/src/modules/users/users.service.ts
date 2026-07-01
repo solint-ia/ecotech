@@ -35,14 +35,14 @@ export class UsersService {
     return result;
   }
 
-  async updateMe(userId: string, data: any, filename?: string) {
+  async updateMe(userId: string, data: any, publicUrl?: string) {
     const currentUser = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!currentUser) throw new NotFoundException('Usuário não encontrado.');
 
     if (currentUser.role === 'SCHOOL_MANAGER' && currentUser.schoolId) {
       const schoolUpdateData: any = {};
       if (data.name) schoolUpdateData.name = data.name;
-      if (filename) schoolUpdateData.coverImage = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/uploads/${filename}`;
+      if (publicUrl) schoolUpdateData.coverImage = publicUrl;
       
       await this.prisma.school.update({
         where: { id: currentUser.schoolId },
@@ -64,7 +64,7 @@ export class UsersService {
       if (data.name) updateData.name = data.name;
       if (data.email) updateData.email = data.email;
       if (data.phone) updateData.phone = data.phone;
-      if (filename) updateData.profileImage = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/uploads/${filename}`;
+      if (publicUrl) updateData.profileImage = publicUrl;
   
       await this.prisma.user.update({
         where: { id: userId },

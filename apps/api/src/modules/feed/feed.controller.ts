@@ -16,13 +16,13 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { memoryStorage } from 'multer';
 import { FeedService } from './feed.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { IsString, IsNotEmpty } from 'class-validator';
+import { SupabaseService } from '../supabase/supabase.service';
 
 class AddCommentDto {
   @IsString()
@@ -30,18 +30,14 @@ class AddCommentDto {
   comment: string;
 }
 
-const storage = diskStorage({
-  destination: './uploads',
-  filename: (req, file, callback) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = extname(file.originalname);
-    callback(null, `feed-${uniqueSuffix}${ext}`);
-  },
-});
+const storage = memoryStorage();
 
 @Controller('feed')
 export class FeedController {
-  constructor(private readonly feedService: FeedService) {}
+  constructor(
+    private readonly feedService: FeedService,
+    private readonly supabaseService: SupabaseService,
+  ) {}
 
   /** GET /feed — Public paginated feed (newest first) */
   @Get()
@@ -77,7 +73,9 @@ export class FeedController {
     @Body() createPostDto: CreatePostDto,
     @UploadedFiles() files?: Express.Multer.File[],
   ) {
-    const imagesUrls = files?.map((f) => `/uploads/${f.filename}`) || [];
+    const imagesUrls = files?.length
+      ? await Promise.all(files.map(f => this.supabaseService.uploadFile(f, 'feed')))
+      : [];
     const mediaType = files?.some(f => f.mimetype.startsWith('video/')) ? 'VIDEO' : 'IMAGE';
     return this.feedService.createPost(req.user.id, createPostDto, imagesUrls, mediaType);
   }
@@ -92,7 +90,9 @@ export class FeedController {
     @Body() updatePostDto: UpdatePostDto,
     @UploadedFiles() files?: Express.Multer.File[],
   ) {
-    const imagesUrls = files?.length ? files.map((f) => `/uploads/${f.filename}`) : undefined;
+    const imagesUrls = files?.length
+      ? await Promise.all(files.map(f => this.supabaseService.uploadFile(f, 'feed')))
+      : undefined;
     const mediaType = files?.length ? (files.some(f => f.mimetype.startsWith('video/')) ? 'VIDEO' : 'IMAGE') : undefined;
     return this.feedService.updatePost(id, req.user.id, req.user.role, updatePostDto, imagesUrls, mediaType);
   }

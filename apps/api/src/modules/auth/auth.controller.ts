@@ -1,15 +1,18 @@
 import { Controller, Post, Body, Res, HttpCode, HttpStatus, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { memoryStorage } from 'multer';
 import * as express from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { SupabaseService } from '../supabase/supabase.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly supabaseService: SupabaseService,
+  ) {}
 
   @Post('check-availability')
   @HttpCode(HttpStatus.OK)
@@ -26,14 +29,7 @@ export class AuthController {
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('profileImage', {
-    storage: diskStorage({
-      destination: './uploads',
-      filename: (req, file, callback) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        const ext = extname(file.originalname);
-        callback(null, `${uniqueSuffix}${ext}`);
-      },
-    }),
+    storage: memoryStorage(),
   }))
   async register(
     @Body() registerDto: any,
@@ -43,7 +39,13 @@ export class AuthController {
     if (!registerDto.otp) {
       throw new BadRequestException('Código OTP é obrigatório.');
     }
-    const user = await this.authService.register(registerDto, registerDto.otp, file?.filename);
+    
+    let publicUrl: string | undefined;
+    if (file) {
+      publicUrl = await this.supabaseService.uploadFile(file, 'avatars');
+    }
+    
+    const user = await this.authService.register(registerDto, registerDto.otp, publicUrl);
     
     // Auto-login since OTP is already verified at this stage
     const result = await this.authService.login(user);

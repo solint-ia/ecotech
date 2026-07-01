@@ -3,6 +3,8 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateEducationalPointDto } from './dto/create-educational-point.dto';
 import { UpdateEducationalPointDto } from './dto/update-educational-point.dto';
@@ -303,7 +305,10 @@ async function generatePdf(point: {
 
 @Injectable()
 export class EducationalPointsService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    @InjectQueue('pdf-queue') private pdfQueue: Queue,
+  ) {}
 
   async findBySlug(slug: string) {
     const point = await this.prisma.educationalPoint.findFirst({
@@ -385,10 +390,11 @@ export class EducationalPointsService {
       },
     });
 
-    // Generate QR Code and PDF in background (fire and forget – don't block response)
-    this.generateAssetsForPoint(point, trail).catch((err) =>
-      console.error(`[EducationalPoints] Asset generation failed for ${point.id}:`, err),
-    );
+    // Generate QR Code and PDF in background via BullMQ (Worker Isolado)
+    await this.pdfQueue.add('generate-pdf', {
+      pointId: point.id,
+      trailId: trail.id,
+    });
 
     return point;
   }
@@ -429,18 +435,19 @@ export class EducationalPointsService {
         ...(dto.offlineSummary !== undefined && { offlineSummary: dto.offlineSummary }),
         ...(dto.status !== undefined && { status: dto.status }),
       },
-      include: { trail: { select: { title: true, slug: true, school: { select: { name: true } } } } },
+      include: { trail: { select: { id: true, title: true, slug: true, school: { select: { name: true } } } } },
     });
 
-    // Re-generate QR Code and PDF whenever point is updated
-    this.generateAssetsForPoint(updated, updated.trail).catch((err) =>
-      console.error(`[EducationalPoints] Asset generation failed for ${updated.id}:`, err),
-    );
+    // Re-generate QR Code and PDF whenever point is updated via Queue
+    await this.pdfQueue.add('generate-pdf', {
+      pointId: updated.id,
+      trailId: updated.trail.id,
+    });
 
     return updated;
   }
 
-  private async generateAssetsForPoint(
+  public async generateAssetsForPoint(
     point: {
       id: string;
       title: string;

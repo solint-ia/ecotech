@@ -19,13 +19,18 @@ const cookieExtractor = (req: Request): string | null => {
   return token;
 };
 
+import { ConfigService } from '@nestjs/config';
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+  ) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([cookieExtractor]),
       ignoreExpiration: false,
-      secretOrKey: process.env.JWT_SECRET || 'supersecretkey123',
+      secretOrKey: configService.get<string>('JWT_SECRET') as string,
     });
   }
 
