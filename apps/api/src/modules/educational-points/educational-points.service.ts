@@ -19,13 +19,8 @@ const COLOR_LIGHT_GREEN = '#4C8B5E';
 const COLOR_BEIGE = '#F5EFE0';
 
 const UPLOADS_DIR = path.resolve(process.cwd(), 'uploads');
-const PDFS_DIR = path.join(UPLOADS_DIR, 'pdfs');
-const QR_DIR = path.join(UPLOADS_DIR, 'qrcodes');
 
-// Ensure dirs exist
-[UPLOADS_DIR, PDFS_DIR, QR_DIR].forEach((d) => {
-  if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
-});
+import { SupabaseService } from '../supabase/supabase.service';
 
 function slugify(text: string): string {
   return text
@@ -48,18 +43,22 @@ function buildQrText(point: {
 }): string {
   const baseUrl = 'https://www.projetoecotech.online';
   return [
-    `Ponto: ${point.title}`,
-    `Trilha: ${point.trail.title}`,
+    `Ponto: ${removeAccents(point.title)}`,
+    `Trilha: ${removeAccents(point.trail.title)}`,
     '',
     'Resumo:',
-    point.offlineSummary || '—',
+    removeAccents(point.offlineSummary || '—'),
     '',
     'Importância ambiental:',
-    (point.environmentalImportance || '—').substring(0, 200),
+    removeAccents(point.environmentalImportance || '—').substring(0, 200),
     '',
     'Conteúdo completo:',
     `${baseUrl}/pontos/${point.slug}`,
   ].join('\n');
+}
+
+function removeAccents(str: string) {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
 async function generateQrCode(
@@ -71,19 +70,17 @@ async function generateQrCode(
     trail: { title: string };
     preservationCare?: string;
   },
-): Promise<{ textContent: string; imagePath: string }> {
+): Promise<{ textContent: string; buffer: Buffer }> {
   const textContent = buildQrText(point);
-  const filename = `qr-${point.slug}-${Date.now()}.png`;
-  const filePath = path.join(QR_DIR, filename);
 
-  await QRCode.toFile(filePath, textContent, {
+  const buffer = await QRCode.toBuffer(textContent, {
     errorCorrectionLevel: 'M',
     width: 400,
     margin: 2,
     color: { dark: COLOR_DARK_GREEN, light: '#FFFFFF' },
   });
 
-  return { textContent, imagePath: `/uploads/qrcodes/${filename}` };
+  return { textContent, buffer };
 }
 
 function cleanPdfText(text: string | null | undefined): string {
@@ -106,10 +103,7 @@ async function generatePdf(point: {
   mainImage?: string;
   slug: string;
   trail: { title: string; school?: { name: string } | null };
-}): Promise<string> {
-  const filename = `ponto-${point.slug}.pdf`;
-  const filePath = path.join(PDFS_DIR, filename);
-
+}): Promise<Buffer> {
   return new Promise(async (resolve, reject) => {
     const doc = new PDFDocument({ 
       size: 'A4', 
@@ -117,8 +111,11 @@ async function generatePdf(point: {
       info: { Title: point.title, Author: 'EcoTech' },
       bufferPages: true
     });
-    const stream = fs.createWriteStream(filePath);
-    doc.pipe(stream);
+
+    const chunks: Buffer[] = [];
+    doc.on('data', chunk => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
 
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
@@ -313,9 +310,6 @@ async function generatePdf(point: {
     doc.flushPages();
 
     doc.end();
-
-    stream.on('finish', () => resolve(`/uploads/pdfs/${filename}`));
-    stream.on('error', reject);
   });
 }
 
@@ -324,6 +318,7 @@ export class EducationalPointsService {
   constructor(
     private prisma: PrismaService,
     @InjectQueue('pdf-queue') private pdfQueue: Queue,
+    private supabaseService: SupabaseService,
   ) {}
 
   async findBySlug(slug: string) {
@@ -483,7 +478,11 @@ export class EducationalPointsService {
     const pointForGen = { ...point, trail };
 
     // Generate QR Code
-    const { textContent, imagePath } = await generateQrCode(pointForGen);
+    const { textContent, buffer: qrBuffer } = await generateQrCode(pointForGen);
+
+    // Upload QR Code to Supabase
+    const qrFilename = `qr-${point.slug}.png`;
+    const qrUrl = await this.supabaseService.uploadBuffer(qrBuffer, 'image/png', qrFilename, 'qrcodes');
 
     // Upsert QR Code record
     await this.prisma.qrCode.deleteMany({ where: { educationalPointId: point.id } });
@@ -491,12 +490,16 @@ export class EducationalPointsService {
       data: {
         educationalPointId: point.id,
         qrTextContent: textContent,
-        qrImage: imagePath,
+        qrImage: qrUrl,
       },
     });
 
     // Generate PDF
-    const pdfUrl = await generatePdf(pointForGen);
+    const pdfBuffer = await generatePdf(pointForGen);
+
+    // Upload PDF to Supabase
+    const pdfFilename = `ponto-${point.slug}.pdf`;
+    const pdfUrl = await this.supabaseService.uploadBuffer(pdfBuffer, 'application/pdf', pdfFilename, 'pdfs');
 
     // Save pdfUrl back to point
     await this.prisma.educationalPoint.update({
@@ -523,10 +526,9 @@ export class EducationalPointsService {
       throw new ForbiddenException('Você não tem permissão para excluir este ponto.');
     }
 
-    // Clean up files
-    if (point.pdfUrl) {
-      const pdfPath = path.resolve(process.cwd(), point.pdfUrl.replace(/^\//, ''));
-      if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
+    // Clean up files in Supabase if needed (optional)
+    if (point.pdfUrl && point.pdfUrl.includes('supabase')) {
+      await this.supabaseService.deleteFile(point.pdfUrl);
     }
 
     return this.prisma.educationalPoint.delete({ where: { id } });

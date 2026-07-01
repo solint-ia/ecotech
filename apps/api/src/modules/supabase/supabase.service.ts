@@ -30,14 +30,18 @@ export class SupabaseService {
   }
 
   async uploadFile(file: Express.Multer.File, folder: string): Promise<string> {
+    return this.uploadBuffer(file.buffer, file.mimetype, file.originalname, folder);
+  }
+
+  async uploadBuffer(buffer: Buffer, mimetype: string, originalname: string, folder: string): Promise<string> {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = extname(file.originalname);
+    const ext = extname(originalname) || '';
     const filename = `${folder}/${uniqueSuffix}${ext}`;
 
     const { data, error } = await this.supabase.storage
       .from('uploads')
-      .upload(filename, file.buffer, {
-        contentType: file.mimetype,
+      .upload(filename, buffer, {
+        contentType: mimetype,
         upsert: false,
       });
 
