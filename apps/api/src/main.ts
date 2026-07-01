@@ -8,8 +8,11 @@ import { ConfigService } from '@nestjs/config';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
+  const frontendUrls = configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+  const origins = frontendUrls.split(',').map(url => url.trim());
+  
   app.enableCors({
-    origin: configService.get('FRONTEND_URL') || 'http://localhost:3000',
+    origin: origins,
     credentials: true,
   });
 
