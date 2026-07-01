@@ -146,7 +146,7 @@ export class UsersService {
         orderBy: { createdAt: 'desc' },
         include: {
           school: {
-            select: { name: true }
+            select: { name: true, coverImage: true }
           }
         }
       }),

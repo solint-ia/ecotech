@@ -35,13 +35,13 @@ export class AnalyticsService {
     const topTrailsLiked = await this.prisma.trail.findMany({
       orderBy: { likesCount: 'desc' },
       take: 5,
-      select: { id: true, title: true, likesCount: true, viewsCount: true, biome: true, city: true, state: true },
+      select: { id: true, slug: true, title: true, likesCount: true, viewsCount: true, biome: true, city: true, state: true },
     });
 
     const topTrailsViewed = await this.prisma.trail.findMany({
       orderBy: { viewsCount: 'desc' },
       take: 5,
-      select: { id: true, title: true, likesCount: true, viewsCount: true, biome: true, city: true, state: true },
+      select: { id: true, slug: true, title: true, likesCount: true, viewsCount: true, biome: true, city: true, state: true },
     });
 
     const schoolsWithMostTrails = await this.prisma.school.findMany({
@@ -57,11 +57,10 @@ export class AnalyticsService {
     });
 
     // 3. Recent Activities (Merge different tables manually for timeline)
-    const [recentUsers, recentSchools, recentTrails, recentPosts, recentLibrary] = await Promise.all([
+    const [recentUsers, recentSchools, recentTrails, recentLibrary] = await Promise.all([
       this.prisma.user.findMany({ orderBy: { createdAt: 'desc' }, take: 3, select: { id: true, name: true, createdAt: true } }),
       this.prisma.school.findMany({ orderBy: { createdAt: 'desc' }, take: 3, select: { id: true, name: true, createdAt: true } }),
       this.prisma.trail.findMany({ orderBy: { createdAt: 'desc' }, take: 3, select: { id: true, title: true, createdAt: true } }),
-      this.prisma.feedPost.findMany({ orderBy: { createdAt: 'desc' }, take: 3, select: { id: true, title: true, createdAt: true } }),
       this.prisma.libraryContent.findMany({ orderBy: { createdAt: 'desc' }, take: 3, select: { id: true, title: true, createdAt: true } }),
     ]);
 
@@ -69,7 +68,6 @@ export class AnalyticsService {
       ...recentUsers.map(u => ({ type: 'USER', label: `Novo usuário: ${u.name}`, date: u.createdAt })),
       ...recentSchools.map(s => ({ type: 'SCHOOL', label: `Nova escola: ${s.name}`, date: s.createdAt })),
       ...recentTrails.map(t => ({ type: 'TRAIL', label: `Nova trilha: ${t.title}`, date: t.createdAt })),
-      ...recentPosts.map(p => ({ type: 'POST', label: `Nova publicação: ${p.title}`, date: p.createdAt })),
       ...recentLibrary.map(l => ({ type: 'LIBRARY', label: `Novo material: ${l.title}`, date: l.createdAt })),
     ].sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 10);
 
@@ -135,16 +133,14 @@ export class AnalyticsService {
     });
 
     // 3. Recent Activities
-    const [recentUsers, recentTrails, recentPosts] = await Promise.all([
+    const [recentUsers, recentTrails] = await Promise.all([
       this.prisma.user.findMany({ where: { schoolId }, orderBy: { createdAt: 'desc' }, take: 4, select: { id: true, name: true, role: true, createdAt: true } }),
       this.prisma.trail.findMany({ where: { schoolId }, orderBy: { createdAt: 'desc' }, take: 3, select: { id: true, title: true, createdAt: true } }),
-      this.prisma.feedPost.findMany({ where: { schoolId }, orderBy: { createdAt: 'desc' }, take: 3, select: { id: true, title: true, createdAt: true } }),
     ]);
 
     const activities = [
       ...recentUsers.map(u => ({ type: 'USER', label: `Novo ${u.role === 'TEACHER' ? 'professor' : 'estudante'}: ${u.name}`, date: u.createdAt })),
       ...recentTrails.map(t => ({ type: 'TRAIL', label: `Nova trilha criada: ${t.title}`, date: t.createdAt })),
-      ...recentPosts.map(p => ({ type: 'POST', label: `Nova publicação: ${p.title}`, date: p.createdAt })),
     ].sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 10);
 
     return {

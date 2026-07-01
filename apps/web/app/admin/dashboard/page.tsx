@@ -39,6 +39,7 @@ export default function AdminDashboardPage() {
 
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isActivitiesOpen, setIsActivitiesOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!user?.accessToken) return;
@@ -74,14 +75,67 @@ export default function AdminDashboardPage() {
   return (
     <div className="max-w-7xl mx-auto pb-12 space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-primary flex items-center gap-2 mb-2">
-          <LayoutDashboard className="w-6 h-6 text-forest" />
-          Dashboard Administrativo
-        </h1>
-        <p className="text-foreground/70 text-sm">
-          Visão geral e métricas estratégicas de toda a plataforma EcoTech.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-primary flex items-center gap-2 mb-2">
+            <LayoutDashboard className="w-6 h-6 text-forest" />
+            Dashboard Administrativo
+          </h1>
+          <p className="text-foreground/70 text-sm">
+            Visão geral e métricas estratégicas de toda a plataforma EcoTech.
+          </p>
+        </div>
+
+        {/* Dropdown de Atividades Recentes */}
+        <div className="relative">
+          <button 
+            onClick={() => setIsActivitiesOpen(!isActivitiesOpen)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-border-custom hover:bg-gray-50 rounded-xl text-sm font-semibold text-emerald-900 transition-colors shadow-sm"
+          >
+            <Clock className="w-4 h-4 text-forest" />
+            Atividades Recentes
+          </button>
+          
+          {isActivitiesOpen && (
+            <div className="absolute right-0 top-full mt-2 w-[340px] sm:w-[400px] bg-white rounded-2xl shadow-xl border border-border-custom p-6 z-50 max-h-[500px] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-sm font-bold text-emerald-950 uppercase tracking-wider flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-forest" />
+                  Histórico
+                </h3>
+                <button onClick={() => setIsActivitiesOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                  <span className="sr-only">Fechar</span>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <div className="relative">
+                {/* Linha Guia Contínua */}
+                <div className="absolute left-4 top-2 bottom-2 w-[2px] bg-emerald-900/10"></div>
+                
+                <div className="space-y-6">
+                  {activities.length > 0 ? activities.map((act: any, i: number) => (
+                    <div key={i} className="flex gap-4 relative">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center bg-[#EAF4EE] border border-emerald-800/15 text-emerald-800 shrink-0 z-10">
+                        {getTimelineIcon(act.type)}
+                      </div>
+                      <div className="pt-1 flex flex-col min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="text-[10px] font-bold text-forest uppercase tracking-wider">{getActivityTypeLabel(act.type)}</span>
+                          <time className="text-[11px] font-medium text-gray-400 shrink-0">
+                            {new Date(act.date).toLocaleDateString('pt-BR')} {new Date(act.date).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}
+                          </time>
+                        </div>
+                        <p className="text-sm text-emerald-950 font-medium line-clamp-2 leading-snug">{act.label}</p>
+                      </div>
+                    </div>
+                  )) : (
+                    <p className="text-sm text-center text-gray-500 py-4">Nenhuma atividade recente.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Metrics Grid */}
@@ -113,10 +167,10 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="space-y-6">
         
-        {/* Rankings (Left 2 columns) */}
-        <div className="xl:col-span-2 space-y-6">
+        {/* Rankings */}
+        <div className="space-y-6">
           <div className="bg-white rounded-2xl shadow-sm border border-border-custom p-6">
             <h2 className="text-lg font-bold text-emerald-950 mb-4 flex items-center gap-2">
               <Trophy className="w-5 h-5 text-amber-500" />
@@ -133,7 +187,7 @@ export default function AdminDashboardPage() {
                           {i + 1}
                         </span>
                         <div className="flex flex-col">
-                          <span className="font-medium text-emerald-900 leading-tight">{trail.title}</span>
+                          <Link href={`/trilhas/${trail.slug}`} className="font-medium text-emerald-900 leading-tight hover:text-forest hover:underline transition-colors">{trail.title}</Link>
                           {(trail.biome || trail.city) && (
                             <span className="text-xs text-emerald-800/60 leading-tight mt-0.5">
                               {[trail.biome, trail.city, trail.state].filter(Boolean).join(' • ')}
@@ -158,7 +212,7 @@ export default function AdminDashboardPage() {
                           {i + 1}
                         </span>
                         <div className="flex flex-col">
-                          <span className="font-medium text-emerald-900 leading-tight">{trail.title}</span>
+                          <Link href={`/trilhas/${trail.slug}`} className="font-medium text-emerald-900 leading-tight hover:text-forest hover:underline transition-colors">{trail.title}</Link>
                           {(trail.biome || trail.city) && (
                             <span className="text-xs text-emerald-800/60 leading-tight mt-0.5">
                               {[trail.biome, trail.city, trail.state].filter(Boolean).join(' • ')}
@@ -192,7 +246,7 @@ export default function AdminDashboardPage() {
                           {i + 1}
                         </span>
                         <div className="flex flex-col">
-                          <span className="font-medium text-emerald-900 leading-tight">{school.name}</span>
+                          <Link href={`/escolas/${school.id}`} className="font-medium text-emerald-900 leading-tight hover:text-forest hover:underline transition-colors">{school.name}</Link>
                           {school.city && (
                             <span className="text-xs text-emerald-800/60 leading-tight mt-0.5">
                               {school.city}, {school.state}
@@ -215,7 +269,7 @@ export default function AdminDashboardPage() {
                           {i + 1}
                         </span>
                         <div className="flex flex-col">
-                          <span className="font-medium text-emerald-900 leading-tight">{school.name}</span>
+                          <Link href={`/escolas/${school.id}`} className="font-medium text-emerald-900 leading-tight hover:text-forest hover:underline transition-colors">{school.name}</Link>
                           {school.city && (
                             <span className="text-xs text-emerald-800/60 leading-tight mt-0.5">
                               {school.city}, {school.state}
@@ -227,39 +281,6 @@ export default function AdminDashboardPage() {
                     </li>
                   ))}
                 </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Timeline (Right Column) */}
-        <div className="xl:col-span-1">
-          <div className="bg-white rounded-2xl shadow-sm border border-border-custom p-6 h-full">
-            <h2 className="text-lg font-bold text-emerald-950 mb-6 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-forest" />
-              Atividades Recentes
-            </h2>
-            <div className="relative">
-              {/* Linha Guia Contínua */}
-              <div className="absolute left-4 top-2 bottom-2 w-[2px] bg-emerald-900/10"></div>
-              
-              <div className="space-y-6">
-                {activities.map((act: any, i: number) => (
-                  <div key={i} className="flex gap-4 relative">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-[#EAF4EE] border border-emerald-800/15 text-emerald-800 shrink-0 z-10">
-                      {getTimelineIcon(act.type)}
-                    </div>
-                    <div className="pt-1 flex flex-col min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="text-[10px] font-bold text-forest uppercase tracking-wider">{getActivityTypeLabel(act.type)}</span>
-                        <time className="text-[11px] font-medium text-gray-400 shrink-0">
-                          {new Date(act.date).toLocaleDateString('pt-BR')} {new Date(act.date).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}
-                        </time>
-                      </div>
-                      <p className="text-sm text-emerald-950 font-medium line-clamp-2 leading-snug">{act.label}</p>
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
           </div>

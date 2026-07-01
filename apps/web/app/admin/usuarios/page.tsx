@@ -8,6 +8,7 @@ import {
   UserX, UserCheck, ChevronLeft, ChevronRight, LayoutDashboard
 } from 'lucide-react';
 import Link from 'next/link';
+import { getImageUrl } from '../../../lib/image-url';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -207,17 +208,33 @@ export default function AdminUsersPage() {
                   <tr key={u.id} className="block md:table-row mb-4 border border-gray-100 rounded-lg p-4 shadow-sm md:mb-0 md:border-none md:p-0 md:shadow-none hover:bg-emerald-50/30 transition-colors group">
                     {/* User Cell */}
                     <td className="block md:table-cell border-b border-gray-50 pb-3 mb-3 md:border-none md:pb-0 md:mb-0 px-0 md:px-6 md:py-4">
-                      <div className="flex items-center gap-3">
+                      <Link 
+                        href={u.role === 'SCHOOL_MANAGER' && u.schoolId ? `/escolas/${u.schoolId}` : `/perfil/${u.id}`}
+                        className="flex items-center gap-3 group/link"
+                      >
                         <img 
-                          src={u.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name || u.email)}&background=EAF4EE&color=1B4332`} 
-                          alt={u.name || 'Avatar'}
-                          className={`w-10 h-10 rounded-full object-cover border-2 ${!u.status ? 'border-red-200 opacity-50 grayscale' : 'border-white shadow-sm'}`}
+                          src={(u.role === 'SCHOOL_MANAGER' && u.school?.coverImage) 
+                            ? getImageUrl(u.school.coverImage) 
+                            : (u.profileImage ? getImageUrl(u.profileImage) : `https://ui-avatars.com/api/?name=${encodeURIComponent(u.role === 'SCHOOL_MANAGER' && u.school?.name ? u.school.name : (u.name || u.email))}&background=EAF4EE&color=1B4332`)} 
+                          alt={u.role === 'SCHOOL_MANAGER' && u.school?.name ? u.school.name : (u.name || 'Avatar')}
+                          className={`w-10 h-10 rounded-full object-cover border-2 transition-transform group-hover/link:scale-105 ${!u.status ? 'border-red-200 opacity-50 grayscale' : 'border-white shadow-sm'}`}
                         />
                         <div className="flex flex-col">
-                          <span className={`font-semibold ${!u.status ? 'text-gray-500' : 'text-gray-900'}`}>{u.name || 'Sem nome'}</span>
-                          <span className="text-xs text-gray-500">{u.email}</span>
+                          {u.role === 'SCHOOL_MANAGER' ? (
+                            <>
+                              <span className={`font-bold transition-colors group-hover/link:text-forest group-hover/link:underline ${!u.status ? 'text-gray-500' : 'text-emerald-950'}`}>
+                                {u.school?.name || 'Escola'}
+                              </span>
+                              <span className="text-[11px] text-gray-500 font-medium leading-tight">Gestor: {u.name || 'Sem nome'}</span>
+                            </>
+                          ) : (
+                            <span className={`font-semibold transition-colors group-hover/link:text-forest group-hover/link:underline ${!u.status ? 'text-gray-500' : 'text-gray-900'}`}>
+                              {u.name || 'Sem nome'}
+                            </span>
+                          )}
+                          <span className="text-[11px] text-gray-400 mt-0.5 leading-tight">{u.email}</span>
                         </div>
-                      </div>
+                      </Link>
                     </td>
                     
                     {/* Role Cell */}
