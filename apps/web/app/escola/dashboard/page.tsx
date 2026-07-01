@@ -122,9 +122,9 @@ export default function EscolaDashboardPage() {
                       <p className="text-xs text-foreground/50">{sub.contentType}</p>
                     </div>
                     <div>
-                      {sub.approvalStatus === 'APROVADO' && <CheckCircle2 className="w-5 h-5 text-emerald-500" title="Aprovado" />}
-                      {sub.approvalStatus === 'PENDENTE' && <Clock className="w-5 h-5 text-yellow-500" title="Pendente" />}
-                      {sub.approvalStatus === 'REPROVADO' && <XCircle className="w-5 h-5 text-red-500" title="Reprovado" />}
+                      {sub.approvalStatus === 'APROVADO' && <span title="Aprovado"><CheckCircle2 className="w-5 h-5 text-emerald-500" /></span>}
+                      {sub.approvalStatus === 'PENDENTE' && <span title="Pendente"><Clock className="w-5 h-5 text-yellow-500" /></span>}
+                      {sub.approvalStatus === 'REPROVADO' && <span title="Reprovado"><XCircle className="w-5 h-5 text-red-500" /></span>}
                     </div>
                   </li>
                 ))}
