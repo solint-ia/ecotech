@@ -11,7 +11,8 @@ export class SchoolsService {
       users: {
         some: {
           role: 'SCHOOL_MANAGER',
-          roleStatus: 'APROVADO'
+          roleStatus: 'APROVADO',
+          status: true
         }
       }
     };
@@ -55,7 +56,8 @@ export class SchoolsService {
         users: {
           some: {
             role: 'SCHOOL_MANAGER',
-            roleStatus: 'APROVADO'
+            roleStatus: 'APROVADO',
+            status: true
           }
         }
       },
