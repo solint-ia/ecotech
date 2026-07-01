@@ -14,8 +14,8 @@ export class MailService {
   async sendOtpEmail(email: string, type: 'EMAIL_VERIFICATION' | 'PASSWORD_RESET', otpCode: string): Promise<boolean> {
     const isVerification = type === 'EMAIL_VERIFICATION';
     const subject = isVerification ? 'Confirme seu e-mail na EcoTech' : 'Recuperação de Senha - EcoTech';
-    
-    const htmlContent = isVerification 
+
+    const htmlContent = isVerification
       ? `
       <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; background-color: #f9f9f9; padding: 20px; border-radius: 8px;">
         <h2 style="color: #0B3B24; text-align: center;">Bem-vindo(a) à EcoTech!</h2>
