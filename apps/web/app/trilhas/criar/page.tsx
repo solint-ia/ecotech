@@ -49,8 +49,12 @@ export default function CriarTrilhaPage() {
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login');
-    } else if (status === 'authenticated' && user?.role !== 'ADMIN' && user?.role !== 'SCHOOL_MANAGER') {
-      router.push('/trilhas');
+    } else if (status === 'authenticated') {
+      const isApproved = user?.roleStatus === 'APROVADO';
+      const isAllowedRole = user?.role === 'ADMIN' || (['SCHOOL_MANAGER', 'TEACHER'].includes(user?.role) && isApproved);
+      if (!isAllowedRole) {
+        router.push('/trilhas');
+      }
     }
   }, [status, user, router]);
 

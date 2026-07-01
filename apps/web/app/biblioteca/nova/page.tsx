@@ -42,8 +42,10 @@ export default function NovaBibliotecaPage() {
   const isVideo = contentType === 'VIDEO';
 
   // Redirect if not authorized
+  const isApproved = user?.roleStatus === 'APROVADO';
+  const isAllowedRole = user?.role === 'ADMIN' || (['SCHOOL_MANAGER', 'TEACHER'].includes(user?.role) && isApproved);
   if (status === 'loading') return null;
-  if (!user || !['ADMIN', 'SCHOOL_MANAGER', 'TEACHER'].includes(user.role)) {
+  if (!user || !isAllowedRole) {
     router.push('/biblioteca');
     return null;
   }

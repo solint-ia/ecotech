@@ -46,7 +46,7 @@ export default async function PointDetailPage({ params }: { params: Promise<{ sl
 
   const qrCode = point.qrCodes?.[0];
   const trailSlug = point.trail?.slug;
-  const pdfUrl = point.pdfUrl ? `${API_URL}${point.pdfUrl}` : null;
+  const pdfUrl = point.pdfUrl ? getImageUrl(point.pdfUrl) : null;
 
   return (
     <div className="max-w-3xl mx-auto">

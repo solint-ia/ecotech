@@ -105,9 +105,9 @@ export class TrailsController {
     return this.trailsService.findBySlug(slug);
   }
 
-  /** POST /trails - Create new trail (ADMIN or SCHOOL_MANAGER) */
+  /** POST /trails - Create new trail (ADMIN, SCHOOL_MANAGER or TEACHER) */
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'SCHOOL_MANAGER')
+  @Roles('ADMIN', 'SCHOOL_MANAGER', 'TEACHER')
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('coverImage', { storage }))
@@ -126,9 +126,9 @@ export class TrailsController {
     });
   }
 
-  /** PATCH /trails/:id - Update trail (ADMIN or owning SCHOOL_MANAGER) */
+  /** PATCH /trails/:id - Update trail (ADMIN, SCHOOL_MANAGER or TEACHER) */
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'SCHOOL_MANAGER')
+  @Roles('ADMIN', 'SCHOOL_MANAGER', 'TEACHER')
   @Patch(':id')
   @UseInterceptors(FileInterceptor('coverImage', { storage }))
   async update(

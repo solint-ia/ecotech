@@ -27,6 +27,13 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('Acesso negado: Perfil sem permissão para esta ação.');
     }
 
+    // Require APROVADO status for SCHOOL_MANAGER and TEACHER
+    if (['SCHOOL_MANAGER', 'TEACHER'].includes(user.role)) {
+      if (user.roleStatus !== 'APROVADO') {
+        throw new ForbiddenException('Acesso negado: Seu cadastro ainda não foi aprovado.');
+      }
+    }
+
     return true;
   }
 }

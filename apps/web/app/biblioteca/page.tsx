@@ -24,7 +24,8 @@ const CATEGORIES = [
 export default function BibliotecaPage() {
   const { data: session } = useSession();
   const user = session?.user as any;
-  const canSubmit = ['ADMIN', 'SCHOOL_MANAGER', 'TEACHER'].includes(user?.role);
+  const isApproved = user?.roleStatus === 'APROVADO';
+  const canSubmit = user?.role === 'ADMIN' || (['SCHOOL_MANAGER', 'TEACHER'].includes(user?.role) && isApproved);
   const isAdmin = user?.role === 'ADMIN';
 
   const [contents, setContents] = useState<LibraryContent[]>([]);

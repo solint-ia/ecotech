@@ -18,7 +18,8 @@ import TrailCard, { Trail } from '../../components/trilhas/TrailCard';
 export default function TrilhasPage() {
   const { data: session } = useSession();
   const user = session?.user as any;
-  const canManageTrails = user?.role === 'ADMIN' || user?.role === 'SCHOOL_MANAGER';
+  const isApproved = user?.roleStatus === 'APROVADO';
+  const canManageTrails = user?.role === 'ADMIN' || (['SCHOOL_MANAGER', 'TEACHER'].includes(user?.role) && isApproved);
 
   const [trails, setTrails] = useState<Trail[]>([]);
   const [loading, setLoading] = useState(true);

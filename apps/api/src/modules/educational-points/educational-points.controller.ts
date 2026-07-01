@@ -56,7 +56,7 @@ export class EducationalPointsController {
 
   /** POST /educational-points - Create a new educational point */
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'SCHOOL_MANAGER')
+  @Roles('ADMIN', 'SCHOOL_MANAGER', 'TEACHER')
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(AnyFilesInterceptor({ storage }))
@@ -78,7 +78,7 @@ export class EducationalPointsController {
 
   /** PATCH /educational-points/:id - Update an educational point */
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'SCHOOL_MANAGER')
+  @Roles('ADMIN', 'SCHOOL_MANAGER', 'TEACHER')
   @Patch(':id')
   @UseInterceptors(AnyFilesInterceptor({ storage }))
   async update(
@@ -100,7 +100,7 @@ export class EducationalPointsController {
 
   /** DELETE /educational-points/:id - Delete an educational point */
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'SCHOOL_MANAGER')
+  @Roles('ADMIN', 'SCHOOL_MANAGER', 'TEACHER')
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: string, @CurrentUser() user: any) {
