@@ -34,7 +34,10 @@ export class PdfProcessor extends WorkerHost {
           this.logger.log(`Assets (PDF/QR) generated successfully for ${pointId}`);
           
           // Disparar Webhook para o Frontend para limpar o cache da página
-          const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+          const frontendUrlRaw = process.env.FRONTEND_URL || 'http://localhost:3000';
+          // Como FRONTEND_URL pode conter múltiplas URLs para o CORS (separadas por vírgula), pegamos a primeira
+          const frontendUrl = frontendUrlRaw.split(',')[0].trim();
+          
           const webhookSecret = process.env.REVALIDATION_SECRET;
           
           if (webhookSecret) {
