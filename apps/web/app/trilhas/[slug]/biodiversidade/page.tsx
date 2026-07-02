@@ -19,6 +19,7 @@ interface BiodiversityItem {
   image: string;
   curiosities?: string;
   environmentalImportance: string;
+  updatedAt?: string;
 }
 
 export default function BiodiversidadePage({ params }: { params: Promise<{ slug: string }> }) {
