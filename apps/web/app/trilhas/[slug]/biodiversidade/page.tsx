@@ -61,7 +61,7 @@ export default function BiodiversidadePage({ params }: { params: Promise<{ slug:
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const resTrail = await fetch(`${API_URL}/trails/${slug}`);
+        const resTrail = await fetch(`${API_URL}/trails/${slug}`, { cache: 'no-store' });
         if (!resTrail.ok) throw new Error('Trilha não encontrada.');
         const trailData = await resTrail.json();
         
@@ -71,7 +71,7 @@ export default function BiodiversidadePage({ params }: { params: Promise<{ slug:
         }
         setTrail(trailData);
 
-        const resItems = await fetch(`${API_URL}/biodiversity/trail/${trailData.id}`);
+        const resItems = await fetch(`${API_URL}/biodiversity/trail/${trailData.id}`, { cache: 'no-store' });
         if (resItems.ok) {
           const itemsData = await resItems.json();
           setItems(itemsData);
@@ -260,7 +260,7 @@ export default function BiodiversidadePage({ params }: { params: Promise<{ slug:
                   {/* Image Header */}
                   <div className="relative aspect-video w-full overflow-hidden">
                     <img 
-                      src={getImageUrl(item.image)} 
+                      src={`${getImageUrl(item.image)}${item.updatedAt ? `?v=${new Date(item.updatedAt).getTime()}` : ''}`} 
                       alt={item.popularName} 
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                     />
@@ -451,14 +451,14 @@ export default function BiodiversidadePage({ params }: { params: Promise<{ slug:
         </form>
       )}
 
-      {/* Details Modal */}
+{/* Details Modal */}
       {selectedItem && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
             {/* Modal Image Header */}
-            <div className="relative aspect-video w-full flex-shrink-0 bg-black/5">
+            <div className="w-full h-48 md:h-64 relative bg-gray-100 shrink-0">
               <img 
-                src={getImageUrl(selectedItem.image)} 
+                src={`${getImageUrl(selectedItem.image)}${selectedItem.updatedAt ? `?v=${new Date(selectedItem.updatedAt).getTime()}` : ''}`} 
                 alt={selectedItem.popularName} 
                 className="w-full h-full object-cover"
               />
