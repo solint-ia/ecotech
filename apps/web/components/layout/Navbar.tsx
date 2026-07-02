@@ -58,7 +58,7 @@ export default function Navbar() {
     <>
       {/* Desktop Navigation (Top Bar) */}
       {/* Header Navigation - Mobile (Full Width Glass) & Desktop (Floating Capsule) */}
-      <header className="
+      <header id="main-navbar" className="
         z-50 transition-all duration-300
         fixed top-0 left-0 right-0 w-full bg-[#FAFCFA]/80 backdrop-blur-md border-b border-emerald-900/5
         md:sticky md:top-4 md:mt-4 md:w-[95%] md:max-w-5xl md:mx-auto md:rounded-full md:bg-[#073D26] md:shadow-md md:border md:border-white/10 md:backdrop-blur-none
@@ -189,7 +189,7 @@ export default function Navbar() {
       </header>
 
       {/* Mobile Navigation (Bottom Navigation Bar) */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border-custom bg-white md:hidden">
+      <nav id="mobile-navbar" className="fixed bottom-0 left-0 right-0 z-40 border-t border-border-custom bg-white md:hidden">
         <div className="flex h-16 items-center justify-around px-2">
           {navItems.map((item) => {
             const Icon = item.icon;

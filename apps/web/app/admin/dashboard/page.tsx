@@ -139,18 +139,17 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-        <MetricCard title="Usuários" value={metrics.totalUsers} icon={Users} main link="/admin/usuarios" linkText="Gerenciar Usuários" />
-        <MetricCard title="Escolas" value={metrics.totalSchools} icon={School} main />
-        <MetricCard title="Trilhas" value={metrics.totalTrails} icon={Compass} main />
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <MetricCard title="Usuários" value={metrics.totalUsers} icon={Users} main link="/admin/usuarios" linkText="Gerenciar" />
+        <MetricCard title="Escolas" value={metrics.totalSchools} icon={School} main link="/escolas" linkText="Gerenciar" />
+        <MetricCard title="Trilhas" value={metrics.totalTrails} icon={Compass} main link="/trilhas" linkText="Gerenciar" />
         <MetricCard title="Estudantes" value={metrics.totalStudents} icon={Users} />
         <MetricCard title="Professores" value={metrics.totalTeachers} icon={Users} />
-        
         <MetricCard title="Pontos Educ." value={metrics.totalPoints} icon={MapPin} />
         <MetricCard title="Publicações" value={metrics.totalPosts} icon={MessageSquare} />
         <MetricCard title="Biblioteca" value={metrics.totalLibrary} icon={Library} />
         
-        <div className={`col-span-2 md:col-span-1 rounded-2xl p-4 shadow-sm flex flex-col justify-between transition-colors border ${metrics.pendingLibrary > 0 ? 'bg-white border-[#D97757]/30' : 'bg-white border-border-custom'}`}>
+        <div className={`rounded-2xl p-4 shadow-sm flex flex-col justify-between transition-colors border ${metrics.pendingLibrary > 0 ? 'bg-white border-[#D97757]/30 hover:border-[#D97757]/60' : 'bg-white border-border-custom hover:border-forest/30'}`}>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold tracking-wider text-foreground/50 uppercase">Pendentes (Bib.)</span>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${metrics.pendingLibrary > 0 ? 'bg-[#D97757]/10 text-[#D97757]' : 'bg-beige text-foreground/60'}`}>
@@ -292,23 +291,21 @@ export default function AdminDashboardPage() {
 
 function MetricCard({ title, value, icon: Icon, main, link, linkText }: { title: string, value: number, icon: any, main?: boolean, link?: string, linkText?: string }) {
   return (
-    <div className={`rounded-2xl p-4 shadow-sm flex flex-col justify-between border ${main ? 'bg-sage/10 border-sage/20' : 'bg-white border-border-custom'}`}>
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold tracking-wider text-foreground/50 uppercase">{title}</span>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${main ? 'bg-sage/20 text-forest' : 'bg-beige text-foreground/60'}`}>
-            <Icon className="w-4 h-4" />
-          </div>
+    <div className={`rounded-2xl p-4 shadow-sm flex flex-col justify-between transition-colors border ${main ? 'bg-forest border-forest text-white' : 'bg-white border-border-custom hover:border-forest/30'}`}>
+      <div className="flex items-center justify-between mb-2">
+        <span className={`text-xs font-semibold tracking-wider ${main ? 'text-white/80' : 'text-foreground/50'} uppercase`}>{title}</span>
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${main ? 'bg-white/10 text-white' : 'bg-beige text-forest'}`}>
+          <Icon className="w-4 h-4" />
         </div>
-        <span className="text-3xl font-bold text-emerald-950 mt-2">{value}</span>
       </div>
-      {link && linkText && (
-        <div className="mt-4 pt-4 border-t border-emerald-900/10">
-          <Link href={link} className="text-xs font-bold text-forest hover:text-forest/80 flex items-center justify-center w-full transition-colors">
+      <div className="flex items-end justify-between mt-2">
+        <span className={`text-3xl font-bold ${main ? 'text-white' : 'text-emerald-950'}`}>{value}</span>
+        {link && linkText && (
+          <Link href={link} className={`text-xs font-semibold hover:underline ${main ? 'text-white/90' : 'text-forest'}`}>
             {linkText}
           </Link>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

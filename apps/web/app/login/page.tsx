@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import { Leaf, Camera, UploadCloud, Mail, Lock, Compass } from 'lucide-react';
 import { AuthFooter } from '@/components/AuthFooter';
 import ActivationModal from '@/components/shared/ActivationModal';
@@ -20,10 +20,25 @@ import {
 
 export default function LoginPage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
+  const user = session?.user as any;
   const [isLogin, setIsLogin] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
   const [showActivationModal, setShowActivationModal] = useState(false);
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+
+  // Redireciona usuários já autenticados
+  useEffect(() => {
+    if (status === 'authenticated') {
+      if (user?.role === 'ADMIN') {
+        router.push('/admin/dashboard');
+      } else if (user?.role === 'SCHOOL_MANAGER') {
+        router.push('/escola/dashboard');
+      } else {
+        router.push('/trilhas');
+      }
+    }
+  }, [status, user, router]);
 
   // Base fields
   const [name, setName] = useState('');
