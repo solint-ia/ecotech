@@ -38,8 +38,8 @@ export class PdfProcessor extends WorkerHost {
           const webhookSecret = process.env.REVALIDATION_SECRET;
           
           if (webhookSecret) {
+            const webhookUrl = `${frontendUrl}/api/revalidate`;
             try {
-              const webhookUrl = `${frontendUrl}/api/revalidate`;
               const response = await fetch(webhookUrl, {
                 method: 'POST',
                 headers: {
