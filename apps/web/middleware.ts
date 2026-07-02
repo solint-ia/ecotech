@@ -13,6 +13,11 @@ export default auth((req) => {
     nextUrl.pathname === '/escola' || 
     nextUrl.pathname.startsWith('/escola/');
 
+  // Se for rota raiz, redireciona pro login imediatamente (o login redirecionará para o dashboard correto se logado)
+  if (nextUrl.pathname === '/') {
+    return NextResponse.redirect(new URL('/login', nextUrl));
+  }
+
   // Se for API ou rota de autenticação, deixa passar
   if (isApiRoute || isAuthRoute) {
     return NextResponse.next();

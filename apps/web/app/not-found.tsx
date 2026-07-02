@@ -25,7 +25,7 @@ export default function NotFoundPage() {
         </p>
         
         <Link 
-          href="/"
+          href="/login"
           className="inline-flex items-center justify-center gap-2 w-full py-4 bg-forest text-white rounded-xl font-bold hover:bg-forest/90 hover:scale-[1.02] transition-all shadow-sm"
         >
           Voltar ao Início
