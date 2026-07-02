@@ -13,8 +13,7 @@ import {
   UploadedFiles,
 } from '@nestjs/common';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { memoryStorage } from 'multer';
 import { BiodiversityService } from './biodiversity.service';
 import { CreateBiodiversityDto } from './dto/create-biodiversity.dto';
 import { UpdateBiodiversityDto } from './dto/update-biodiversity.dto';
@@ -22,19 +21,16 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { SupabaseService } from '../supabase/supabase.service';
 
-const storage = diskStorage({
-  destination: './uploads',
-  filename: (req, file, callback) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = extname(file.originalname);
-    callback(null, `${uniqueSuffix}${ext}`);
-  },
-});
+const storage = memoryStorage();
 
 @Controller('biodiversity')
 export class BiodiversityController {
-  constructor(private readonly biodiversityService: BiodiversityService) {}
+  constructor(
+    private readonly biodiversityService: BiodiversityService,
+    private readonly supabaseService: SupabaseService,
+  ) {}
 
   @Get('trail/:trailId')
   findByTrail(@Param('trailId') trailId: string) {
@@ -46,14 +42,14 @@ export class BiodiversityController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(AnyFilesInterceptor({ storage }))
-  create(
+  async create(
     @Body() dto: CreateBiodiversityDto,
     @CurrentUser() user: any,
     @UploadedFiles() files?: Array<Express.Multer.File>,
   ) {
     const file = files?.find(f => f.fieldname === 'image');
     if (file) {
-      dto.image = `/uploads/${file.filename}`;
+      dto.image = await this.supabaseService.uploadFile(file, 'trails/biodiversity');
     }
     return this.biodiversityService.create(dto, {
       id: user.id,
@@ -66,7 +62,7 @@ export class BiodiversityController {
   @Roles('ADMIN', 'SCHOOL_MANAGER')
   @Patch(':id')
   @UseInterceptors(AnyFilesInterceptor({ storage }))
-  update(
+  async update(
     @Param('id') id: string,
     @Body() dto: UpdateBiodiversityDto,
     @CurrentUser() user: any,
@@ -74,7 +70,7 @@ export class BiodiversityController {
   ) {
     const file = files?.find(f => f.fieldname === 'image');
     if (file) {
-      dto.image = `/uploads/${file.filename}`;
+      dto.image = await this.supabaseService.uploadFile(file, 'trails/biodiversity');
     }
     return this.biodiversityService.update(id, dto, {
       id: user.id,
