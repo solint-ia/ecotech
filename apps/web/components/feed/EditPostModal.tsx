@@ -23,7 +23,6 @@ export default function EditPostModal({
   onClose,
   onUpdated,
 }: EditPostModalProps) {
-  const [title, setTitle] = useState(post.title || '');
   const [description, setDescription] = useState(post.description || '');
   const [schoolId, setSchoolId] = useState(post.school?.id || '');
   const [trailId, setTrailId] = useState(post.trail?.id || '');
@@ -103,12 +102,11 @@ export default function EditPostModal({
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !description.trim()) return;
+    if (!description.trim()) return;
 
     setLoading(true);
     try {
       const formData = new FormData();
-      formData.append('title', title.trim());
       formData.append('description', description.trim());
       if (schoolId) formData.append('schoolId', schoolId);
       if (trailId) formData.append('trailId', trailId);
@@ -157,18 +155,6 @@ export default function EditPostModal({
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto custom-scrollbar">
-          {/* Title */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-primary">Título <span className="text-red-500">*</span></label>
-            <input
-              type="text"
-              placeholder="Título da publicação"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-border-custom bg-white focus:ring-2 focus:ring-secondary focus:outline-none text-sm"
-              required
-            />
-          </div>
 
           {/* Description */}
           <div className="space-y-1.5">
@@ -274,7 +260,7 @@ export default function EditPostModal({
             </button>
             <button
               type="submit"
-              disabled={loading || !title.trim() || !description.trim()}
+              disabled={loading || !description.trim()}
               className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg active:scale-95"
             >
               {loading ? (

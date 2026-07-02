@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { getImageUrl } from '../../lib/image-url';
+import ConfirmDeleteModal from '../feed/ConfirmDeleteModal';
 
 interface PartnerPhoto {
   id: string;
@@ -53,33 +54,36 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
     setIsUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('image', file);
-
       const token = user?.accessToken;
 
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/partners/${partnerId}/photos`,
-        {
-          method: 'POST',
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/partners/${partnerId}/photos`,
+          {
+            method: 'POST',
+            headers: {
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: formData,
           },
-          body: formData,
-        },
-      );
+        );
 
-      if (!res.ok) {
-        throw new Error('Falha ao enviar imagem');
+        if (!res.ok) {
+          console.error('Falha ao enviar imagem', file.name);
+          continue;
+        }
+
+        const newPhoto: PartnerPhoto = await res.json();
+        setPhotos((prev) => [...prev, newPhoto]);
       }
-
-      const newPhoto: PartnerPhoto = await res.json();
-      setPhotos((prev) => [...prev, newPhoto]);
     } catch (error) {
       console.error(error);
       alert('Erro ao enviar imagem.');
@@ -91,17 +95,20 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
     }
   };
 
-  const handleDelete = async (photoId: string, e?: React.MouseEvent) => {
+  const handleDeleteClick = (photoId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
-
-    if (!confirm('Tem certeza que deseja excluir esta foto?')) return;
-
     setDeletingId(photoId);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingId) return;
+
+    setIsUploading(true); // Reusing this for loading state in modal or can just use isUploading
     try {
       const token = user?.accessToken;
 
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/partners/photos/${photoId}?partnerId=${partnerId}`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/partners/photos/${deletingId}?partnerId=${partnerId}`,
         {
           method: 'DELETE',
           headers: {
@@ -114,10 +121,10 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
         throw new Error('Falha ao excluir imagem');
       }
 
-      setPhotos((prev) => prev.filter((p) => p.id !== photoId));
+      setPhotos((prev) => prev.filter((p) => p.id !== deletingId));
 
       if (lightboxOpen) {
-        const newPhotos = photos.filter((p) => p.id !== photoId);
+        const newPhotos = photos.filter((p) => p.id !== deletingId);
         if (newPhotos.length === 0) {
           setLightboxOpen(false);
         } else if (lightboxIndex >= newPhotos.length) {
@@ -128,6 +135,7 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
       console.error(error);
       alert('Erro ao excluir imagem.');
     } finally {
+      setIsUploading(false);
       setDeletingId(null);
     }
   };
@@ -190,6 +198,7 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
                 type="file"
                 ref={fileInputRef}
                 accept="image/*"
+                multiple
                 className="hidden"
                 onChange={handleFileSelect}
               />
@@ -245,16 +254,10 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
 
                   {canManage && (
                     <button
-                      onClick={(e) => handleDelete(photo.id, e)}
-                      disabled={deletingId === photo.id}
-                      className="absolute top-2.5 right-2.5 bg-red-600/90 hover:bg-red-700 text-white p-2 rounded-lg opacity-0 group-hover/photo:opacity-100 transition-all disabled:opacity-50 shadow-md hover:scale-110 active:scale-95"
-                      title="Excluir imagem"
+                      onClick={(e) => handleDeleteClick(photo.id, e)}
+                      className="absolute top-2 right-2 p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover/photo:opacity-100 transition-opacity duration-300 shadow-md"
                     >
-                      {deletingId === photo.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4" />
-                      )}
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   )}
                 </div>
@@ -306,16 +309,11 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
 
             {canManage && (
               <button
-                onClick={(e) => handleDelete(photos[lightboxIndex].id, e)}
-                disabled={deletingId === photos[lightboxIndex].id}
+                onClick={(e) => handleDeleteClick(photos[lightboxIndex].id, e)}
                 className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 bg-red-600/80 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-all z-20 flex items-center gap-2 backdrop-blur disabled:opacity-50"
                 title="Excluir imagem"
               >
-                {deletingId === photos[lightboxIndex].id ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Trash2 className="w-4 h-4" />
-                )}
+                <Trash2 className="w-4 h-4" />
                 Excluir
               </button>
             )}
@@ -354,6 +352,17 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
             )}
           </div>
         </div>
+      )}
+
+      {/* Confirm Delete Modal */}
+      {deletingId && (
+        <ConfirmDeleteModal
+          title="Excluir Foto"
+          description="Tem certeza que deseja excluir esta foto da galeria? Esta ação não poderá ser desfeita."
+          loading={isUploading}
+          onClose={() => setDeletingId(null)}
+          onConfirm={confirmDelete}
+        />
       )}
 
       <style jsx global>{`

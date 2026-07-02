@@ -398,13 +398,17 @@ export class EducationalPointsService {
         mainImage: dto.mainImage ?? '',
         offlineSummary: dto.offlineSummary ?? '',
         status: dto.status ?? false,
+        ...(dto.pdfUrl && { pdfUrl: dto.pdfUrl }),
       },
     });
+
+    const isCustom = !!dto.pdfUrl?.includes('custom-pdfs');
 
     // Generate QR Code and PDF in background via BullMQ (Worker Isolado)
     await this.pdfQueue.add('generate-pdf', {
       pointId: point.id,
       trailId: trail.id,
+      skipPdfGeneration: isCustom
     });
 
     return point;
@@ -429,6 +433,20 @@ export class EducationalPointsService {
       throw new ForbiddenException('Você não tem permissão para editar este ponto.');
     }
 
+    // Clean up old mainImage if a new one is provided
+    if (dto.mainImage && point.mainImage && dto.mainImage !== point.mainImage) {
+      if (point.mainImage.includes('supabase')) {
+        await this.supabaseService.deleteFile(point.mainImage);
+      }
+    }
+
+    // Clean up old pdfUrl if a new CUSTOM file is provided
+    if (dto.pdfUrl && point.pdfUrl && dto.pdfUrl !== point.pdfUrl) {
+      if (point.pdfUrl.includes('supabase')) {
+        await this.supabaseService.deleteFile(point.pdfUrl);
+      }
+    }
+
     const updated = await this.prisma.educationalPoint.update({
       where: { id },
       data: {
@@ -444,15 +462,19 @@ export class EducationalPointsService {
         ...(dto.preservationCare !== undefined && { preservationCare: dto.preservationCare }),
         ...(dto.mainImage !== undefined && { mainImage: dto.mainImage }),
         ...(dto.offlineSummary !== undefined && { offlineSummary: dto.offlineSummary }),
+        ...(dto.pdfUrl !== undefined && { pdfUrl: dto.pdfUrl }),
         ...(dto.status !== undefined && { status: dto.status }),
       },
       include: { trail: { select: { id: true, title: true, slug: true, school: { select: { name: true } } } } },
     });
 
+    const isCustom = updated.pdfUrl?.includes('custom-pdfs') ?? false;
+
     // Re-generate QR Code and PDF whenever point is updated via Queue
     await this.pdfQueue.add('generate-pdf', {
       pointId: updated.id,
       trailId: updated.trail.id,
+      skipPdfGeneration: isCustom
     });
 
     return updated;
@@ -472,8 +494,10 @@ export class EducationalPointsService {
       preservationCare: string;
       mainImage?: string;
       offlineSummary: string;
+      pdfUrl?: string | null;
     },
     trail: { title: string; slug?: string; school?: { name: string } | null },
+    skipPdfGeneration?: boolean,
   ) {
     const pointForGen = { ...point, trail };
 
@@ -483,6 +507,14 @@ export class EducationalPointsService {
     // Upload QR Code to Supabase
     const qrFilename = `qr-${point.slug}.png`;
     const qrUrl = await this.supabaseService.uploadBuffer(qrBuffer, 'image/png', qrFilename, 'qrcodes');
+
+    // Clean up old QR Code files from storage
+    const oldQrCodes = await this.prisma.qrCode.findMany({ where: { educationalPointId: point.id } });
+    for (const oldQr of oldQrCodes) {
+      if (oldQr.qrImage?.includes('supabase')) {
+        await this.supabaseService.deleteFile(oldQr.qrImage).catch(e => console.error(e));
+      }
+    }
 
     // Upsert QR Code record
     await this.prisma.qrCode.deleteMany({ where: { educationalPointId: point.id } });
@@ -494,18 +526,25 @@ export class EducationalPointsService {
       },
     });
 
-    // Generate PDF
-    const pdfBuffer = await generatePdf(pointForGen);
+    // Generate PDF ONLY IF skipPdfGeneration is not true
+    if (!skipPdfGeneration) {
+      // Clean up old PDF if it was auto-generated (or if for some reason it wasn't cleaned up by the update method)
+      if (point.pdfUrl && point.pdfUrl.includes('supabase')) {
+        await this.supabaseService.deleteFile(point.pdfUrl).catch(e => console.error(e));
+      }
 
-    // Upload PDF to Supabase
-    const pdfFilename = `ponto-${point.slug}.pdf`;
-    const pdfUrl = await this.supabaseService.uploadBuffer(pdfBuffer, 'application/pdf', pdfFilename, 'pdfs');
+      const pdfBuffer = await generatePdf(pointForGen);
 
-    // Save pdfUrl back to point
-    await this.prisma.educationalPoint.update({
-      where: { id: point.id },
-      data: { pdfUrl },
-    });
+      // Upload PDF to Supabase
+      const pdfFilename = `ponto-${point.slug}.pdf`;
+      const pdfUrl = await this.supabaseService.uploadBuffer(pdfBuffer, 'application/pdf', pdfFilename, 'pdfs');
+
+      // Save pdfUrl back to point
+      await this.prisma.educationalPoint.update({
+        where: { id: point.id },
+        data: { pdfUrl },
+      });
+    }
   }
 
   async remove(

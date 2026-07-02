@@ -30,7 +30,11 @@ export class PdfProcessor extends WorkerHost {
         });
 
         if (point) {
-          await this.educationalPointsService.generateAssetsForPoint(point, point.trail);
+          await this.educationalPointsService.generateAssetsForPoint(
+            point, 
+            point.trail, 
+            job.data.skipPdfGeneration
+          );
           this.logger.log(`Assets (PDF/QR) generated successfully for ${pointId}`);
           
           // Disparar Webhook para o Frontend para limpar o cache da página

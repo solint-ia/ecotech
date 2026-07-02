@@ -24,7 +24,6 @@ export default function CreatePostForm({
   userSchoolId,
   onCreated,
 }: CreatePostFormProps) {
-  const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [schoolId, setSchoolId] = useState(userSchoolId || '');
   const [trailId, setTrailId] = useState('');
@@ -113,12 +112,11 @@ export default function CreatePostForm({
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !description.trim()) return;
+    if (!description.trim()) return;
 
     setLoading(true);
     try {
       const formData = new FormData();
-      formData.append('title', title.trim());
       formData.append('description', description.trim());
       if (schoolId) formData.append('schoolId', schoolId);
       if (trailId) formData.append('trailId', trailId);
@@ -133,7 +131,6 @@ export default function CreatePostForm({
       });
 
       if (res.ok) {
-        setTitle('');
         setDescription('');
         setTrailId('');
         clearImages();
@@ -202,16 +199,6 @@ export default function CreatePostForm({
               <X className="w-5 h-5 text-foreground/40 group-hover:text-forest transition-colors" />
             </button>
           </div>
-
-          {/* Title */}
-          <input
-            type="text"
-            placeholder="Título da publicação *"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-black/5 bg-white focus:ring-1 focus:ring-forest focus:border-forest focus:outline-none text-sm placeholder:text-foreground/40 transition-all shadow-sm"
-            required
-          />
 
           {/* Description */}
           <textarea
@@ -304,7 +291,7 @@ export default function CreatePostForm({
 
             <button
               type="submit"
-              disabled={loading || !title.trim() || !description.trim()}
+              disabled={loading || !description.trim()}
               className="flex items-center gap-2 px-6 py-2 bg-forest text-white rounded-full text-sm font-bold hover:bg-forest/90 hover:-translate-y-0.5 hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none shadow-sm"
             >
               {loading ? (

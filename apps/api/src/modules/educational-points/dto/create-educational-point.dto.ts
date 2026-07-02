@@ -76,4 +76,8 @@ export class CreateEducationalPointDto {
   @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)
   status?: boolean;
+
+  @IsString()
+  @IsOptional()
+  pdfUrl?: string;
 }

@@ -62,34 +62,37 @@ export function TrailGallery({ trailId, trailSchoolId, photos: initialPhotos }: 
 
   // ---------- Upload ----------
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
     setIsUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('image', file);
-
       const token = user?.accessToken;
 
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/trails/${trailId}/photos`,
-        {
-          method: 'POST',
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/trails/${trailId}/photos`,
+          {
+            method: 'POST',
+            headers: {
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: formData,
           },
-          body: formData,
-        },
-      );
+        );
 
-      if (!res.ok) {
-        throw new Error('Falha ao enviar imagem');
+        if (!res.ok) {
+          console.error('Falha ao enviar imagem', file.name);
+          continue;
+        }
+
+        const newPhoto: TrailPhoto = await res.json();
+        // Instant UI update — add the new photo to local state
+        setPhotos((prev) => [...prev, newPhoto]);
       }
-
-      const newPhoto: TrailPhoto = await res.json();
-      // Instant UI update — add the new photo to local state
-      setPhotos((prev) => [...prev, newPhoto]);
     } catch (error) {
       console.error(error);
       alert('Erro ao enviar imagem.');
@@ -206,6 +209,7 @@ export function TrailGallery({ trailId, trailSchoolId, photos: initialPhotos }: 
                 type="file"
                 ref={fileInputRef}
                 accept="image/*"
+                multiple
                 className="hidden"
                 onChange={handleFileSelect}
               />
@@ -231,7 +235,7 @@ export function TrailGallery({ trailId, trailSchoolId, photos: initialPhotos }: 
             {photos.map((photo, index) => (
               <div
                 key={photo.id}
-                className="relative w-full aspect-video rounded-2xl overflow-hidden shadow-sm group/photo cursor-pointer hover:shadow-md transition-all duration-300"
+                className="relative w-full aspect-square rounded-2xl overflow-hidden shadow-sm group/photo cursor-pointer hover:shadow-md transition-all duration-300"
                 onClick={() => openLightbox(index)}
               >
                 <img

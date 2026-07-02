@@ -69,6 +69,12 @@ export class EducationalPointsController {
     if (file) {
       dto.mainImage = await this.supabaseService.uploadFile(file, 'educational-points');
     }
+
+    const educationalFile = files?.find(f => f.fieldname === 'educationalFile');
+    if (educationalFile) {
+      dto.pdfUrl = await this.supabaseService.uploadFile(educationalFile, 'custom-pdfs');
+    }
+
     return this.educationalPointsService.create(dto, {
       id: user.id,
       role: user.role,
@@ -91,6 +97,12 @@ export class EducationalPointsController {
     if (file) {
       dto.mainImage = await this.supabaseService.uploadFile(file, 'educational-points');
     }
+
+    const educationalFile = files?.find(f => f.fieldname === 'educationalFile');
+    if (educationalFile) {
+      dto.pdfUrl = await this.supabaseService.uploadFile(educationalFile, 'custom-pdfs');
+    }
+
     return this.educationalPointsService.update(id, dto, {
       id: user.id,
       role: user.role,

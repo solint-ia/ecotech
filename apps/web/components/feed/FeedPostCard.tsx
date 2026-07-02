@@ -104,6 +104,10 @@ export default function FeedPostCard({
   const carouselRef = useRef<HTMLDivElement>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
 
+  // Lightbox state
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+
   const handleScroll = () => {
     if (!carouselRef.current) return;
     const { scrollLeft, clientWidth } = carouselRef.current;
@@ -397,7 +401,16 @@ export default function FeedPostCard({
               {post.images.sort((a, b) => a.order - b.order).map((img, i) => {
                 const isVideo = img.url.match(/\.(mp4|webm|ogg)$/i);
                 return (
-                  <div key={img.id || i} className="w-full flex-shrink-0 snap-center aspect-video bg-black">
+                  <div 
+                    key={img.id || i} 
+                    className="w-full flex-shrink-0 snap-center aspect-[4/5] md:max-h-[500px] bg-black cursor-pointer"
+                    onClick={() => {
+                      if (!isVideo) {
+                        setLightboxIndex(i);
+                        setLightboxOpen(true);
+                      }
+                    }}
+                  >
                     {isVideo ? (
                       <video
                         src={img.url.startsWith('http') ? img.url : `${API_URL}${img.url}`}
@@ -412,7 +425,7 @@ export default function FeedPostCard({
                       <img
                         src={img.url.startsWith('http') ? img.url : `${API_URL}${img.url}`}
                         alt={`${post.title} - imagem ${i + 1}`}
-                        className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-[1.02]"
+                        className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.02]"
                         loading="lazy"
                       />
                     )}
@@ -458,9 +471,8 @@ export default function FeedPostCard({
         </div>
       )}
 
-      {/* Title & Description (PASSO 4 - Nova Posição) */}
-      <div className="px-5 pb-4">
-        <h3 className="text-base font-bold text-forest">{post.title}</h3>
+      {/* Description (PASSO 4 - Nova Posição) */}
+      <div className="px-5 pb-5">
         <p className="mt-1 text-sm text-foreground/70 opacity-90 leading-relaxed whitespace-pre-line">
           {post.description}
         </p>

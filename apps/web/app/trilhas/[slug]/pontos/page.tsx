@@ -54,6 +54,7 @@ export default function PontosPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingPointId, setEditingPointId] = useState<string | null>(null);
   const [pointImage, setPointImage] = useState<File | null>(null);
+  const [educationalFile, setEducationalFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     type: 'FAUNA',
@@ -109,6 +110,7 @@ export default function PontosPage() {
     setShowForm(false);
     setEditingPointId(null);
     setPointImage(null);
+    setEducationalFile(null);
     setFormData({
       title: '',
       type: 'FAUNA',
@@ -141,6 +143,7 @@ export default function PontosPage() {
       status: point.status,
     });
     setPointImage(null);
+    setEducationalFile(null);
     setOfflineSummaryLeft(250 - (point.offlineSummary?.length || 0));
     setShowForm(true);
     setExpandedPointId(null);
@@ -166,6 +169,7 @@ export default function PontosPage() {
       if (formData.preservationCare) payload.append('preservationCare', formData.preservationCare);
       if (formData.offlineSummary) payload.append('offlineSummary', formData.offlineSummary);
       if (pointImage) payload.append('mainImage', pointImage);
+      if (educationalFile) payload.append('educationalFile', educationalFile);
 
       const url = editingPointId ? `${API_URL}/educational-points/${editingPointId}` : `${API_URL}/educational-points`;
       const method = editingPointId ? 'PATCH' : 'POST';
@@ -504,6 +508,22 @@ export default function PontosPage() {
               type="file"
               accept="image/*"
               onChange={(e) => setPointImage(e.target.files?.[0] || null)}
+              className="w-full text-sm text-foreground/60 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-beige file:text-primary hover:file:bg-beige/80 transition-colors"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium mb-1 text-foreground" htmlFor="point-educational-file">
+              Arquivo Educativo (PDF/Doc)
+              <span className="block text-foreground/50 font-normal mt-0.5 mb-1">
+                Se enviado, substituirá o PDF gerado automaticamente pela plataforma.
+              </span>
+            </label>
+            <input
+              id="point-educational-file"
+              type="file"
+              accept=".pdf,.doc,.docx"
+              onChange={(e) => setEducationalFile(e.target.files?.[0] || null)}
               className="w-full text-sm text-foreground/60 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-beige file:text-primary hover:file:bg-beige/80 transition-colors"
             />
           </div>
