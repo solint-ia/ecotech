@@ -18,8 +18,23 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
-  // Se não estiver logado, redireciona pra login (aplica a TODAS as outras rotas)
-  if (!isLoggedIn) {
+  // Lista de rotas base protegidas
+  const protectedRoutes = [
+    '/admin',
+    '/biblioteca',
+    '/escola',
+    '/escolas',
+    '/feed',
+    '/perfil',
+    '/pontos',
+    '/rede',
+    '/trilhas'
+  ];
+
+  const isProtectedRoute = protectedRoutes.some(route => nextUrl.pathname.startsWith(route));
+
+  // Se não estiver logado e tentar acessar uma rota restrita, redireciona pra login
+  if (!isLoggedIn && isProtectedRoute) {
     return NextResponse.redirect(new URL('/login', nextUrl));
   }
 
