@@ -55,7 +55,7 @@ export class PdfProcessor extends WorkerHost {
                 this.logger.warn(`[Webhook] Falha ao revalidar cache: ${response.status} ${response.statusText}`);
               }
             } catch (webhookErr) {
-              this.logger.error(`[Webhook] Erro ao tentar disparar webhook: ${webhookErr.message}`);
+              this.logger.error(`[Webhook] Erro ao tentar disparar webhook para ${webhookUrl}: ${webhookErr.message}`);
             }
           }
         } else {

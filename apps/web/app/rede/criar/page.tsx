@@ -35,7 +35,9 @@ export default function CriarParceiroPage() {
   const [whatsapp, setWhatsapp] = useState('');
   const [instagram, setInstagram] = useState('');
   const [website, setWebsite] = useState('');
-  const [openingHours, setOpeningHours] = useState('');
+  const [open247, setOpen247] = useState(false);
+  const [timeStart, setTimeStart] = useState('08:00');
+  const [timeEnd, setTimeEnd] = useState('18:00');
   const [statusActive, setStatusActive] = useState(true);
 
   const [loading, setLoading] = useState(false);
@@ -76,12 +78,19 @@ export default function CriarParceiroPage() {
       formData.append('state', stateUF);
       formData.append('city', city);
       formData.append('phone', phone);
-      formData.append('openingHours', openingHours);
+      let finalWebsite = website.trim();
+      if (finalWebsite && !finalWebsite.startsWith('http://') && !finalWebsite.startsWith('https://')) {
+        finalWebsite = `https://${finalWebsite}`;
+      }
+      
+      const finalOpeningHours = open247 ? 'Aberto 24/7' : `Das ${timeStart} às ${timeEnd}`;
+
+      formData.append('openingHours', finalOpeningHours);
       formData.append('status', String(statusActive));
 
       if (whatsapp) formData.append('whatsapp', whatsapp);
       if (instagram) formData.append('instagram', instagram);
-      if (website) formData.append('website', website);
+      if (finalWebsite) formData.append('website', finalWebsite);
       if (coverImage) formData.append('coverImage', coverImage);
 
       const res = await fetch(`${API_URL}/partners`, {
@@ -241,11 +250,11 @@ export default function CriarParceiroPage() {
               Site
             </label>
             <input
-              type="url"
+              type="text"
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-border-custom bg-white text-sm focus:ring-2 focus:ring-secondary focus:outline-none"
-              placeholder="https://www..."
+              placeholder="Ex: seuparceiro.com.br"
             />
           </div>
         </div>
@@ -266,17 +275,49 @@ export default function CriarParceiroPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-primary mb-1">
-              Horário de Funcionamento *
-            </label>
-            <textarea
-              required
-              rows={2}
-              value={openingHours}
-              onChange={(e) => setOpeningHours(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-border-custom bg-white text-sm focus:ring-2 focus:ring-secondary focus:outline-none"
-              placeholder="Ex: Seg a Sex das 8h às 18h"
-            />
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-primary">
+                Horário de Funcionamento *
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={open247}
+                  onChange={(e) => setOpen247(e.target.checked)}
+                  className="rounded text-secondary focus:ring-secondary cursor-pointer"
+                />
+                <span className="text-xs font-semibold text-primary">Aberto 24/7</span>
+              </label>
+            </div>
+            
+            {!open247 ? (
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-foreground/60 mb-1">Abertura</label>
+                  <input
+                    type="time"
+                    required={!open247}
+                    value={timeStart}
+                    onChange={(e) => setTimeStart(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-border-custom bg-white text-sm focus:ring-2 focus:ring-secondary focus:outline-none"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-foreground/60 mb-1">Fechamento</label>
+                  <input
+                    type="time"
+                    required={!open247}
+                    value={timeEnd}
+                    onChange={(e) => setTimeEnd(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-border-custom bg-white text-sm focus:ring-2 focus:ring-secondary focus:outline-none"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="w-full px-3 py-3 rounded-lg border border-emerald-200 bg-emerald-50 text-sm font-medium text-emerald-800 text-center">
+                O local opera 24 horas por dia, todos os dias.
+              </div>
+            )}
           </div>
         </div>
 
