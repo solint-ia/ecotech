@@ -180,6 +180,66 @@ export class UsersService {
     };
   }
 
+  async findAllForSchool(params: { page: number; limit: number; search?: string; role?: string; status?: string; schoolId: string }) {
+    const { page, limit, search, role, status, schoolId } = params;
+    const skip = (page - 1) * limit;
+
+    const where: any = { schoolId };
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (status) {
+      where.status = status === 'true';
+    }
+
+    if (role && role !== 'ALL') {
+      where.role = role;
+    } else {
+      where.role = { in: ['TEACHER', 'STUDENT'] };
+    }
+
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' }
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    const statRoles = (role && role !== 'ALL') ? [role] : ['TEACHER', 'STUDENT'];
+
+    const [totalUsers, activeUsers, suspendedUsers] = await Promise.all([
+      this.prisma.user.count({ where: { schoolId, role: { in: statRoles as any } } }),
+      this.prisma.user.count({ where: { schoolId, role: { in: statRoles as any }, status: true } }),
+      this.prisma.user.count({ where: { schoolId, role: { in: statRoles as any }, status: false } }),
+    ]);
+
+    return {
+      data: users.map(user => {
+        const { password, ...rest } = user;
+        return rest;
+      }),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+      stats: {
+        total: totalUsers,
+        active: activeUsers,
+        suspended: suspendedUsers,
+      }
+    };
+  }
+
   async toggleUserStatus(id: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('Usuário não encontrado.');

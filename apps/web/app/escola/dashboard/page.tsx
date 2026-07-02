@@ -149,8 +149,8 @@ export default function EscolaDashboardPage() {
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <MetricCard title="Professores" value={metrics.totalTeachers} icon={Users} main />
-        <MetricCard title="Estudantes" value={metrics.totalStudents} icon={Users} main />
+        <MetricCard title="Professores" value={metrics.totalTeachers} icon={Users} main link="/escola/usuarios?role=TEACHER" linkText="Gerenciar" />
+        <MetricCard title="Estudantes" value={metrics.totalStudents} icon={Users} main link="/escola/usuarios?role=STUDENT" linkText="Gerenciar" />
         <MetricCard title="Trilhas" value={metrics.totalTrails} icon={Compass} main link="/trilhas" linkText="Gerenciar Trilhas" />
         <MetricCard title="Pontos Educ." value={metrics.totalPoints} icon={MapPin} />
         <MetricCard title="Publicações" value={metrics.totalPosts} icon={MessageSquare} />

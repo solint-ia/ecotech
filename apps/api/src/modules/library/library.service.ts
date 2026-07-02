@@ -13,7 +13,10 @@ export class LibraryService {
     const limit = Math.min(50, query.limit || 12);
     const skip = (page - 1) * limit;
 
-    const where: any = { approvalStatus: ApprovalStatus.APROVADO };
+    const where: any = { 
+      approvalStatus: ApprovalStatus.APROVADO,
+      versionOfId: null 
+    };
 
     if (query.type) where.contentType = query.type;
     if (query.schoolId) where.schoolId = query.schoolId;
@@ -65,6 +68,39 @@ export class LibraryService {
     return content;
   }
 
+  async findMyMaterials(user: { id: string; schoolId?: string }, query: { status?: string, page?: number, limit?: number }) {
+    const page = Math.max(1, query.page || 1);
+    const limit = Math.min(50, query.limit || 12);
+    const skip = (page - 1) * limit;
+
+    const where: any = { userId: user.id };
+    if (query.status === 'PUBLISHED') {
+      where.approvalStatus = ApprovalStatus.APROVADO;
+    } else if (query.status === 'PENDING') {
+      where.approvalStatus = { in: [ApprovalStatus.PENDENTE, ApprovalStatus.REPROVADO] };
+    }
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.libraryContent.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.libraryContent.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        lastPage: Math.ceil(total / limit),
+      }
+    };
+  }
+
   async create(dto: CreateLibraryContentDto, user: { id: string; role: string; schoolId?: string }) {
     // Admin directly publishes. Others send to pending.
     const approvalStatus = user.role === 'ADMIN' ? ApprovalStatus.APROVADO : ApprovalStatus.PENDENTE;
@@ -86,15 +122,73 @@ export class LibraryService {
     });
   }
 
+  async update(id: string, dto: UpdateLibraryContentDto, user: { id: string; role: string; schoolId?: string }) {
+    const content = await this.prisma.libraryContent.findUnique({ where: { id } });
+    if (!content) throw new NotFoundException('Conteúdo não encontrado.');
+
+    if (user.role !== 'ADMIN' && content.userId !== user.id) {
+      throw new ForbiddenException('Não autorizado.');
+    }
+
+    if (content.approvalStatus === 'APROVADO' && user.role !== 'ADMIN') {
+      // Create a draft instead of editing directly
+      return this.prisma.libraryContent.create({
+        data: {
+          title: dto.title ?? content.title,
+          description: dto.description ?? content.description,
+          contentType: dto.contentType ?? content.contentType,
+          coverImage: dto.coverImage ?? content.coverImage,
+          fileUrl: dto.fileUrl ?? content.fileUrl,
+          videoUrl: dto.videoUrl ?? content.videoUrl,
+          userId: user.id,
+          schoolId: user.schoolId || null,
+          approvalStatus: ApprovalStatus.PENDENTE,
+          versionOfId: id,
+        }
+      });
+    }
+
+    // Direct edit
+    return this.prisma.libraryContent.update({
+      where: { id },
+      data: {
+        title: dto.title,
+        description: dto.description,
+        contentType: dto.contentType,
+        coverImage: dto.coverImage,
+        fileUrl: dto.fileUrl,
+        videoUrl: dto.videoUrl,
+      }
+    });
+  }
+
   async updateStatus(id: string, status: ApprovalStatus) {
     const content = await this.prisma.libraryContent.findUnique({ where: { id } });
     if (!content) throw new NotFoundException('Conteúdo não encontrado.');
+
+    if (status === ApprovalStatus.APROVADO && content.versionOfId) {
+      // It's a draft being approved, overwrite the original
+      await this.prisma.libraryContent.update({
+        where: { id: content.versionOfId },
+        data: {
+          title: content.title,
+          description: content.description,
+          contentType: content.contentType,
+          coverImage: content.coverImage,
+          fileUrl: content.fileUrl,
+          videoUrl: content.videoUrl,
+        }
+      });
+      // Delete draft
+      await this.prisma.libraryContent.delete({ where: { id } });
+      return { success: true, message: 'Edição aprovada e rascunho removido.', id: content.versionOfId };
+    }
 
     return this.prisma.libraryContent.update({
       where: { id },
       data: {
         approvalStatus: status,
-        publishedAt: status === ApprovalStatus.APROVADO ? new Date() : null,
+        publishedAt: status === ApprovalStatus.APROVADO && !content.publishedAt ? new Date() : content.publishedAt,
       },
     });
   }
@@ -136,6 +230,10 @@ export class LibraryService {
       throw new ForbiddenException('Não autorizado.');
     }
 
+    // This will cascade or just delete the main record. Since we don't have cascade on versionOfId by default in prisma,
+    // we should delete drafts first if there are any, or just let prisma fail if not setup. We can manually delete drafts:
+    await this.prisma.libraryContent.deleteMany({ where: { versionOfId: id } });
+    
     return this.prisma.libraryContent.delete({ where: { id } });
   }
 }

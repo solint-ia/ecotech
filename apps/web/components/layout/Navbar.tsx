@@ -76,6 +76,17 @@ export default function Navbar() {
 
           {/* Centro: Navegação Principal (Apenas Desktop) */}
           <nav className="hidden md:flex items-center gap-1 justify-center flex-1">
+            {(user?.role === 'ADMIN' || user?.role === 'SCHOOL_MANAGER') && (
+              <Link
+                href={user.role === 'ADMIN' ? '/admin/dashboard' : '/escola/dashboard'}
+                className={`px-4 py-2 text-sm transition-all rounded-full ${pathname?.includes('dashboard')
+                  ? 'text-white font-semibold bg-white/10'
+                  : 'text-white/60 hover:text-white hover:bg-white/5 font-medium'
+                  }`}
+              >
+                Dashboard
+              </Link>
+            )}
             {navItems.map((item) => {
               const isActive = pathname?.startsWith(item.href);
               return (
@@ -135,13 +146,15 @@ export default function Navbar() {
                   <p className="text-xs text-foreground/60 truncate mt-0.5">{user?.email}</p>
                   {user?.role && (
                     <span className="inline-block mt-2.5 text-[10px] font-bold uppercase tracking-wider text-secondary bg-secondary/10 px-2.5 py-1 rounded-full">
-                      {user.role === 'ADMIN'
-                        ? 'Administrador'
-                        : user.role === 'SCHOOL_MANAGER'
-                          ? 'Gestor de Escola'
-                          : user.role === 'TEACHER'
-                            ? 'Professor'
-                            : 'Estudante'}
+                      {user.roleStatus === 'PENDENTE'
+                        ? 'Usuário'
+                        : user.role === 'ADMIN'
+                          ? 'Administrador'
+                          : user.role === 'SCHOOL_MANAGER'
+                            ? 'Gestor de Escola'
+                            : user.role === 'TEACHER'
+                              ? 'Professor'
+                              : 'Estudante'}
                     </span>
                   )}
                 </div>
@@ -157,19 +170,6 @@ export default function Navbar() {
                     <User className="w-4 h-4 opacity-70" />
                     Meu Perfil
                   </Link>
-
-                  {/* Dashboard Link for Admins and Schools */}
-                  {(user?.role === 'ADMIN' || user?.role === 'SCHOOL_MANAGER') && (
-                    <Link
-                      href={user.role === 'ADMIN' ? '/admin/dashboard' : '/escola/dashboard'}
-                      onClick={() => setDropdownOpen(false)}
-                      className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-foreground/80 hover:text-primary hover:bg-beige rounded-xl transition-colors"
-                      role="menuitem"
-                    >
-                      <LayoutDashboard className="w-4 h-4 opacity-70" />
-                      Dashboard
-                    </Link>
-                  )}
 
                   <div className="h-px bg-border-custom my-1.5 mx-2" />
 

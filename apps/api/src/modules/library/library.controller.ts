@@ -68,6 +68,24 @@ export class LibraryController {
     });
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  findMyMaterials(
+    @CurrentUser() user: any,
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.libraryService.findMyMaterials(
+      { id: user.id, schoolId: user.schoolId },
+      { 
+        status,
+        page: page ? parseInt(page, 10) : 1,
+        limit: limit ? parseInt(limit, 10) : 12,
+      }
+    );
+  }
+
   // Use Optional Guard so guests can view approved items, but authors/admins can view their pending items
   @UseGuards(OptionalJwtAuthGuard)
   // @UseInterceptors(CacheInterceptor)
@@ -111,6 +129,35 @@ export class LibraryController {
     }
 
     return this.libraryService.create(createDto, {
+      id: user.id,
+      role: user.role,
+      schoolId: user.schoolId,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SCHOOL_MANAGER', 'TEACHER')
+  @Patch(':id')
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'coverImage', maxCount: 1 },
+      { name: 'file', maxCount: 1 },
+    ], { storage }),
+  )
+  async update(
+    @Param('id') id: string,
+    @Body() updateDto: any,
+    @CurrentUser() user: any,
+    @UploadedFiles() files?: { coverImage?: Express.Multer.File[]; file?: Express.Multer.File[] },
+  ) {
+    if (files?.coverImage?.[0]) {
+      updateDto.coverImage = await this.supabaseService.uploadFile(files.coverImage[0], 'library');
+    }
+    if (files?.file?.[0]) {
+      updateDto.fileUrl = await this.supabaseService.uploadFile(files.file[0], 'library/files');
+    }
+
+    return this.libraryService.update(id, updateDto, {
       id: user.id,
       role: user.role,
       schoolId: user.schoolId,

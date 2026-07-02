@@ -244,9 +244,11 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                 <h1 className="text-3xl font-bold text-slate-900 mb-2">{profileData.name}</h1>
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
                   <span className="bg-forest/10 text-forest border border-forest/20 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
-                    {roleLabels[profileData.role] || profileData.role}
+                    {profileData.roleStatus === 'PENDENTE' 
+                      ? 'Usuário' 
+                      : roleLabels[profileData.role] || profileData.role}
                   </span>
-                  {profileData.school && (
+                  {profileData.roleStatus !== 'PENDENTE' && profileData.school && (
                     <span className="bg-sky-100 text-sky-800 border border-sky-200 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide flex items-center gap-1">
                       <School className="w-3 h-3" />
                       {profileData.school.name}

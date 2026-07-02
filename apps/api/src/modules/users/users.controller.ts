@@ -33,6 +33,28 @@ export class UsersController {
     });
   }
 
+  @Get('school/list')
+  @UseGuards(RolesGuard)
+  @Roles('SCHOOL_MANAGER')
+  findAllForSchool(
+    @CurrentUser() user: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('role') role?: string,
+    @Query('status') status?: string,
+  ) {
+    if (!user.schoolId) throw new Error('Usuário não possui escola vinculada.');
+    return this.usersService.findAllForSchool({
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 10,
+      search,
+      role,
+      status,
+      schoolId: user.schoolId,
+    });
+  }
+
   @Patch(':id/toggle-status')
   @UseGuards(RolesGuard)
   @Roles('ADMIN')

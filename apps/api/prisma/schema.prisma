@@ -346,10 +346,13 @@ model LibraryContent {
   schoolId       String?
   approvalStatus ApprovalStatus @default(PENDENTE)
   publishedAt    DateTime?
+  versionOfId    String?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   user           User           @relation(fields: [userId], references: [id])
   school         School?        @relation(fields: [schoolId], references: [id])
+  versionOf      LibraryContent?  @relation("ContentVersions", fields: [versionOfId], references: [id])
+  versions       LibraryContent[] @relation("ContentVersions")
 }
 
 model Partner {

@@ -177,6 +177,8 @@ export default function LoginPage() {
           throw new Error(errData.message || 'E-mail ou senha incorretos.');
         }
 
+        const loginData = await resCheck.json();
+
         // Use NextAuth signIn so the session is established client-side
         const result = await signIn('credentials', {
           email,
@@ -188,8 +190,12 @@ export default function LoginPage() {
           throw new Error('Erro ao estabelecer sessão.');
         }
 
-        // Redirect to trilhas
-        router.push('/trilhas');
+        // Redirect based on role
+        if (loginData.user && ['ADMIN', 'SCHOOL_MANAGER'].includes(loginData.user.role)) {
+          router.push(loginData.user.role === 'ADMIN' ? '/admin/dashboard' : '/escola/dashboard');
+        } else {
+          router.push('/trilhas');
+        }
         return;
       } else {
         // Pre-register: send OTP
@@ -281,7 +287,12 @@ export default function LoginPage() {
       }
 
       setShowActivationModal(false);
-      router.push('/trilhas');
+      
+      if (data.user && ['ADMIN', 'SCHOOL_MANAGER'].includes(data.user.role)) {
+        router.push(data.user.role === 'ADMIN' ? '/admin/dashboard' : '/escola/dashboard');
+      } else {
+        router.push('/trilhas');
+      }
     } catch (error: any) {
       throw error; // Throw so ActivationModal can show the error
     } finally {

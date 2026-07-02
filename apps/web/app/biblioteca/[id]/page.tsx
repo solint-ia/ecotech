@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Download, Video, FileText, User, Calendar, ExternalLink } from 'lucide-react';
 import { getImageUrl } from '../../../lib/image-url';
+import LibraryItemActions from './LibraryItemActions';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -150,6 +151,13 @@ export default async function LibraryDetailPage({ params }: { params: Promise<{ 
                 </div>
               )}
             </div>
+
+            {/* Actions for Admins or Owners */}
+            <LibraryItemActions 
+              id={content.id} 
+              userId={content.userId} 
+              schoolId={content.schoolId} 
+            />
           </div>
         </div>
 

@@ -109,9 +109,9 @@ export default function TrilhasPage() {
           <Link
             href="/trilhas/criar"
             id="btn-nova-trilha"
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-4 h-4" />
             Nova Trilha
           </Link>
         )}
