@@ -19,7 +19,7 @@ const POINT_TYPE_LABELS: Record<string, string> = {
 async function getPoint(slug: string) {
   try {
     const res = await fetch(`${API_URL}/educational-points/${slug}`, {
-      next: { revalidate: 60 },
+      next: { revalidate: 3600 },
     });
     if (!res.ok) return null;
     return res.json();

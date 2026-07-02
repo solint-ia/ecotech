@@ -32,6 +32,32 @@ export class PdfProcessor extends WorkerHost {
         if (point) {
           await this.educationalPointsService.generateAssetsForPoint(point, point.trail);
           this.logger.log(`Assets (PDF/QR) generated successfully for ${pointId}`);
+          
+          // Disparar Webhook para o Frontend para limpar o cache da página
+          const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+          const webhookSecret = process.env.REVALIDATION_SECRET;
+          
+          if (webhookSecret) {
+            try {
+              const webhookUrl = `${frontendUrl}/api/revalidate`;
+              const response = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'x-revalidation-secret': webhookSecret,
+                },
+                body: JSON.stringify({ path: `/pontos/${point.slug}` }),
+              });
+              
+              if (response.ok) {
+                this.logger.log(`[Webhook] Cache revalidado com sucesso para /pontos/${point.slug}`);
+              } else {
+                this.logger.warn(`[Webhook] Falha ao revalidar cache: ${response.status} ${response.statusText}`);
+              }
+            } catch (webhookErr) {
+              this.logger.error(`[Webhook] Erro ao tentar disparar webhook: ${webhookErr.message}`);
+            }
+          }
         } else {
           this.logger.warn(`Point ${pointId} not found for PDF generation.`);
         }
