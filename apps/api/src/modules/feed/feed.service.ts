@@ -24,7 +24,7 @@ export class FeedService {
     return this.prisma.feedPost.create({
       data: {
         userId,
-        title: createPostDto.title,
+        title: createPostDto.title || '',
         description: createPostDto.description,
         schoolId: createPostDto.schoolId || null,
         trailId: createPostDto.trailId || null,
