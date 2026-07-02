@@ -64,10 +64,13 @@ export class TrailsController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'SCHOOL_MANAGER')
+  @Roles('ADMIN', 'SCHOOL_MANAGER', 'TEACHER')
   @Get('my-drafts')
   findMyDrafts(@CurrentUser() user: any) {
-    const schoolId = user.role === 'SCHOOL_MANAGER' ? user.schoolId : undefined;
+    if (user.role !== 'ADMIN' && !user.schoolId) {
+      throw new BadRequestException('Usuário não possui uma escola associada.');
+    }
+    const schoolId = user.role === 'ADMIN' ? undefined : user.schoolId;
     return this.trailsService.findDrafts(schoolId);
   }
 

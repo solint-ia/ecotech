@@ -75,6 +75,8 @@ export default function TrilhasPage() {
       setTotal(data.meta.total);
     } catch (err) {
       console.error(err);
+      setTrails([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
