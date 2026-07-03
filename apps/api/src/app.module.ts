@@ -23,6 +23,9 @@ import * as redisStore from 'cache-manager-redis-store';
 
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SupabaseModule } from './modules/supabase/supabase.module';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import { RedisThrottlerStorageService } from './common/throttler/redis-throttler-storage.service';
 
 @Module({
   imports: [
