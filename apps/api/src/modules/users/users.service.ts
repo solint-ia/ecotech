@@ -252,10 +252,17 @@ export class UsersService {
 
     const statRoles = (role && role !== 'ALL') ? [role] : ['TEACHER', 'STUDENT'];
 
-    const [totalUsers, activeUsers, suspendedUsers] = await Promise.all([
+    const [totalUsers, activeUsers, suspendedUsers, pendingUsers] = await Promise.all([
       this.prisma.user.count({ where: { schoolId, role: { in: statRoles as any } } }),
       this.prisma.user.count({ where: { schoolId, role: { in: statRoles as any }, status: true } }),
       this.prisma.user.count({ where: { schoolId, role: { in: statRoles as any }, status: false } }),
+      this.prisma.user.count({
+        where: {
+          schoolId,
+          roleStatus: 'PENDENTE',
+          role: { in: ['TEACHER', 'USER' as any] }
+        }
+      }),
     ]);
 
     return {
@@ -273,6 +280,7 @@ export class UsersService {
         total: totalUsers,
         active: activeUsers,
         suspended: suspendedUsers,
+        pending: pendingUsers,
       }
     };
   }

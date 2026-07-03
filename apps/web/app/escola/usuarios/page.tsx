@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   Users, CheckCircle, XCircle, Search, Filter,
-  ChevronLeft, ChevronRight, LayoutDashboard
+  ChevronLeft, ChevronRight, LayoutDashboard, Clock
 } from 'lucide-react';
 import Link from 'next/link';
 import { getImageUrl } from '../../../lib/image-url';
@@ -39,7 +39,7 @@ function EscolaUsersPageContent() {
   const user = session?.user as any;
 
   const [users, setUsers] = useState<any[]>([]);
-  const [stats, setStats] = useState({ total: 0, active: 0, suspended: 0 });
+  const [stats, setStats] = useState({ total: 0, active: 0, suspended: 0, pending: 0 });
   const [meta, setMeta] = useState({ total: 0, page: 1, limit: 10, totalPages: 1 });
   
   const [loading, setLoading] = useState(true);
@@ -154,10 +154,13 @@ function EscolaUsersPageContent() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className={`grid grid-cols-1 ${initialRole === 'TEACHER' ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-4`}>
         <StatCard title="Total de Vínculos" value={stats.total} icon={Users} color="emerald" />
         <StatCard title="Ativos" value={stats.active} icon={CheckCircle} color="blue" />
         <StatCard title="Suspensos" value={stats.suspended} icon={XCircle} color="red" />
+        {initialRole === 'TEACHER' && (
+          <StatCard title="Pendentes de Aprovação" value={stats.pending} icon={Clock} color="yellow" link="/escolas/aprovacoes" />
+        )}
       </div>
 
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-border-custom flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -313,22 +316,40 @@ function EscolaUsersPageContent() {
   );
 }
 
-function StatCard({ title, value, icon: Icon, color }: { title: string, value: number, icon: any, color: 'emerald' | 'blue' | 'red' }) {
+function StatCard({ title, value, icon: Icon, color, link }: { title: string, value: number, icon: any, color: 'emerald' | 'blue' | 'red' | 'yellow', link?: string }) {
   const colorMap = {
     emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100',
     blue: 'bg-blue-50 text-blue-600 border-blue-100',
-    red: 'bg-red-50 text-red-600 border-red-100'
+    red: 'bg-red-50 text-red-600 border-red-100',
+    yellow: 'bg-yellow-50 text-yellow-600 border-yellow-100'
   };
 
-  return (
-    <div className="bg-white rounded-2xl p-5 shadow-sm border border-border-custom flex items-center gap-4">
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${colorMap[color]}`}>
+  const CardContent = (
+    <>
+      <div className={`w-12 h-12 rounded-xl flex items-center justify-center border shrink-0 ${colorMap[color]}`}>
         <Icon className="w-6 h-6" />
       </div>
       <div>
         <p className="text-sm font-medium text-gray-500">{title}</p>
         <p className="text-2xl font-bold text-gray-900">{value}</p>
       </div>
+    </>
+  );
+
+  if (link) {
+    return (
+      <Link 
+        href={link} 
+        className="bg-white rounded-2xl p-5 shadow-sm border border-border-custom flex items-center gap-4 hover:shadow-md hover:border-yellow-200 transition-all duration-300 group cursor-pointer"
+      >
+        {CardContent}
+      </Link>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl p-5 shadow-sm border border-border-custom flex items-center gap-4">
+      {CardContent}
     </div>
   );
 }
