@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle2, XCircle, Clock, BookOpen, ExternalLink, ArrowLeft, Trash2 } from 'lucide-react';
 import { getImageUrl } from '../../../lib/image-url';
 import ConfirmDeleteModal from '../../../components/feed/ConfirmDeleteModal';
+import { Pagination } from '../../../components/shared/Pagination';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -21,12 +22,16 @@ interface Submission {
   school?: { id: string; name: string } | null;
 }
 
-export default function AdminBibliotecaPage() {
+function AdminBibliotecaPageContent() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const user = session?.user as any;
+  const searchParams = useSearchParams();
+
+  const page = parseInt(searchParams.get('page') || '1', 10);
 
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [meta, setMeta] = useState({ totalPages: 1, currentPage: 1 });
   const [loading, setLoading] = useState(true);
   const [deletingMaterialId, setDeletingMaterialId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -35,18 +40,19 @@ export default function AdminBibliotecaPage() {
     if (!user?.accessToken) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/library/admin/submissions?limit=50`, {
+      const res = await fetch(`${API_URL}/library/admin/submissions?limit=20&page=${page}`, {
         headers: { Authorization: `Bearer ${user.accessToken}` }
       });
       if (!res.ok) throw new Error();
-      const data = await res.json();
-      setSubmissions(data.data);
+      const json = await res.json();
+      setSubmissions(json.data);
+      setMeta(json.meta);
     } catch {
       console.error('Failed to load submissions');
     } finally {
       setLoading(false);
     }
-  }, [user?.accessToken]);
+  }, [user?.accessToken, page]);
 
   useEffect(() => {
     if (status === 'unauthenticated' || (status === 'authenticated' && user?.role !== 'ADMIN')) {
@@ -118,7 +124,7 @@ export default function AdminBibliotecaPage() {
         </p>
       </div>
 
-      <div className="bg-white rounded-2xl border border-border-custom shadow-sm overflow-hidden">
+      <div className="md:bg-white md:rounded-2xl md:border border-border-custom md:shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-foreground/50">Carregando submissões...</div>
         ) : submissions.length === 0 ? (
@@ -126,9 +132,9 @@ export default function AdminBibliotecaPage() {
             Nenhuma submissão encontrada.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
+          <div className="overflow-x-auto md:overflow-visible">
+            <table className="w-full text-left md:border-collapse block md:table">
+              <thead className="hidden md:table-header-group">
                 <tr className="bg-beige border-b border-border-custom text-sm font-semibold text-primary">
                   <th className="p-4">Material</th>
                   <th className="p-4">Enviado por</th>
@@ -137,10 +143,11 @@ export default function AdminBibliotecaPage() {
                   <th className="p-4 text-right">Ações</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="block md:table-row-group space-y-4 md:space-y-0 px-4 md:px-0">
                 {submissions.map((sub) => (
-                  <tr key={sub.id} className="border-b border-border-custom/50 hover:bg-beige/30 transition-colors">
-                    <td className="p-4">
+                  <tr key={sub.id} className="block md:table-row bg-white border border-border-custom md:border-b md:border-border-custom/50 rounded-2xl md:rounded-none shadow-sm md:shadow-none hover:bg-beige/30 transition-colors">
+                    <td className="flex flex-col sm:flex-row sm:items-center justify-between md:table-cell p-5 md:p-4 border-b border-border-custom/50 md:border-0 gap-2 sm:gap-0">
+                      <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Material</span>
                       <div className="flex items-center gap-3">
                         <img 
                           src={getImageUrl(sub.coverImage)} 
@@ -153,33 +160,46 @@ export default function AdminBibliotecaPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="p-4">
-                      <p className="text-sm font-medium text-foreground/80">{sub.user.name}</p>
-                      {sub.school && (
-                        <p className="text-xs text-foreground/50">{sub.school.name}</p>
-                      )}
+                    <td className="flex flex-col sm:flex-row sm:items-center justify-between md:table-cell p-5 md:p-4 border-b border-border-custom/50 md:border-0 gap-1 sm:gap-0">
+                      <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Enviado por</span>
+                      <div className="text-right md:text-left">
+                        <p className="text-sm font-medium text-foreground/80">{sub.user.name}</p>
+                        {sub.school && (
+                          <p className="text-xs text-foreground/50">{sub.school.name}</p>
+                        )}
+                      </div>
                     </td>
-                    <td className="p-4 text-sm text-foreground/70">
-                      {new Date(sub.createdAt).toLocaleDateString('pt-BR')}
+                    <td className="flex flex-col sm:flex-row sm:items-center justify-between md:table-cell p-5 md:p-4 text-sm text-foreground/70 border-b border-border-custom/50 md:border-0 gap-1 sm:gap-0">
+                      <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Data</span>
+                      <span>{new Date(sub.createdAt).toLocaleDateString('pt-BR')}</span>
                     </td>
-                    <td className="p-4">
-                      {sub.approvalStatus === 'APROVADO' && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> APROVADO
-                        </span>
-                      )}
-                      {sub.approvalStatus === 'REPROVADO' && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-100 text-red-700 text-xs font-bold">
-                          <XCircle className="w-3.5 h-3.5" /> REPROVADO
-                        </span>
-                      )}
+                    <td className="flex flex-col sm:flex-row sm:items-center justify-between md:table-cell p-5 md:p-4 border-b border-border-custom/50 md:border-0 gap-1 sm:gap-0">
+                      <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Status</span>
+                      <span>
+                        {sub.approvalStatus === 'APROVADO' && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> APROVADO
+                          </span>
+                        )}
+                        {sub.approvalStatus === 'REPROVADO' && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-100 text-red-700 text-xs font-bold">
+                            <XCircle className="w-3.5 h-3.5" /> REPROVADO
+                          </span>
+                        )}
+                        {sub.approvalStatus === 'PENDENTE' && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">
+                            <Clock className="w-3.5 h-3.5" /> PENDENTE
+                          </span>
+                        )}
+                      </span>
                     </td>
-                    <td className="p-4">
+                    <td className="flex items-center justify-between md:justify-end md:table-cell p-5 md:p-4 bg-gray-50/50 md:bg-transparent rounded-b-2xl md:rounded-none">
+                      <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Ações</span>
                       <div className="flex items-center justify-end gap-2">
                         <Link
                           href={`/biblioteca/${sub.id}`}
                           target="_blank"
-                          className="p-2 text-foreground/50 hover:text-primary transition-colors rounded-lg hover:bg-beige"
+                          className="p-2 text-foreground/50 hover:text-primary transition-colors rounded-lg hover:bg-beige border border-border-custom md:border-transparent bg-white md:bg-transparent shadow-sm md:shadow-none"
                           title="Visualizar"
                         >
                           <ExternalLink className="w-4 h-4" />
@@ -187,7 +207,7 @@ export default function AdminBibliotecaPage() {
                         {sub.approvalStatus !== 'APROVADO' && (
                           <button
                             onClick={() => handleStatusChange(sub.id, 'APROVADO')}
-                            className="p-2 text-emerald-600 hover:text-emerald-700 transition-colors rounded-lg hover:bg-emerald-50"
+                            className="p-2 text-emerald-600 hover:text-emerald-700 transition-colors rounded-lg hover:bg-emerald-50 border border-emerald-100 md:border-transparent bg-white md:bg-transparent shadow-sm md:shadow-none"
                             title="Aprovar"
                           >
                             <CheckCircle2 className="w-5 h-5" />
@@ -196,7 +216,7 @@ export default function AdminBibliotecaPage() {
                         {sub.approvalStatus !== 'REPROVADO' && (
                           <button
                             onClick={() => handleStatusChange(sub.id, 'REPROVADO')}
-                            className="p-2 text-red-600 hover:text-red-700 transition-colors rounded-lg hover:bg-red-50"
+                            className="p-2 text-red-600 hover:text-red-700 transition-colors rounded-lg hover:bg-red-50 border border-red-100 md:border-transparent bg-white md:bg-transparent shadow-sm md:shadow-none"
                             title="Reprovar"
                           >
                             <XCircle className="w-5 h-5" />
@@ -204,7 +224,7 @@ export default function AdminBibliotecaPage() {
                         )}
                         <button
                           onClick={() => setDeletingMaterialId(sub.id)}
-                          className="p-2 text-foreground/50 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50"
+                          className="p-2 text-foreground/50 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50 border border-border-custom md:border-transparent bg-white md:bg-transparent shadow-sm md:shadow-none"
                           title="Excluir Permanentemente"
                         >
                           <Trash2 className="w-5 h-5" />
@@ -219,6 +239,8 @@ export default function AdminBibliotecaPage() {
         )}
       </div>
 
+      <Pagination currentPage={meta.currentPage} totalPages={meta.totalPages} />
+
       {deletingMaterialId && (
         <ConfirmDeleteModal
           title="Excluir Material"
@@ -229,5 +251,13 @@ export default function AdminBibliotecaPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function AdminBibliotecaPage() {
+  return (
+    <Suspense fallback={<div className="p-12 text-center text-foreground/50">Carregando listagem...</div>}>
+      <AdminBibliotecaPageContent />
+    </Suspense>
   );
 }

@@ -102,7 +102,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       });
       if (!res.ok) throw new Error('Falha ao carregar posts');
       const data = await res.json();
-      setPosts(data.items || []);
+      setPosts(data.data || []);
     } catch (err) {
       console.error('Erro ao carregar posts:', err);
     } finally {

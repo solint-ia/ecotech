@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { MapPin, Clock, Route, Heart, Eye, Plus, Search, Leaf, ChevronDown, SlidersHorizontal, X } from 'lucide-react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { getImageUrl } from '../../lib/image-url';
 import { StateCitySelect } from '../../components/shared/StateCitySelect';
+import { Pagination } from '../../components/shared/Pagination';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -15,56 +17,92 @@ import TrailCard, { Trail } from '../../components/trilhas/TrailCard';
 
 
 
-export default function TrilhasPage() {
+function TrilhasPageContent() {
   const { data: session } = useSession();
   const user = session?.user as any;
   const isApproved = user?.roleStatus === 'APROVADO';
   const canManageTrails = user?.role === 'ADMIN' || (['SCHOOL_MANAGER', 'TEACHER'].includes(user?.role) && isApproved);
 
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const page = parseInt(searchParams.get('page') || '1', 10);
+  const searchUrl = searchParams.get('search') || '';
+  const filterStateUrl = searchParams.get('state') || '';
+  const filterCityUrl = searchParams.get('city') || '';
+  const biomeUrl = searchParams.get('biome') || '';
+  const difficultyUrl = searchParams.get('difficulty') || '';
+  const tabUrl = searchParams.get('tab') || 'publicadas';
+
   const [trails, setTrails] = useState<Trail[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'publicadas' | 'rascunhos' | 'minhas-trilhas'>('publicadas');
-  const [filterState, setFilterState] = useState('');
-  const [filterCity, setFilterCity] = useState('');
-  const [selectedBiome, setSelectedBiome] = useState('');
-  const [selectedDifficulty, setSelectedDifficulty] = useState('');
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ totalPages: 1, currentPage: 1 });
+  
+  const [search, setSearch] = useState(searchUrl);
+  const [filterState, setFilterState] = useState(filterStateUrl);
+  const [filterCity, setFilterCity] = useState(filterCityUrl);
+  const [selectedBiome, setSelectedBiome] = useState(biomeUrl);
+  const [selectedDifficulty, setSelectedDifficulty] = useState(difficultyUrl);
+  const [activeTab, setActiveTab] = useState<'publicadas' | 'rascunhos' | 'minhas-trilhas'>(tabUrl as any);
+
   const [showFiltersModal, setShowFiltersModal] = useState(false);
   const limit = 12;
 
-  // Debounce search input
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search), 400);
-    return () => clearTimeout(timer);
-  }, [search]);
+    const delayDebounceFn = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      let changed = false;
 
-  // Reset page on filter change
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, filterState, filterCity, selectedBiome, selectedDifficulty, activeTab]);
+      if (
+        search !== searchUrl || 
+        filterState !== filterStateUrl || 
+        filterCity !== filterCityUrl ||
+        selectedBiome !== biomeUrl ||
+        selectedDifficulty !== difficultyUrl ||
+        activeTab !== tabUrl
+      ) {
+        params.set('page', '1');
+        changed = true;
+      }
+      
+      if (search !== searchUrl) { if (search) params.set('search', search); else params.delete('search'); }
+      if (filterState !== filterStateUrl) { if (filterState) params.set('state', filterState); else params.delete('state'); }
+      if (filterCity !== filterCityUrl) { if (filterCity) params.set('city', filterCity); else params.delete('city'); }
+      if (selectedBiome !== biomeUrl) { if (selectedBiome) params.set('biome', selectedBiome); else params.delete('biome'); }
+      if (selectedDifficulty !== difficultyUrl) { if (selectedDifficulty) params.set('difficulty', selectedDifficulty); else params.delete('difficulty'); }
+      if (activeTab !== tabUrl) { if (activeTab !== 'publicadas') params.set('tab', activeTab); else params.delete('tab'); }
+
+      if (changed) {
+        router.push(`${pathname}?${params.toString()}`);
+      }
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [
+    search, filterState, filterCity, selectedBiome, selectedDifficulty, activeTab,
+    searchUrl, filterStateUrl, filterCityUrl, biomeUrl, difficultyUrl, tabUrl,
+    pathname, router, searchParams
+  ]);
 
   const fetchTrails = useCallback(async () => {
     setLoading(true);
     try {
       let endpoint = `${API_URL}/trails`;
-      if (activeTab === 'rascunhos') endpoint = `${API_URL}/trails/my-drafts`;
-      if (activeTab === 'minhas-trilhas') endpoint = `${API_URL}/trails/my-trails`;
+      if (tabUrl === 'rascunhos') endpoint = `${API_URL}/trails/my-drafts`;
+      if (tabUrl === 'minhas-trilhas') endpoint = `${API_URL}/trails/my-trails`;
 
       const params = new URLSearchParams({
         page: String(page),
         limit: String(limit),
       });
-      if (debouncedSearch) params.set('search', debouncedSearch);
-      if (filterState) params.set('state', filterState);
-      if (filterCity) params.set('city', filterCity);
-      if (selectedBiome) params.set('biome', selectedBiome);
-      if (selectedDifficulty) params.set('difficulty', selectedDifficulty);
+      if (searchUrl) params.set('search', searchUrl);
+      if (filterStateUrl) params.set('state', filterStateUrl);
+      if (filterCityUrl) params.set('city', filterCityUrl);
+      if (biomeUrl) params.set('biome', biomeUrl);
+      if (difficultyUrl) params.set('difficulty', difficultyUrl);
 
       const headers: HeadersInit = {};
-      if (activeTab !== 'publicadas' && user?.accessToken) {
+      if (tabUrl !== 'publicadas' && user?.accessToken) {
         headers['Authorization'] = `Bearer ${user.accessToken}`;
       }
 
@@ -72,15 +110,14 @@ export default function TrilhasPage() {
       if (!res.ok) throw new Error('Falha ao carregar trilhas.');
       const data = await res.json();
       setTrails(data.data);
-      setTotal(data.meta.total);
+      setMeta(data.meta);
     } catch (err) {
       console.error(err);
       setTrails([]);
-      setTotal(0);
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, filterState, filterCity, selectedBiome, selectedDifficulty, activeTab, user?.accessToken]);
+  }, [page, searchUrl, filterStateUrl, filterCityUrl, biomeUrl, difficultyUrl, tabUrl, user?.accessToken]);
 
   useEffect(() => {
     fetchTrails();
@@ -94,8 +131,6 @@ export default function TrilhasPage() {
     'Pampa',
     'Pantanal'
   ];
-
-  const totalPages = Math.ceil(total / limit);
 
   return (
     <div>
@@ -258,28 +293,7 @@ export default function TrilhasPage() {
         </div>
       )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2 mt-8">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="px-4 py-2 text-sm border border-border-custom rounded-lg disabled:opacity-40 hover:bg-beige transition-colors"
-          >
-            Anterior
-          </button>
-          <span className="text-sm text-foreground/70">
-            Página {page} de {totalPages}
-          </span>
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className="px-4 py-2 text-sm border border-border-custom rounded-lg disabled:opacity-40 hover:bg-beige transition-colors"
-          >
-            Próxima
-          </button>
-        </div>
-      )}
+      <Pagination currentPage={meta.currentPage} totalPages={meta.totalPages} />
       {/* Mobile Filters Modal */}
       {showFiltersModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm md:hidden">
@@ -337,5 +351,13 @@ export default function TrilhasPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function TrilhasPage() {
+  return (
+    <Suspense fallback={<div className="p-12 text-center text-foreground/50">Carregando listagem...</div>}>
+      <TrilhasPageContent />
+    </Suspense>
   );
 }

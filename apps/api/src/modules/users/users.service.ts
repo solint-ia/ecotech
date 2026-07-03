@@ -204,10 +204,10 @@ export class UsersService {
         return rest;
       }),
       meta: {
-        total,
-        page,
-        limit,
+        totalCount: total,
         totalPages: Math.ceil(total / limit),
+        currentPage: page,
+        limit,
       },
       stats: {
         total: totalUsers,
@@ -271,10 +271,10 @@ export class UsersService {
         return rest;
       }),
       meta: {
-        total,
-        page,
-        limit,
+        totalCount: total,
         totalPages: Math.ceil(total / limit),
+        currentPage: page,
+        limit,
       },
       stats: {
         total: totalUsers,

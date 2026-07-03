@@ -99,7 +99,14 @@ export class FeedService {
       return post;
     });
 
-    return { items: mappedItems, hasMore, nextCursor };
+    return { 
+      data: mappedItems, 
+      meta: { 
+        hasMore, 
+        nextCursor,
+        limit: take 
+      } 
+    };
   }
 
   /**

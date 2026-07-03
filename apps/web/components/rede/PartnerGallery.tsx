@@ -205,7 +205,7 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
-                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg font-medium transition-all shadow-md hover:shadow-lg disabled:opacity-50 active:scale-95 text-sm"
+                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-md hover:shadow-lg disabled:opacity-50 active:scale-95"
               >
                 {isUploading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />

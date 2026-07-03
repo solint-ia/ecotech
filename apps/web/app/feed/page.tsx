@@ -39,12 +39,12 @@ export default function FeedPage() {
       const data = await res.json();
 
       if (isLoadingMore) {
-        setPosts((prev) => [...prev, ...data.items]);
+        setPosts((prev) => [...prev, ...data.data]);
       } else {
-        setPosts(data.items);
+        setPosts(data.data);
       }
-      setHasMore(data.hasMore);
-      setNextCursor(data.nextCursor);
+      setHasMore(data.meta.hasMore);
+      setNextCursor(data.meta.nextCursor);
     } catch (err) {
       console.error(err);
     } finally {

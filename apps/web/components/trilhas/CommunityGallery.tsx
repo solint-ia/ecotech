@@ -40,7 +40,7 @@ export function CommunityGallery({ trailId }: CommunityGalleryProps) {
       const data = await res.json();
       
       const extractedImages: CommunityImage[] = [];
-      data.items.forEach((post: any) => {
+      data.data.forEach((post: any) => {
         if (post.images && post.images.length > 0) {
           post.images.forEach((img: any) => {
             const isVideo = img.url.match(/\.(mp4|webm|ogg)$/i);

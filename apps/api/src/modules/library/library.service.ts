@@ -44,10 +44,10 @@ export class LibraryService {
     return {
       data,
       meta: {
-        total,
-        page,
+        totalCount: total,
+        totalPages: Math.ceil(total / limit),
+        currentPage: page,
         limit,
-        lastPage: Math.ceil(total / limit),
       },
     };
   }
@@ -95,10 +95,10 @@ export class LibraryService {
     return {
       data,
       meta: {
-        total,
-        page,
+        totalCount: total,
+        totalPages: Math.ceil(total / limit),
+        currentPage: page,
         limit,
-        lastPage: Math.ceil(total / limit),
       }
     };
   }
@@ -222,10 +222,10 @@ export class LibraryService {
     return {
       data,
       meta: {
-        total,
-        page,
+        totalCount: total,
+        totalPages: Math.ceil(total / limit),
+        currentPage: page,
         limit,
-        lastPage: Math.ceil(total / limit),
       },
     };
   }

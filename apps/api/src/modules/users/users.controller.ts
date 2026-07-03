@@ -27,7 +27,7 @@ export class UsersController {
   ) {
     return this.usersService.findAllForAdmin({
       page: page ? parseInt(page, 10) : 1,
-      limit: limit ? parseInt(limit, 10) : 10,
+      limit: limit ? parseInt(limit, 10) : 20,
       search,
       role,
     });
@@ -47,7 +47,7 @@ export class UsersController {
     if (!user.schoolId) throw new Error('Usuário não possui escola vinculada.');
     return this.usersService.findAllForSchool({
       page: page ? parseInt(page, 10) : 1,
-      limit: limit ? parseInt(limit, 10) : 10,
+      limit: limit ? parseInt(limit, 10) : 20,
       search,
       role,
       status,

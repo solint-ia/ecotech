@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Search, Plus, BookOpen } from 'lucide-react';
 import LibraryCard, { LibraryContent } from '../../components/library/LibraryCard';
+import { Pagination } from '../../components/shared/Pagination';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -21,32 +23,47 @@ const CATEGORIES = [
   { value: 'VIDEO', label: 'Vídeos' },
 ];
 
-export default function BibliotecaPage() {
+function BibliotecaPageContent() {
   const { data: session } = useSession();
   const user = session?.user as any;
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const isApproved = user?.roleStatus === 'APROVADO';
   const canSubmit = user?.role === 'ADMIN' || (['SCHOOL_MANAGER', 'TEACHER'].includes(user?.role) && isApproved);
   const isAdmin = user?.role === 'ADMIN';
 
+  const page = parseInt(searchParams.get('page') || '1', 10);
+  const searchUrl = searchParams.get('search') || '';
+  const typeUrl = searchParams.get('type') || '';
+
   const [contents, setContents] = useState<LibraryContent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [selectedType, setSelectedType] = useState('');
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ totalPages: 1, currentPage: 1 });
+  const [search, setSearch] = useState(searchUrl);
+  const [selectedType, setSelectedType] = useState(typeUrl);
   const limit = 12;
 
-  // Debounce search input
+  // Sync local filter state to URL params with debounce
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search), 400);
-    return () => clearTimeout(timer);
-  }, [search]);
+    const delayDebounceFn = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      let changed = false;
 
-  // Reset page on filter change
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, selectedType]);
+      if (search !== searchUrl || selectedType !== typeUrl) {
+        params.set('page', '1');
+        changed = true;
+      }
+
+      if (search !== searchUrl) { if (search) params.set('search', search); else params.delete('search'); }
+      if (selectedType !== typeUrl) { if (selectedType) params.set('type', selectedType); else params.delete('type'); }
+
+      if (changed) {
+        router.push(`${pathname}?${params.toString()}`);
+      }
+    }, 400);
+    return () => clearTimeout(delayDebounceFn);
+  }, [search, selectedType, searchUrl, typeUrl, pathname, router, searchParams]);
 
   const fetchContents = useCallback(async () => {
     setLoading(true);
@@ -55,26 +72,24 @@ export default function BibliotecaPage() {
         page: String(page),
         limit: String(limit),
       });
-      if (debouncedSearch) params.set('search', debouncedSearch);
-      if (selectedType) params.set('type', selectedType);
+      if (searchUrl) params.set('search', searchUrl);
+      if (typeUrl) params.set('type', typeUrl);
 
       const res = await fetch(`${API_URL}/library?${params}`);
       if (!res.ok) throw new Error('Falha ao carregar biblioteca.');
       const data = await res.json();
       setContents(data.data);
-      setTotal(data.meta.total);
+      setMeta(data.meta);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, selectedType]);
+  }, [page, searchUrl, typeUrl]);
 
   useEffect(() => {
     fetchContents();
   }, [fetchContents]);
-
-  const totalPages = Math.ceil(total / limit);
 
   return (
     <div>
@@ -189,28 +204,15 @@ export default function BibliotecaPage() {
         </div>
       )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2 mt-10">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="px-4 py-2 text-sm font-medium border border-border-custom rounded-lg disabled:opacity-40 hover:bg-beige transition-colors bg-white shadow-sm"
-          >
-            Anterior
-          </button>
-          <span className="text-sm font-medium text-foreground/70 bg-white px-4 py-2 rounded-lg border border-border-custom shadow-sm">
-            {page} / {totalPages}
-          </span>
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className="px-4 py-2 text-sm font-medium border border-border-custom rounded-lg disabled:opacity-40 hover:bg-beige transition-colors bg-white shadow-sm"
-          >
-            Próxima
-          </button>
-        </div>
-      )}
+      <Pagination currentPage={meta.currentPage} totalPages={meta.totalPages} />
     </div>
+  );
+}
+
+export default function BibliotecaPage() {
+  return (
+    <Suspense fallback={<div className="p-12 text-center text-foreground/50">Carregando listagem...</div>}>
+      <BibliotecaPageContent />
+    </Suspense>
   );
 }

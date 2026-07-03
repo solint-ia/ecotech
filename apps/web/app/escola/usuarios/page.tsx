@@ -2,14 +2,15 @@
 
 import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { 
   Users, CheckCircle, XCircle, Search, Filter,
-  ChevronLeft, ChevronRight, LayoutDashboard, Clock
+  LayoutDashboard, Clock
 } from 'lucide-react';
 import Link from 'next/link';
 import { getImageUrl } from '../../../lib/image-url';
 import ConfirmModal from '../../../components/shared/ConfirmModal';
+import { Pagination } from '../../../components/shared/Pagination';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -34,31 +35,37 @@ function getRoleColor(role: string) {
 function EscolaUsersPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const initialRole = searchParams?.get('role') || 'ALL';
 
   const { data: session, status } = useSession();
   const user = session?.user as any;
 
+  const page = parseInt(searchParams.get('page') || '1', 10);
+  const searchUrl = searchParams.get('search') || '';
+  const statusUrl = searchParams.get('status') || 'ALL';
+
   const [users, setUsers] = useState<any[]>([]);
   const [stats, setStats] = useState({ total: 0, active: 0, suspended: 0, pending: 0 });
-  const [meta, setMeta] = useState({ total: 0, page: 1, limit: 10, totalPages: 1 });
+  const [meta, setMeta] = useState({ totalCount: 0, currentPage: 1, limit: 20, totalPages: 1 });
   
   const [loading, setLoading] = useState(true);
   
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [searchInput, setSearchInput] = useState(searchUrl);
+  const [statusFilter, setStatusFilter] = useState(statusUrl);
 
-  const fetchUsers = useCallback(async (currentPage = 1, currentSearch = '', currentStatus = 'ALL') => {
+  const fetchUsers = useCallback(async () => {
     if (!user?.accessToken) return;
     setLoading(true);
     try {
       const url = new URL(`${API_URL}/users/school/list`);
-      url.searchParams.append('page', currentPage.toString());
-      url.searchParams.append('limit', '10');
+      url.searchParams.append('page', page.toString());
+      url.searchParams.append('limit', '20');
       url.searchParams.append('role', initialRole);
-      if (currentStatus !== 'ALL') {
-        url.searchParams.append('status', currentStatus === 'ACTIVE' ? 'true' : 'false');
+      if (statusUrl !== 'ALL') {
+        url.searchParams.append('status', statusUrl === 'ACTIVE' ? 'true' : 'false');
       }
+      if (searchUrl) url.searchParams.append('search', searchUrl);
 
       const res = await fetch(url.toString(), {
         headers: { Authorization: `Bearer ${user.accessToken}` }
@@ -75,31 +82,34 @@ function EscolaUsersPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [user?.accessToken]);
+  }, [user?.accessToken, page, searchUrl, statusUrl, initialRole]);
 
   useEffect(() => {
     if (status === 'unauthenticated' || (status === 'authenticated' && user?.role !== 'SCHOOL_MANAGER')) {
       router.push('/');
     }
     if (status === 'authenticated' && user?.role === 'SCHOOL_MANAGER') {
-      fetchUsers(1, search, statusFilter);
+      fetchUsers();
     }
-  }, [status, user, router]);
+  }, [status, user, router, fetchUsers]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchUsers(1, search, statusFilter);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', '1');
+    if (searchInput) params.set('search', searchInput);
+    else params.delete('search');
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
     setStatusFilter(val);
-    fetchUsers(1, search, val);
-  };
-
-  const handlePageChange = (newPage: number) => {
-    if (newPage < 1 || newPage > meta.totalPages) return;
-    fetchUsers(newPage, search, statusFilter);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', '1');
+    if (val !== 'ALL') params.set('status', val);
+    else params.delete('status');
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   const [unlinkingId, setUnlinkingId] = useState<string | null>(null);
@@ -174,8 +184,8 @@ function EscolaUsersPageContent() {
           <input 
             type="text" 
             placeholder="Buscar por nome ou e-mail..." 
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-forest focus:bg-white transition-all"
           />
         </form>
@@ -292,31 +302,9 @@ function EscolaUsersPageContent() {
             </tbody>
           </table>
         </div>
-
-        {meta.totalPages > 1 && (
-          <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
-            <span className="text-xs text-gray-500 font-medium">
-              Página {meta.page} de {meta.totalPages}
-            </span>
-            <div className="flex items-center gap-1">
-              <button 
-                onClick={() => handlePageChange(meta.page - 1)}
-                disabled={meta.page === 1}
-                className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button 
-                onClick={() => handlePageChange(meta.page + 1)}
-                disabled={meta.page === meta.totalPages}
-                className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
       </div>
+      
+      <Pagination currentPage={meta.currentPage} totalPages={meta.totalPages} />
 
       {confirmModalData?.isOpen && (
         <ConfirmModal

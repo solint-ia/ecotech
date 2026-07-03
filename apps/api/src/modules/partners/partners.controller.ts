@@ -42,9 +42,13 @@ export class PartnersController {
     @Query('category') category?: string,
     @Query('state') state?: string,
     @Query('city') city?: string,
-    @Query('includeInactive') includeInactive?: string
+    @Query('includeInactive') includeInactive?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string
   ) {
-    return this.partnersService.findAll(category, state, city, includeInactive === 'true');
+    const pageNumber = page ? parseInt(page, 10) : 1;
+    const limitNumber = limit ? parseInt(limit, 10) : 20;
+    return this.partnersService.findAll(category, state, city, includeInactive === 'true', pageNumber, limitNumber);
   }
 
   /** GET /partners/:id - Public detail view of a specific partner */

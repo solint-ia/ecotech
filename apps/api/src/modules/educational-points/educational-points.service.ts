@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
@@ -374,6 +375,14 @@ export class EducationalPointsService {
       throw new ForbiddenException('Você não tem permissão para adicionar pontos a esta trilha.');
     }
 
+    // Validate if the sequence order is already taken in this trail
+    const existingPointWithOrder = await this.prisma.educationalPoint.findFirst({
+      where: { trailId: dto.trailId, order: dto.order },
+    });
+    if (existingPointWithOrder) {
+      throw new BadRequestException('Já existe um ponto cadastrado nesta posição. Por favor, escolha outra ordem.');
+    }
+
     // Generate unique slug
     const baseSlug = slugify(dto.title);
     let slug = baseSlug;
@@ -432,6 +441,16 @@ export class EducationalPointsService {
       point.trail.schoolId !== requestingUser.schoolId
     ) {
       throw new ForbiddenException('Você não tem permissão para editar este ponto.');
+    }
+
+    // Validate if the new sequence order is already taken in this trail
+    if (dto.order !== undefined && dto.order !== point.order) {
+      const existingPointWithOrder = await this.prisma.educationalPoint.findFirst({
+        where: { trailId: point.trailId, order: dto.order },
+      });
+      if (existingPointWithOrder) {
+        throw new BadRequestException('Já existe um ponto cadastrado nesta posição. Por favor, escolha outra ordem.');
+      }
     }
 
     // Clean up old mainImage if a new one is provided

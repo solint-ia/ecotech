@@ -16,21 +16,45 @@ export class PartnersService {
     });
   }
 
-  async findAll(category?: string, state?: string, city?: string, includeInactive?: boolean) {
-    return this.prisma.partner.findMany({
-      where: {
-        ...(includeInactive ? {} : { status: true }),
-        ...(category && { category }),
-        ...(state && { state }),
-        ...(city && { city }),
-      },
+  async findAll(category?: string, state?: string, city?: string, includeInactive?: boolean, page = 1, limit = 20, search?: string) {
+    const where: any = {
+      ...(includeInactive ? {} : { status: true }),
+      ...(category && { category }),
+      ...(state && { state }),
+      ...(city && { city }),
+    };
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { category: { contains: search, mode: 'insensitive' } },
+        { city: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const totalCount = await this.prisma.partner.count({ where });
+
+    const data = await this.prisma.partner.findMany({
+      where,
       include: {
         photos: true,
       },
       orderBy: {
         name: 'asc',
       },
+      skip: (page - 1) * limit,
+      take: limit,
     });
+
+    return {
+      data,
+      meta: {
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+        limit,
+      },
+    };
   }
 
   async findOne(id: string) {

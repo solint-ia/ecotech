@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { Search, MapPin, Loader2, Library, Users } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { StateCitySelect } from '@/components/shared/StateCitySelect';
+import { Pagination } from '@/components/shared/Pagination';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -22,39 +23,51 @@ interface School {
   };
 }
 
-export default function SchoolsPage() {
+function SchoolsPageContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
   const accessToken = (session?.user as any)?.accessToken;
 
+  const page = parseInt(searchParams.get('page') || '1', 10);
+  const searchUrl = searchParams.get('search') || '';
+  const filterStateUrl = searchParams.get('state') || '';
+  const filterCityUrl = searchParams.get('city') || '';
+
   const [schools, setSchools] = useState<School[]>([]);
-  const [search, setSearch] = useState('');
-  const [filterState, setFilterState] = useState('');
-  const [filterCity, setFilterCity] = useState('');
+  const [meta, setMeta] = useState({ totalPages: 1, currentPage: 1 });
+  
+  const [search, setSearch] = useState(searchUrl);
+  const [filterState, setFilterState] = useState(filterStateUrl);
+  const [filterCity, setFilterCity] = useState(filterCityUrl);
   const [loading, setLoading] = useState(true);
 
-  const fetchSchools = useCallback(async (searchQuery = '', stateQuery = '', cityQuery = '') => {
+  const fetchSchools = useCallback(async () => {
     if (!accessToken) return;
     setLoading(true);
     try {
       const url = new URL(`${API_URL}/schools`);
-      if (searchQuery) url.searchParams.append('search', searchQuery);
-      if (stateQuery) url.searchParams.append('state', stateQuery);
-      if (cityQuery) url.searchParams.append('city', cityQuery);
+      url.searchParams.append('page', page.toString());
+      url.searchParams.append('limit', '12');
+      if (searchUrl) url.searchParams.append('search', searchUrl);
+      if (filterStateUrl) url.searchParams.append('state', filterStateUrl);
+      if (filterCityUrl) url.searchParams.append('city', filterCityUrl);
       
       const res = await fetch(url.toString(), {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (res.ok) {
-        const data = await res.json();
-        setSchools(data);
+        const json = await res.json();
+        setSchools(json.data);
+        setMeta(json.meta);
       }
     } catch (error) {
       console.error('Erro ao buscar escolas:', error);
     } finally {
       setLoading(false);
     }
-  }, [accessToken]);
+  }, [accessToken, page, searchUrl, filterStateUrl, filterCityUrl]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -66,10 +79,24 @@ export default function SchoolsPage() {
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
-      if (status === 'authenticated') fetchSchools(search, filterState, filterCity);
+      const params = new URLSearchParams(searchParams.toString());
+      let changed = false;
+
+      if (search !== searchUrl || filterState !== filterStateUrl || filterCity !== filterCityUrl) {
+        params.set('page', '1');
+        changed = true;
+      }
+      
+      if (search !== searchUrl) { if (search) params.set('search', search); else params.delete('search'); }
+      if (filterState !== filterStateUrl) { if (filterState) params.set('state', filterState); else params.delete('state'); }
+      if (filterCity !== filterCityUrl) { if (filterCity) params.set('city', filterCity); else params.delete('city'); }
+
+      if (changed) {
+        router.push(`${pathname}?${params.toString()}`);
+      }
     }, 500);
     return () => clearTimeout(delayDebounceFn);
-  }, [search, filterState, filterCity, fetchSchools, status]);
+  }, [search, filterState, filterCity, searchUrl, filterStateUrl, filterCityUrl, pathname, router, searchParams]);
 
   if (status === 'loading' || (loading && schools.length === 0)) {
     return (
@@ -188,6 +215,16 @@ export default function SchoolsPage() {
           ))}
         </div>
       )}
+
+      <Pagination currentPage={meta.currentPage} totalPages={meta.totalPages} />
     </div>
+  );
+}
+
+export default function SchoolsPage() {
+  return (
+    <Suspense fallback={<div className="p-12 text-center text-foreground/50">Carregando listagem...</div>}>
+      <SchoolsPageContent />
+    </Suspense>
   );
 }

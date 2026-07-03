@@ -1,24 +1,32 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Store, ArrowLeft, Edit2, Trash2, CheckCircle2, XCircle, Search } from 'lucide-react';
 import { Partner } from '../../../components/rede/PartnerCard';
 import ConfirmDeleteModal from '../../../components/feed/ConfirmDeleteModal';
+import { Pagination } from '../../../components/shared/Pagination';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-export default function GerenciarParceirosPage() {
+function GerenciarParceirosPageContent() {
   const { data: session, status } = useSession();
   const user = session?.user as any;
   const isAdmin = user?.role === 'ADMIN';
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
+  const page = parseInt(searchParams.get('page') || '1', 10);
 
   const [partners, setPartners] = useState<Partner[]>([]);
+  const [meta, setMeta] = useState({ totalPages: 1, currentPage: 1 });
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Initialize search from URL if present
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [error, setError] = useState('');
   const [partnerToDelete, setPartnerToDelete] = useState<{ id: string, name: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -35,17 +43,18 @@ export default function GerenciarParceirosPage() {
     if (!isAdmin) return;
     setLoading(true);
     try {
-      // API has been updated to accept includeInactive=true
-      const res = await fetch(`${API_URL}/partners?includeInactive=true`);
+      const searchParam = searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : '';
+      const res = await fetch(`${API_URL}/partners?includeInactive=true&page=${page}&limit=20${searchParam}`);
       if (!res.ok) throw new Error('Falha ao carregar parceiros.');
-      const data = await res.json();
-      setPartners(data);
+      const json = await res.json();
+      setPartners(json.data);
+      setMeta(json.meta);
     } catch (err: any) {
       setError(err.message || 'Erro ao carregar.');
     } finally {
       setLoading(false);
     }
-  }, [isAdmin]);
+  }, [isAdmin, page, searchQuery]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -88,11 +97,18 @@ export default function GerenciarParceirosPage() {
 
   if (!isAdmin) return null;
 
-  const filteredPartners = partners.filter(p => 
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    p.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.city.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // We no longer filter locally, the backend handles it.
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', '1');
+    if (searchQuery) {
+      params.set('search', searchQuery);
+    } else {
+      params.delete('search');
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  };
 
   return (
     <div className="max-w-6xl mx-auto pb-12">
@@ -122,22 +138,21 @@ export default function GerenciarParceirosPage() {
       )}
 
       {/* Search Bar */}
-      <div className="relative mb-6">
+      <form onSubmit={handleSearchSubmit} className="relative mb-6">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/40" />
         <input
           type="text"
-          placeholder="Buscar por nome, categoria ou cidade..."
+          placeholder="Buscar por nome, categoria ou cidade... (Pressione Enter)"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full pl-12 pr-4 py-3 rounded-2xl border border-border-custom bg-white focus:ring-2 focus:ring-secondary focus:outline-none shadow-sm"
         />
-      </div>
+      </form>
 
-      {/* Table List */}
-      <div className="bg-white rounded-2xl border border-border-custom overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-[#FAFCFA] border-b border-border-custom text-foreground/60 font-medium">
+      <div className="md:bg-white md:rounded-2xl md:border border-border-custom overflow-hidden md:shadow-sm">
+        <div className="overflow-x-auto md:overflow-visible">
+          <table className="w-full text-left text-sm whitespace-nowrap block md:table">
+            <thead className="hidden md:table-header-group bg-[#FAFCFA] border-b border-border-custom text-foreground/60 font-medium">
               <tr>
                 <th className="px-6 py-4">Nome</th>
                 <th className="px-6 py-4">Categoria</th>
@@ -146,52 +161,59 @@ export default function GerenciarParceirosPage() {
                 <th className="px-6 py-4 text-right">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-custom">
-              {filteredPartners.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-foreground/50">
+            <tbody className="block md:table-row-group divide-y-0 md:divide-y divide-border-custom px-4 md:px-0 space-y-4 md:space-y-0">
+              {partners.length === 0 ? (
+                <tr className="block md:table-row">
+                  <td colSpan={5} className="block md:table-cell px-6 py-8 text-center text-foreground/50">
                     Nenhum parceiro encontrado.
                   </td>
                 </tr>
               ) : (
-                filteredPartners.map((partner) => (
-                  <tr key={partner.id} className="hover:bg-[#FAFCFA] transition-colors">
-                    <td className="px-6 py-4 font-semibold text-primary">
-                      {partner.name}
+                partners.map((partner) => (
+                  <tr key={partner.id} className="block md:table-row bg-white border border-border-custom md:border-0 rounded-2xl md:rounded-none shadow-sm md:shadow-none hover:bg-[#FAFCFA] transition-colors">
+                    <td className="flex flex-col sm:flex-row sm:items-center justify-between md:table-cell px-5 py-4 md:px-6 border-b border-border-custom/50 md:border-0 gap-1 sm:gap-0">
+                      <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Nome</span>
+                      <span className="font-semibold text-primary">{partner.name}</span>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="px-3 py-1 bg-beige text-primary rounded-full text-xs font-medium border border-border-custom">
+                    <td className="flex flex-col sm:flex-row sm:items-center justify-between md:table-cell px-5 py-4 md:px-6 border-b border-border-custom/50 md:border-0 gap-1 sm:gap-0">
+                      <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Categoria</span>
+                      <span className="px-3 py-1 bg-beige text-primary rounded-full text-xs font-medium border border-border-custom w-fit">
                         {partner.category}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-foreground/70">
-                      {partner.city}, {partner.state}
+                    <td className="flex flex-col sm:flex-row sm:items-center justify-between md:table-cell px-5 py-4 md:px-6 text-foreground/70 border-b border-border-custom/50 md:border-0 gap-1 sm:gap-0">
+                      <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Localização</span>
+                      <span>{partner.city}, {partner.state}</span>
                     </td>
-                    <td className="px-6 py-4">
-                      {partner.status ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-green-50 text-green-700 border border-green-200">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          Ativo
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-red-50 text-red-700 border border-red-200">
-                          <XCircle className="w-3.5 h-3.5" />
-                          Inativo
-                        </span>
-                      )}
+                    <td className="flex flex-col sm:flex-row sm:items-center justify-between md:table-cell px-5 py-4 md:px-6 border-b border-border-custom/50 md:border-0 gap-1 sm:gap-0">
+                      <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Status</span>
+                      <span>
+                        {partner.status ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Ativo
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-red-50 text-red-700 border border-red-200">
+                            <XCircle className="w-3.5 h-3.5" />
+                            Inativo
+                          </span>
+                        )}
+                      </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="flex items-center justify-between md:justify-end md:table-cell px-5 py-4 md:px-6 bg-gray-50/50 md:bg-transparent rounded-b-2xl md:rounded-none">
+                      <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Ações</span>
                       <div className="flex items-center justify-end gap-2">
                         <Link
                           href={`/rede/${partner.id}/editar`}
-                          className="p-2 text-primary hover:bg-beige rounded-lg transition-colors"
+                          className="p-2 text-primary hover:bg-beige rounded-lg transition-colors border border-border-custom md:border-transparent bg-white md:bg-transparent shadow-sm md:shadow-none"
                           title="Editar parceiro"
                         >
                           <Edit2 className="w-4 h-4" />
                         </Link>
                         <button
                           onClick={() => setPartnerToDelete({ id: partner.id, name: partner.name })}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-100 md:border-transparent bg-white md:bg-transparent shadow-sm md:shadow-none"
                           title="Excluir permanentemente"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -205,6 +227,9 @@ export default function GerenciarParceirosPage() {
           </table>
         </div>
       </div>
+      
+      {/* Pagination Component */}
+      <Pagination currentPage={meta.currentPage} totalPages={meta.totalPages} />
 
       {partnerToDelete && (
         <ConfirmDeleteModal
@@ -216,5 +241,13 @@ export default function GerenciarParceirosPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function GerenciarParceirosPage() {
+  return (
+    <Suspense fallback={<div className="p-12 text-center text-foreground/50">Carregando listagem...</div>}>
+      <GerenciarParceirosPageContent />
+    </Suspense>
   );
 }

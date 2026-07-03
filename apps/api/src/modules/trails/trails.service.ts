@@ -98,10 +98,10 @@ export class TrailsService {
     return {
       data: mappedData,
       meta: {
-        total,
-        page,
+        totalCount: total,
+        totalPages: Math.ceil(total / limit),
+        currentPage: page,
         limit,
-        lastPage: Math.ceil(total / limit),
       },
     };
   }
@@ -189,10 +189,10 @@ export class TrailsService {
     return {
       data: mappedData,
       meta: {
-        total: mappedData.length,
-        page: 1,
+        totalCount: mappedData.length,
+        totalPages: 1,
+        currentPage: 1,
         limit: 100,
-        lastPage: 1,
       },
     };
   }
@@ -238,10 +238,10 @@ export class TrailsService {
     return {
       data: mappedData,
       meta: {
-        total: mappedData.length,
-        page: 1,
+        totalCount: mappedData.length,
+        totalPages: 1,
+        currentPage: 1,
         limit: 100,
-        lastPage: 1,
       },
     };
   }
@@ -276,7 +276,15 @@ export class TrailsService {
       this.prisma.trail.count({ where }),
     ]);
 
-    return { data, meta: { total, page, limit, lastPage: Math.ceil(total / limit) } };
+    return { 
+      data, 
+      meta: { 
+        totalCount: total, 
+        totalPages: Math.ceil(total / limit),
+        currentPage: page,
+        limit 
+      } 
+    };
   }
 
   async create(dto: CreateTrailDto, requestingUser: { id: string; role: string; schoolId?: string }) {

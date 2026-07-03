@@ -14,9 +14,13 @@ export class SchoolsController {
   async findAll(
     @Query('search') search?: string,
     @Query('state') state?: string,
-    @Query('city') city?: string
+    @Query('city') city?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string
   ) {
-    return this.schoolsService.findAllActive({ search, state, city });
+    const pageNumber = page ? parseInt(page, 10) : 1;
+    const limitNumber = limit ? parseInt(limit, 10) : 12;
+    return this.schoolsService.findAllActive({ search, state, city, page: pageNumber, limit: limitNumber });
   }
 
   @UseGuards(JwtAuthGuard)

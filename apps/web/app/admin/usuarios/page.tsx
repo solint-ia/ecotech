@@ -1,14 +1,15 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { 
   Users, CheckCircle, XCircle, Search, Filter,
-  UserX, UserCheck, ChevronLeft, ChevronRight, LayoutDashboard
+  UserX, UserCheck, LayoutDashboard
 } from 'lucide-react';
 import Link from 'next/link';
 import { getImageUrl } from '../../../lib/image-url';
+import { Pagination } from '../../../components/shared/Pagination';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -34,31 +35,36 @@ function getRoleColor(role: string) {
   }
 }
 
-export default function AdminUsersPage() {
+function AdminUsersPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
   const { data: session, status } = useSession();
   const user = session?.user as any;
 
+  const page = parseInt(searchParams.get('page') || '1', 10);
+  const search = searchParams.get('search') || '';
+  const roleFilter = searchParams.get('role') || 'ALL';
+
   const [users, setUsers] = useState<any[]>([]);
   const [stats, setStats] = useState({ total: 0, active: 0, suspended: 0 });
-  const [meta, setMeta] = useState({ total: 0, page: 1, limit: 10, totalPages: 1 });
+  const [meta, setMeta] = useState({ totalCount: 0, currentPage: 1, limit: 20, totalPages: 1 });
   
   const [loading, setLoading] = useState(true);
   
-  const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState('ALL');
+  const [searchInput, setSearchInput] = useState(search);
 
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; userId: string; currentStatus: boolean; name: string } | null>(null);
 
-  const fetchUsers = useCallback(async (currentPage = 1, currentSearch = '', currentRole = 'ALL') => {
+  const fetchUsers = useCallback(async () => {
     if (!user?.accessToken) return;
     setLoading(true);
     try {
       const url = new URL(`${API_URL}/users/admin/list`);
-      url.searchParams.append('page', currentPage.toString());
-      url.searchParams.append('limit', '10');
-      if (currentSearch) url.searchParams.append('search', currentSearch);
-      if (currentRole && currentRole !== 'ALL') url.searchParams.append('role', currentRole);
+      url.searchParams.append('page', page.toString());
+      url.searchParams.append('limit', '20');
+      if (search) url.searchParams.append('search', search);
+      if (roleFilter && roleFilter !== 'ALL') url.searchParams.append('role', roleFilter);
 
       const res = await fetch(url.toString(), {
         headers: { Authorization: `Bearer ${user.accessToken}` }
@@ -75,31 +81,33 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [user?.accessToken]);
+  }, [user?.accessToken, page, search, roleFilter]);
 
   useEffect(() => {
     if (status === 'unauthenticated' || (status === 'authenticated' && user?.role !== 'ADMIN')) {
       router.push('/');
     }
     if (status === 'authenticated' && user?.role === 'ADMIN') {
-      fetchUsers(1, search, roleFilter);
+      fetchUsers();
     }
-  }, [status, user, router]);
+  }, [status, user, router, fetchUsers]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchUsers(1, search, roleFilter);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', '1');
+    if (searchInput) params.set('search', searchInput);
+    else params.delete('search');
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
-    setRoleFilter(val);
-    fetchUsers(1, search, val);
-  };
-
-  const handlePageChange = (newPage: number) => {
-    if (newPage < 1 || newPage > meta.totalPages) return;
-    fetchUsers(newPage, search, roleFilter);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', '1');
+    if (val !== 'ALL') params.set('role', val);
+    else params.delete('role');
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   const handleToggleStatus = async () => {
@@ -116,7 +124,7 @@ export default function AdminUsersPage() {
       
       if (!res.ok) throw new Error('Erro ao alterar status');
       
-      fetchUsers(meta.page, search, roleFilter);
+      fetchUsers();
       setConfirmModal(null);
     } catch (err) {
       console.error(err);
@@ -158,8 +166,8 @@ export default function AdminUsersPage() {
           <input 
             type="text" 
             placeholder="Buscar por nome ou e-mail..." 
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-forest focus:bg-white transition-all"
           />
         </form>
@@ -293,31 +301,9 @@ export default function AdminUsersPage() {
             </tbody>
           </table>
         </div>
-
-        {meta.totalPages > 1 && (
-          <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
-            <span className="text-xs text-gray-500 font-medium">
-              Página {meta.page} de {meta.totalPages}
-            </span>
-            <div className="flex items-center gap-1">
-              <button 
-                onClick={() => handlePageChange(meta.page - 1)}
-                disabled={meta.page === 1}
-                className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button 
-                onClick={() => handlePageChange(meta.page + 1)}
-                disabled={meta.page === meta.totalPages}
-                className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
       </div>
+      
+      <Pagination currentPage={meta.currentPage} totalPages={meta.totalPages} />
 
       {confirmModal?.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-emerald-950/40 backdrop-blur-sm animate-in fade-in duration-200">
@@ -374,5 +360,13 @@ function StatCard({ title, value, icon: Icon, color }: { title: string, value: n
         <p className="text-2xl font-bold text-gray-900">{value}</p>
       </div>
     </div>
+  );
+}
+
+export default function AdminUsersPage() {
+  return (
+    <Suspense fallback={<div className="p-12 text-center text-foreground/50">Carregando listagem...</div>}>
+      <AdminUsersPageContent />
+    </Suspense>
   );
 }

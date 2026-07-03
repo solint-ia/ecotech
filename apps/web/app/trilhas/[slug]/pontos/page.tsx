@@ -262,15 +262,15 @@ export default function PontosPage() {
         )}
         {points.map((point, idx) => (
           <div key={point.id} className="bg-white rounded-xl border border-border-custom overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 py-3 gap-3 sm:gap-0">
               <button
-                className="flex items-center gap-3 flex-1 text-left"
+                className="flex items-center gap-3 flex-1 text-left w-full sm:w-auto"
                 onClick={() => setExpandedPointId(expandedPointId === point.id ? null : point.id)}
               >
                 <span className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
                   {idx + 1}
                 </span>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-primary truncate">{point.title}</p>
                   <p className="text-xs text-foreground/50">{point.type} • {point.status ? 'Publicado' : 'Rascunho'}</p>
                 </div>
@@ -280,7 +280,7 @@ export default function PontosPage() {
                   <ChevronDown className="w-4 h-4 text-foreground/40 shrink-0 ml-auto" />
                 )}
               </button>
-              <div className="flex items-center ml-2">
+              <div className="flex items-center justify-end w-full sm:w-auto sm:ml-2 border-t sm:border-0 border-border-custom pt-2 sm:pt-0">
                 {!point.status && (
                   <button
                     onClick={async () => {

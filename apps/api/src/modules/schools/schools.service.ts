@@ -5,7 +5,10 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class SchoolsService {
   constructor(private prisma: PrismaService) { }
 
-  async findAllActive(query?: { search?: string; state?: string; city?: string }) {
+  async findAllActive(query?: { search?: string; state?: string; city?: string; page?: number; limit?: number }) {
+    const page = query?.page || 1;
+    const limit = query?.limit || 12;
+
     const where: any = {
       status: true,
       users: {
@@ -27,7 +30,9 @@ export class SchoolsService {
       where.city = query.city;
     }
 
-    return this.prisma.school.findMany({
+    const totalCount = await this.prisma.school.count({ where });
+
+    const data = await this.prisma.school.findMany({
       where,
       select: {
         id: true,
@@ -45,7 +50,19 @@ export class SchoolsService {
         },
       },
       orderBy: { name: 'asc' },
+      skip: (page - 1) * limit,
+      take: limit,
     });
+
+    return {
+      data,
+      meta: {
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+        limit,
+      }
+    };
   }
 
   async findOne(id: string) {
