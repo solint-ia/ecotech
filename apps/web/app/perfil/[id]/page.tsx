@@ -17,6 +17,8 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
   const profileId = resolvedParams.id;
 
   const isOwner = status === 'authenticated' && user?.id === profileId;
+  const isAdmin = status === 'authenticated' && user?.role === 'ADMIN';
+  const canEdit = isOwner || isAdmin;
 
   const [profileData, setProfileData] = useState<any>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -53,9 +55,9 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
     if (status === 'authenticated' && user?.accessToken) {
       fetchProfile();
       fetchPosts();
-      if (isOwner) fetchSchools();
+      if (canEdit) fetchSchools();
     }
-  }, [status, user, router, profileId, isOwner]);
+  }, [status, user, router, profileId, canEdit]);
 
   const fetchSchools = async () => {
     try {
@@ -82,7 +84,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       }
       const data = await res.json();
       setProfileData(data);
-      if (isOwner) {
+      if (canEdit) {
         resetForm(data);
       } else {
         setPreviewImage(data.profileImage ? getImageUrl(data.profileImage) : null);
@@ -138,10 +140,12 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isOwner) return;
+    if (!canEdit) return;
     setSaving(true);
     setError('');
     setSuccess('');
+
+    const editingAsAdmin = isAdmin && !isOwner;
 
     try {
       const formData = new FormData();
@@ -153,8 +157,13 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       if (profileImageFile) {
         formData.append('profileImage', profileImageFile);
       }
+      // Admins editing another user's profile can change the email directly,
+      // no OTP confirmation needed (that flow is only for self-service edits).
+      if (editingAsAdmin && email.trim() !== profileData.email) {
+        formData.append('email', email.trim());
+      }
 
-      const res = await fetch(`${API_URL}/users/me`, {
+      const res = await fetch(`${API_URL}/users/${editingAsAdmin ? profileId : 'me'}`, {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${user.accessToken}`
@@ -169,7 +178,14 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
 
       const updatedUser = await res.json();
       setProfileData(updatedUser);
-      
+
+      if (editingAsAdmin) {
+        setIsEditing(false);
+        setSuccess('Perfil atualizado com sucesso!');
+        setSaving(false);
+        return;
+      }
+
       // Always refresh the session with latest data from the API
       await update({
         name: updatedUser.name,
@@ -326,7 +342,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                   )}
                 </div>
                 
-                {isEditing && isOwner && (
+                {isEditing && canEdit && (
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
@@ -363,7 +379,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
               </div>
             </div>
 
-            {isOwner && !isEditing && (
+            {canEdit && !isEditing && (
               <div className="mt-6 md:mt-0 md:pb-2 w-full md:w-auto">
                 <button
                   onClick={() => setIsEditing(true)}
@@ -394,7 +410,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
         
         {/* Left Column - Info */}
         <div className="lg:col-span-1">
-          {isEditing && isOwner ? (
+          {isEditing && canEdit ? (
             <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
               <h2 className="text-xl font-bold text-slate-900 mb-4">Editar Informações</h2>
               
@@ -446,7 +462,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                   </select>
                   {schoolId !== profileData.schoolId && (
                     <p className="text-xs text-amber-600 mt-2 bg-amber-50 p-2 rounded-lg border border-amber-100">
-                      ⚠️ Ao alterar sua escola, seus acessos de professor (se houver) serão revogados e seu perfil entrará em status <b>Pendente</b> até que o novo gestor escolar o aprove.
+                      ⚠️ Ao alterar {isOwner ? 'sua' : 'a'} escola, {isOwner ? 'seus' : 'os'} acessos de professor (se houver) serão revogados e {isOwner ? 'seu' : 'o'} perfil entrará em status <b>Pendente</b> até que o novo gestor escolar {isOwner ? 'o' : ''} aprove.
                     </p>
                   )}
                 </div>
@@ -483,7 +499,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                   <p className="font-medium text-slate-800">{profileData.email}</p>
                 </div>
 
-                {(isOwner && profileData.phone) && (
+                {(canEdit && profileData.phone) && (
                   <div>
                     <div className="flex items-center gap-2 text-gray-500 mb-1">
                       <Phone className="w-4 h-4" />

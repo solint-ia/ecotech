@@ -123,4 +123,31 @@ export class UsersController {
     }
     return this.usersService.updateMe(user.id, updateData, publicUrl);
   }
+
+  @Patch(':id')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @UseInterceptors(
+    FileInterceptor('profileImage', {
+      storage: memoryStorage(),
+      fileFilter: (req, file, callback) => {
+        if (!file.originalname.match(/\.(jpg|jpeg|png|webp)$/)) {
+          return callback(new Error('Apenas arquivos de imagem são permitidos!'), false);
+        }
+        callback(null, true);
+      },
+    }),
+  )
+  async adminUpdateUser(
+    @Param('id') id: string,
+    @Body() updateData: any,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    let publicUrl: string | undefined;
+    if (file) {
+      publicUrl = await this.supabaseService.uploadFile(file, 'avatars');
+    }
+    return this.usersService.adminUpdateUser(id, updateData, publicUrl);
+  }
 }

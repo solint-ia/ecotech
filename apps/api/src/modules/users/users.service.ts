@@ -84,6 +84,59 @@ export class UsersService {
     return this.getMe(userId);
   }
 
+  async adminUpdateUser(targetUserId: string, data: any, publicUrl?: string) {
+    const targetUser = await this.prisma.user.findUnique({ where: { id: targetUserId } });
+    if (!targetUser) throw new NotFoundException('Usuário não encontrado.');
+
+    if (data.email && data.email !== targetUser.email) {
+      const existingUser = await this.prisma.user.findUnique({ where: { email: data.email } });
+      if (existingUser) throw new ForbiddenException('Este e-mail já está em uso.');
+    }
+
+    if (targetUser.role === 'SCHOOL_MANAGER' && targetUser.schoolId) {
+      const schoolUpdateData: any = {};
+      if (data.name) schoolUpdateData.name = data.name;
+      if (publicUrl) schoolUpdateData.coverImage = publicUrl;
+
+      if (Object.keys(schoolUpdateData).length > 0) {
+        await this.prisma.school.update({
+          where: { id: targetUser.schoolId },
+          data: schoolUpdateData,
+        });
+      }
+
+      const userUpdateData: any = {};
+      if (data.phone) userUpdateData.phone = data.phone;
+      if (data.email) userUpdateData.email = data.email;
+
+      if (Object.keys(userUpdateData).length > 0) {
+        await this.prisma.user.update({
+          where: { id: targetUserId },
+          data: userUpdateData,
+        });
+      }
+    } else {
+      const updateData: any = {};
+      if (data.name) updateData.name = data.name;
+      if (data.phone) updateData.phone = data.phone;
+      if (data.email) updateData.email = data.email;
+      if (publicUrl) updateData.profileImage = publicUrl;
+
+      if (data.schoolId !== undefined && data.schoolId !== targetUser.schoolId) {
+        updateData.schoolId = data.schoolId || null;
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await this.prisma.user.update({
+          where: { id: targetUserId },
+          data: updateData,
+        });
+      }
+    }
+
+    return this.getMe(targetUserId);
+  }
+
   async getPendingUsers(currentUser: any) {
     if (currentUser.role === 'ADMIN') {
       const users = await this.prisma.user.findMany({
