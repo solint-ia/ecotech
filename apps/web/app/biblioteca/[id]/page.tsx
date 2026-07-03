@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Download, Video, FileText, User, Calendar, ExternalLink } from 'lucide-react';
 import { getImageUrl } from '../../../lib/image-url';
+import FileDownloadBtn from '../../../components/shared/FileDownloadBtn';
 import LibraryItemActions from './LibraryItemActions';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -210,16 +211,13 @@ export default async function LibraryDetailPage({ params }: { params: Promise<{ 
                   <p className="text-sm text-foreground/60">Baixe o material completo em PDF ou Documento.</p>
                 </div>
               </div>
-              <a
-                href={getImageUrl(content.fileUrl)}
-                target="_blank"
-                rel="noopener noreferrer"
-                download
+              <FileDownloadBtn 
+                fileUrl={getImageUrl(content.fileUrl)} 
+                fileName={`ecotech-${content.title.replace(/\s+/g, '-').toLowerCase()}.pdf`}
+                label="Fazer Download"
                 className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-white rounded-lg font-semibold transition-all shadow-md active:scale-95"
-              >
-                <Download className="w-5 h-5" />
-                Fazer Download
-              </a>
+                iconClassName="w-5 h-5"
+              />
             </div>
           )}
         </div>

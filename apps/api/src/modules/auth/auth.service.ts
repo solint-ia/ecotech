@@ -323,4 +323,71 @@ export class AuthService {
 
     return { success: true };
   }
+
+  async requestEmailUpdate(userId: string, newEmail: string, currentPassword?: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Usuário não encontrado.');
+
+    // 1. Password check
+    if (!currentPassword) {
+      throw new BadRequestException('Senha atual é obrigatória.');
+    }
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isPasswordValid) throw new UnauthorizedException('Senha atual incorreta.');
+
+    // 2. Check if newEmail is already used
+    const existingUser = await this.prisma.user.findUnique({ where: { email: newEmail } });
+    if (existingUser) throw new BadRequestException('Este e-mail já está em uso.');
+
+    // 3. Generate OTP and save token for the NEW email
+    const otp = this.generateOtp();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    
+    await this.prisma.verificationToken.deleteMany({
+      where: { email: newEmail, type: 'EMAIL_UPDATE' }
+    });
+    
+    await this.prisma.verificationToken.create({
+      data: {
+        email: newEmail,
+        token: otp,
+        type: 'EMAIL_UPDATE',
+        expiresAt
+      }
+    });
+
+    // 4. Send email asynchronously using the BullMQ queue
+    await this.mailQueue.add('send-otp', {
+      email: newEmail,
+      name: 'EMAIL_UPDATE',
+      code: otp
+    });
+
+    return { success: true, message: 'Código enviado para o novo e-mail.' };
+  }
+
+  async verifyEmailUpdate(userId: string, newEmail: string, otp: string) {
+    const record = await this.prisma.verificationToken.findFirst({
+      where: { email: newEmail, token: otp, type: 'EMAIL_UPDATE' }
+    });
+
+    if (!record) throw new BadRequestException('Código inválido ou incorreto.');
+    if (record.expiresAt < new Date()) throw new BadRequestException('O código expirou. Solicite um novo.');
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Usuário não encontrado.');
+
+    // Update email
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { email: newEmail }
+    });
+
+    // Clean up tokens
+    await this.prisma.verificationToken.deleteMany({
+      where: { email: newEmail, type: 'EMAIL_UPDATE' }
+    });
+
+    return { success: true, message: 'E-mail atualizado com sucesso.' };
+  }
 }

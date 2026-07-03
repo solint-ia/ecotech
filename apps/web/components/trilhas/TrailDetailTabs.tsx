@@ -52,22 +52,28 @@ export default function TrailDetailTabs({ trail }: TrailDetailTabsProps) {
 
   return (
     <div className="bg-white rounded-2xl border border-border-custom overflow-hidden shadow-sm">
-      {/* Tab Nav */}
-      <div className="flex flex-nowrap overflow-x-auto gap-2 p-4 border-b border-border-custom bg-white scrollbar-hide">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            id={`tab-${tab.id}`}
-            onClick={() => setActiveTab(tab.id)}
-            className={`whitespace-nowrap px-5 py-2 text-sm font-semibold rounded-full transition-all duration-300 ${
-              activeTab === tab.id
-                ? 'bg-forest text-white shadow-md'
-                : 'bg-white text-foreground/60 border border-border-custom hover:border-forest/30 hover:text-forest'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* Tab Nav Wrapper */}
+      <div className="relative border-b border-border-custom bg-white">
+        <div className="flex flex-nowrap overflow-x-auto gap-2 p-4 scrollbar-hide pr-8 sm:pr-4">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              id={`tab-${tab.id}`}
+              onClick={() => setActiveTab(tab.id)}
+              className={`whitespace-nowrap px-4 py-2 sm:px-5 text-sm font-semibold rounded-full transition-all duration-300 shrink-0 ${
+                activeTab === tab.id
+                  ? 'bg-forest text-white shadow-md'
+                  : 'bg-white text-foreground/60 border border-border-custom hover:border-forest/30 hover:text-forest'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        {/* Scroll Hint (Mobile only) */}
+        <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-white via-white/80 to-transparent pointer-events-none flex items-center justify-end pr-2 sm:hidden">
+          <ChevronRight className="w-4 h-4 text-foreground/40 animate-pulse" />
+        </div>
       </div>
 
       {/* Tab Content */}
@@ -246,15 +252,18 @@ export default function TrailDetailTabs({ trail }: TrailDetailTabsProps) {
         {/* ── PONTOS DE INTERESSE (Roadmap) ── */}
         {activeTab === 'pontos' && (
           <div>
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-bold text-primary">Pontos de Interesse</h2>
+            {/* Header / Actions */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 w-full">
+              <h2 className="text-xl sm:text-2xl font-extrabold text-primary text-left">
+                Pontos de Interesse
+              </h2>
               {isAdminOrManager && (
                 <Link
                   id="btn-gerenciar-pontos"
                   href={`/trilhas/${trail.slug}/pontos`}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+                  className="inline-flex items-center justify-center w-full sm:w-auto gap-2 px-5 py-2.5 bg-primary text-white text-sm font-bold rounded-xl shadow-sm hover:bg-primary/90 transition-all active:scale-95 shrink-0"
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="w-4 h-4" />
                   Gerenciar Pontos
                 </Link>
               )}
@@ -266,71 +275,83 @@ export default function TrailDetailTabs({ trail }: TrailDetailTabsProps) {
               </p>
             ) : (
               <div className="relative">
-                {/* Vertical line */}
-                <div className="absolute left-[19px] top-4 bottom-4 w-0.5 bg-gradient-to-b from-primary/30 via-secondary/20 to-transparent" />
-
-                <div className="space-y-4">
+                {/* Stacked Cards Layout */}
+                <div className="space-y-6">
                   {trail.educationalPoints.map((point: any, index: number) => (
-                    <div key={point.id} className="relative flex gap-4 group">
-                      {/* Step indicator */}
-                      <div className="relative z-10 flex-shrink-0 w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold shadow-md group-hover:bg-secondary transition-colors">
-                        {point.order ?? index + 1}
+                    <div key={point.id} className="w-full flex flex-col lg:flex-row bg-white border border-border-custom rounded-2xl shadow-sm hover:shadow-md transition-shadow overflow-hidden p-4 lg:p-0">
+                      
+                      {/* MOBILE HEADER (Visible only on mobile/tablet) */}
+                      <div className="flex lg:hidden items-center justify-between pb-3 mb-3 border-b border-border-custom">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-sm font-extrabold shadow-inner shrink-0">
+                            {point.order ?? index + 1}
+                          </div>
+                          <span className="text-xs uppercase font-black tracking-widest text-secondary/90">
+                            {POINT_TYPE_LABELS[point.type] ?? point.type}
+                          </span>
+                        </div>
                       </div>
 
-                      {/* Card */}
-                      <div className="flex-1 bg-white border border-border-custom rounded-xl p-3 hover:border-secondary/40 hover:shadow-sm transition-all">
-                        <div className="flex gap-3">
-                          {/* Thumbnail */}
-                          {point.mainImage && (
-                            <img
-                              src={getImageUrl(point.mainImage)}
-                              alt={point.title}
-                              className="w-14 h-14 rounded-lg object-cover shrink-0"
-                            />
-                          )}
-                          {/* Info */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <p className="text-sm font-semibold text-primary truncate">
-                                  {point.title}
-                                </p>
-                                <span className="text-[10px] uppercase font-bold tracking-wide text-secondary/70">
-                                  {POINT_TYPE_LABELS[point.type] ?? point.type}
-                                </span>
-                              </div>
-                            </div>
-                            {point.shortDescription && (
-                              <p className="text-xs text-foreground/70 mt-1 line-clamp-2">
-                                {point.shortDescription}
-                              </p>
-                            )}
+                      {/* Image Section (Top with margin on Mobile, Full-height Left on Desktop) */}
+                      {point.mainImage && (
+                        <div className="w-full lg:w-2/5 xl:w-[35%] aspect-[4/3] lg:aspect-auto lg:h-auto lg:min-h-[260px] relative shrink-0 bg-beige rounded-xl lg:rounded-none overflow-hidden mb-4 lg:mb-0">
+                          <img
+                            src={getImageUrl(point.mainImage)}
+                            alt={point.title}
+                            className="absolute inset-0 w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
 
-                            {/* Actions row */}
-                            <div className="flex items-center gap-2 mt-2">
-                              <Link
-                                href={`/pontos/${point.slug}`}
-                                id={`point-link-${point.slug}`}
-                                className="inline-flex items-center gap-1 text-xs text-secondary font-medium hover:underline"
-                              >
-                                Ver ponto completo <ChevronRight className="w-3 h-3" />
-                              </Link>
-                              {/* QR Code link */}
-                              {point.qrCodes?.[0]?.qrImage && (
-                                <a
-                                  href={point.qrCodes[0].qrImage}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  id={`qr-link-${point.slug}`}
-                                  title="QR Code do ponto"
-                                  className="inline-flex items-center gap-1 text-xs text-foreground/50 hover:text-primary transition-colors"
-                                >
-                                  <QrCode className="w-3.5 h-3.5" />
-                                  QR Code
-                                </a>
-                              )}
+                      {/* Content Section (Right on Desktop, Bottom on Mobile) */}
+                      <div className="flex flex-col flex-1 lg:p-6 lg:pl-8">
+                        {/* DESKTOP HEADER (Visible only on desktop) */}
+                        <div className="hidden lg:flex items-center justify-between pb-3 mb-4 border-b border-border-custom">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-sm font-extrabold shadow-inner shrink-0">
+                              {point.order ?? index + 1}
                             </div>
+                            <span className="text-xs uppercase font-black tracking-widest text-secondary/90">
+                              {POINT_TYPE_LABELS[point.type] ?? point.type}
+                            </span>
                           </div>
+                        </div>
+
+                        {/* Text Content */}
+                        <div className="flex flex-col gap-2 flex-1">
+                          <h3 className="text-lg sm:text-xl font-bold text-primary leading-snug whitespace-normal break-words">
+                            {point.title}
+                          </h3>
+                          
+                          {point.shortDescription && (
+                            <p className="text-sm text-foreground/70 leading-relaxed whitespace-normal break-words">
+                              {point.shortDescription}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Action Links */}
+                        <div className="flex items-center justify-between mt-5 pt-3 border-t border-border-custom gap-3 flex-wrap">
+                          <Link
+                            href={`/pontos/${point.slug}`}
+                            id={`point-link-${point.slug}`}
+                            className="inline-flex items-center gap-1.5 text-sm text-forest font-bold hover:text-primary transition-colors py-1"
+                          >
+                            Ver ponto completo <ChevronRight className="w-4 h-4" />
+                          </Link>
+                          
+                          {/* QR Code link */}
+                          {point.qrCodes?.[0]?.qrImage && (
+                            <a
+                              href={getImageUrl(point.qrCodes[0].qrImage)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-secondary font-semibold hover:underline bg-secondary/10 px-3 py-1.5 rounded-full transition-colors"
+                            >
+                              <QrCode className="w-3.5 h-3.5" />
+                              QR Code
+                            </a>
+                          )}
                         </div>
                       </div>
                     </div>

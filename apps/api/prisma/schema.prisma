@@ -57,6 +57,7 @@ enum ApprovalStatus {
 enum VerificationType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
+  EMAIL_UPDATE
 }
 
 model User {

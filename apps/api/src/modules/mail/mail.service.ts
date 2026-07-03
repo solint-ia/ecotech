@@ -11,12 +11,18 @@ export class MailService {
     this.apiKey = this.configService.get<string>('MAILEROO_API_KEY') || '';
   }
 
-  async sendOtpEmail(email: string, type: 'EMAIL_VERIFICATION' | 'PASSWORD_RESET', otpCode: string): Promise<boolean> {
+  async sendOtpEmail(email: string, type: 'EMAIL_VERIFICATION' | 'PASSWORD_RESET' | 'EMAIL_UPDATE', otpCode: string): Promise<boolean> {
     const isVerification = type === 'EMAIL_VERIFICATION';
-    const subject = isVerification ? 'Confirme seu e-mail na EcoTech' : 'Recuperação de Senha - EcoTech';
+    const isEmailUpdate = type === 'EMAIL_UPDATE';
+    
+    let subject = 'Recuperação de Senha - EcoTech';
+    if (isVerification) subject = 'Confirme seu e-mail na EcoTech';
+    if (isEmailUpdate) subject = 'Confirme a alteração de e-mail na EcoTech';
 
-    const htmlContent = isVerification
-      ? `
+    let htmlContent = '';
+
+    if (isVerification) {
+      htmlContent = `
       <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; background-color: #f9f9f9; padding: 20px; border-radius: 8px;">
         <h2 style="color: #0B3B24; text-align: center;">Bem-vindo(a) à EcoTech!</h2>
         <p style="color: #333; font-size: 16px;">Olá! Falta pouco para você explorar as trilhas. Use o código de 6 dígitos abaixo para ativar sua conta na EcoTech:</p>
@@ -25,8 +31,20 @@ export class MailService {
         </div>
         <p style="color: #666; font-size: 12px; text-align: center;">Este código expira em 10 minutos. Se você não solicitou este e-mail, pode ignorá-lo.</p>
       </div>
-      `
-      : `
+      `;
+    } else if (isEmailUpdate) {
+      htmlContent = `
+      <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; background-color: #f9f9f9; padding: 20px; border-radius: 8px;">
+        <h2 style="color: #0B3B24; text-align: center;">Confirmação de novo E-mail</h2>
+        <p style="color: #333; font-size: 16px;">Olá! Recebemos uma solicitação para alterar o e-mail da sua conta EcoTech para este endereço. Use o código abaixo para confirmar a alteração:</p>
+        <div style="background-color: #0B3B24; color: #fff; text-align: center; font-size: 28px; font-weight: bold; padding: 15px; margin: 20px 0; border-radius: 6px; letter-spacing: 5px;">
+          ${otpCode}
+        </div>
+        <p style="color: #666; font-size: 12px; text-align: center;">Este código expira em 10 minutos. Se você não solicitou esta alteração, não se preocupe, nenhuma mudança será feita.</p>
+      </div>
+      `;
+    } else {
+      htmlContent = `
       <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; background-color: #f9f9f9; padding: 20px; border-radius: 8px;">
         <h2 style="color: #0B3B24; text-align: center;">Recuperação de Senha</h2>
         <p style="color: #333; font-size: 16px;">Recebemos um pedido para redefinir sua senha. Insira o código a seguir no aplicativo:</p>
@@ -36,6 +54,7 @@ export class MailService {
         <p style="color: #666; font-size: 12px; text-align: center;">Este código expira em 10 minutos. Se você não solicitou este e-mail, pode ignorá-lo com segurança.</p>
       </div>
       `;
+    }
 
     const payload = {
       from: {

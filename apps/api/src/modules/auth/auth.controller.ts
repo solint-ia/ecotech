@@ -1,4 +1,6 @@
-import { Controller, Post, Body, Res, HttpCode, HttpStatus, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, Res, HttpCode, HttpStatus, UseInterceptors, UploadedFile, BadRequestException, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import * as express from 'express';
@@ -125,5 +127,25 @@ export class AuthController {
       sameSite: 'strict',
     });
     return { message: 'Desconectado com sucesso.' };
+  }
+
+  @Post('request-email-update')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async requestEmailUpdate(@CurrentUser() user: any, @Body() body: { newEmail: string; currentPassword?: string }) {
+    if (!body.newEmail || !body.currentPassword) {
+      throw new BadRequestException('Novo e-mail e senha atual são obrigatórios.');
+    }
+    return this.authService.requestEmailUpdate(user.id, body.newEmail, body.currentPassword);
+  }
+
+  @Post('verify-email-update')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async verifyEmailUpdate(@CurrentUser() user: any, @Body() body: { newEmail: string; otp: string }) {
+    if (!body.newEmail || !body.otp) {
+      throw new BadRequestException('Novo e-mail e código OTP são obrigatórios.');
+    }
+    return this.authService.verifyEmailUpdate(user.id, body.newEmail, body.otp);
   }
 }

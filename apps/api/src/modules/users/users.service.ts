@@ -50,7 +50,6 @@ export class UsersService {
       });
 
       const userUpdateData: any = {};
-      if (data.email) userUpdateData.email = data.email;
       if (data.phone) userUpdateData.phone = data.phone;
       
       if (Object.keys(userUpdateData).length > 0) {
@@ -62,7 +61,6 @@ export class UsersService {
     } else {
       const updateData: any = {};
       if (data.name) updateData.name = data.name;
-      if (data.email) updateData.email = data.email;
       if (data.phone) updateData.phone = data.phone;
       if (publicUrl) updateData.profileImage = publicUrl;
   

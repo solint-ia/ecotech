@@ -43,6 +43,10 @@ function buildQrText(point: {
 }): string {
   const baseUrl = 'https://www.projetoecotech.online';
   return [
+    `Acesse a versão interativa:`,
+    `${baseUrl}/pontos/${point.slug}`,
+    '',
+    '--- MODO OFFLINE ---',
     `Ponto: ${removeAccents(point.title)}`,
     `Trilha: ${removeAccents(point.trail.title)}`,
     '',
@@ -51,9 +55,6 @@ function buildQrText(point: {
     '',
     'Importância ambiental:',
     removeAccents(point.environmentalImportance || '—').substring(0, 200),
-    '',
-    'Conteúdo completo:',
-    `${baseUrl}/pontos/${point.slug}`,
   ].join('\n');
 }
 

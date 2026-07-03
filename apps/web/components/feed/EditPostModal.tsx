@@ -114,8 +114,25 @@ export default function EditPostModal({
       if (imageFiles.length > 0) {
         imageFiles.forEach(file => formData.append('images', file));
       }
-      // NOTE: backend updatePostDto doesn't explicitly remove image if it's null in formData unless handled,
-      // but if we upload a new one, it overrides.
+
+      // Identify retained images (the ones that are still in imagePreviews and are existing URLs)
+      const retainedImages = imagePreviews.filter(preview => 
+        preview.startsWith('http') || preview.startsWith('/uploads')
+      );
+      
+      // If no images are retained, we still need to send an empty array or signal to backend.
+      // But formData only appends strings. If retainedImages is empty, we don't append anything.
+      // Wait, if we send nothing, the backend assumes retainedImages is undefined, which means NO images were sent.
+      // Let's send them one by one. If it's empty, we send a specific flag or just send an empty string.
+      if (retainedImages.length === 0) {
+        formData.append('retainedImages', '');
+      } else {
+        retainedImages.forEach(url => {
+          // Send relative URL if it starts with API_URL to match backend DB format
+          const dbUrl = url.startsWith(API_URL) ? url.replace(API_URL, '') : url;
+          formData.append('retainedImages', dbUrl);
+        });
+      }
 
       const res = await fetch(`${API_URL}/feed/${post.id}`, {
         method: 'PATCH',

@@ -6,10 +6,14 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
+import { SupabaseService } from '../supabase/supabase.service';
 
 @Injectable()
 export class FeedService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly supabaseService: SupabaseService,
+  ) {}
 
   /**
    * Create a new feed post.
@@ -161,15 +165,53 @@ export class FeedService {
     }
 
     const dataPayload: any = { ...updatePostDto };
+    delete dataPayload.retainedImages; // Remove from standard data payload
     
     if (mediaType) {
       dataPayload.mediaType = mediaType;
     }
     
-    if (imagesUrls) {
+    // Normalize retainedImages to an array
+    let retained: string[] = [];
+    if (updatePostDto.retainedImages !== undefined) {
+      const rawRetained = Array.isArray(updatePostDto.retainedImages) 
+        ? updatePostDto.retainedImages 
+        : [updatePostDto.retainedImages];
+      retained = rawRetained.filter(r => r !== '');
+    } else {
+      // Backwards compatibility: if retainedImages is not provided at all, assume no images were deleted
+      retained = (post.images || []).map(img => img.url);
+    }
+
+    // Determine which old images to delete
+    const oldImages = post.images || [];
+    const imagesToDelete = oldImages.filter(img => !retained.includes(img.url));
+
+    // Delete removed images from Supabase
+    for (const img of imagesToDelete) {
+      if (img.url) {
+        try {
+          await this.supabaseService.deleteFile(img.url);
+        } catch (e) {
+          console.error(`Erro ao deletar imagem antiga do storage: ${img.url}`, e);
+        }
+      }
+    }
+
+    // Update DB
+    // We will delete all images that are NOT in retained
+    await this.prisma.feedPostImage.deleteMany({
+      where: {
+        feedPostId: postId,
+        url: { notIn: retained }
+      }
+    });
+
+    // We will add the newly uploaded images (if any)
+    if (imagesUrls && imagesUrls.length > 0) {
+      const startingOrder = retained.length;
       dataPayload.images = {
-        deleteMany: {}, // Exclui todas as imagens antigas
-        create: imagesUrls.map((url, index) => ({ url, order: index })),
+        create: imagesUrls.map((url, index) => ({ url, order: startingOrder + index })),
       };
     }
 

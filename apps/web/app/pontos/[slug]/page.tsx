@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { ArrowLeft, ExternalLink, Download, Leaf, TreePine } from 'lucide-react';
 import QrCodeDownloadBtn from '../../../components/pontos/QrCodeDownloadBtn';
 import { getImageUrl } from '../../../lib/image-url';
+import FileDownloadBtn from '../../../components/shared/FileDownloadBtn';
+import { auth } from '../../../lib/auth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -43,6 +45,12 @@ export default async function PointDetailPage({ params }: { params: Promise<{ sl
   const point = await getPoint(slug);
 
   if (!point) notFound();
+
+  const session = await auth();
+  const user = session?.user as any;
+  
+  const isAdminOrOwner = user?.role === 'ADMIN' || 
+    ((user?.role === 'SCHOOL_MANAGER' || user?.role === 'TEACHER') && user?.schoolId === point.trail?.schoolId);
 
   const qrCode = point.qrCodes?.[0];
   const trailSlug = point.trail?.slug;
@@ -109,16 +117,11 @@ export default async function PointDetailPage({ params }: { params: Promise<{ sl
           </Link>
         )}
         {pdfUrl && (
-          <a
-            href={pdfUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            id="btn-download-pdf"
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-forest text-white text-sm font-semibold hover:bg-forest/90 transition-all active:scale-95 shadow-md hover:shadow-lg"
-          >
-            <Download className="w-4 h-4" />
-            Baixar PDF
-          </a>
+          <FileDownloadBtn 
+            fileUrl={pdfUrl} 
+            fileName={`ecotech-${point.slug}.pdf`} 
+            label="Baixar PDF" 
+          />
         )}
         {point.trail?.wikilocUrl && (
           <a
@@ -180,8 +183,8 @@ export default async function PointDetailPage({ params }: { params: Promise<{ sl
           </section>
         )}
 
-        {/* QR Code section */}
-        {qrCode && (
+        {/* QR Code section (Only visible to Admins or the Trail's School Manager) */}
+        {qrCode && isAdminOrOwner && (
           <section>
             <h2 className="text-xl font-bold text-foreground mb-4">QR Code Híbrido</h2>
             <div className="flex flex-col md:flex-row gap-6 items-center md:items-start bg-white rounded-2xl p-6 shadow-sm border border-border-custom/40">

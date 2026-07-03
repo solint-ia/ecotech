@@ -35,6 +35,13 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
   const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   
+  // Email Update Flow States
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [showOtpPrompt, setShowOtpPrompt] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [pendingEmail, setPendingEmail] = useState('');
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -123,7 +130,6 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
     try {
       const formData = new FormData();
       formData.append('name', name);
-      formData.append('email', email);
       formData.append('phone', phone);
       if (profileImageFile) {
         formData.append('profileImage', profileImageFile);
@@ -144,16 +150,93 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
 
       const updatedUser = await res.json();
       setProfileData(updatedUser);
-      setIsEditing(false);
-      setSuccess('Perfil atualizado com sucesso!');
       
-      if (updatedUser.name !== user.name || updatedUser.email !== user.email || profileImageFile) {
+      if (updatedUser.name !== user.name || profileImageFile) {
         await update({
           name: updatedUser.name,
-          email: updatedUser.email,
           profileImage: updatedUser.profileImage
         }); 
       }
+
+      // Check if email was changed
+      if (email.trim() !== user.email && email.trim() !== '') {
+        setPendingEmail(email.trim());
+        setShowPasswordPrompt(true);
+        // Do not close editing mode yet
+      } else {
+        setIsEditing(false);
+        setSuccess('Perfil atualizado com sucesso!');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRequestEmailUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    
+    try {
+      const res = await fetch(`${API_URL}/auth/request-email-update`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${user.accessToken}`
+        },
+        body: JSON.stringify({ newEmail: pendingEmail, currentPassword })
+      });
+
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.message || 'Erro ao solicitar alteração de e-mail.');
+      }
+
+      setShowPasswordPrompt(false);
+      setShowOtpPrompt(true);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleVerifyEmailUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    
+    try {
+      const res = await fetch(`${API_URL}/auth/verify-email-update`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${user.accessToken}`
+        },
+        body: JSON.stringify({ newEmail: pendingEmail, otp: otpCode })
+      });
+
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.message || 'Código inválido ou expirado.');
+      }
+
+      // Update session with new email
+      await update({
+        email: pendingEmail
+      });
+      
+      setProfileData({ ...profileData, email: pendingEmail });
+      setShowOtpPrompt(false);
+      setIsEditing(false);
+      setSuccess('E-mail atualizado com sucesso!');
+      setPendingEmail('');
+      setOtpCode('');
+      setCurrentPassword('');
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -422,6 +505,109 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
         </div>
 
       </div>
+
+      {/* Password Prompt Modal for Email Update */}
+      {showPasswordPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Confirme sua senha</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Para alterar seu e-mail para <strong className="text-slate-700">{pendingEmail}</strong>, por favor insira sua senha atual.
+              </p>
+              <form onSubmit={handleRequestEmailUpdate}>
+                {error && (
+                  <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-xl border border-red-100 text-sm">
+                    {error}
+                  </div>
+                )}
+                <input
+                  type="password"
+                  required
+                  placeholder="Senha atual"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/50 mb-4"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPasswordPrompt(false);
+                      setPendingEmail('');
+                      setCurrentPassword('');
+                      setError('');
+                    }}
+                    className="flex-1 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="flex-1 py-2.5 bg-forest text-white font-bold rounded-xl hover:bg-forest/90 transition-colors disabled:opacity-70 flex justify-center items-center"
+                  >
+                    {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirmar'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* OTP Prompt Modal for Email Update */}
+      {showOtpPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <Mail className="w-12 h-12 text-forest mx-auto mb-4" />
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Código enviado!</h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Enviamos um código de 6 dígitos para <strong>{pendingEmail}</strong>. Insira-o abaixo para concluir a alteração.
+              </p>
+              <form onSubmit={handleVerifyEmailUpdate}>
+                {error && (
+                  <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-xl border border-red-100 text-sm text-left">
+                    {error}
+                  </div>
+                )}
+                <input
+                  type="text"
+                  required
+                  maxLength={6}
+                  placeholder="000000"
+                  className="w-full text-center tracking-[0.5em] text-2xl px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/50 mb-6 font-mono"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowOtpPrompt(false);
+                      setPendingEmail('');
+                      setOtpCode('');
+                      setError('');
+                    }}
+                    className="flex-1 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving || otpCode.length !== 6}
+                    className="flex-1 py-2.5 bg-forest text-white font-bold rounded-xl hover:bg-forest/90 transition-colors disabled:opacity-70 flex justify-center items-center"
+                  >
+                    {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Verificar'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
