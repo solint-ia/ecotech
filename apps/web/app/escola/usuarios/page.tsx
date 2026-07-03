@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { getImageUrl } from '../../../lib/image-url';
+import ConfirmModal from '../../../components/shared/ConfirmModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -102,12 +103,16 @@ function EscolaUsersPageContent() {
   };
 
   const [unlinkingId, setUnlinkingId] = useState<string | null>(null);
+  const [confirmModalData, setConfirmModalData] = useState<{ isOpen: boolean, userId: string, userName: string } | null>(null);
 
-  const handleUnlink = async (userId: string, userName: string) => {
-    if (!confirm(`Tem certeza que deseja desvincular o usuário ${userName} da sua escola? Ele perderá todos os acessos institucionais.`)) {
-      return;
-    }
+  const handleUnlink = (userId: string, userName: string) => {
+    setConfirmModalData({ isOpen: true, userId, userName });
+  };
+
+  const executeUnlink = async () => {
+    if (!confirmModalData) return;
     
+    const { userId } = confirmModalData;
     setUnlinkingId(userId);
     try {
       const res = await fetch(`${API_URL}/users/${userId}/unlink`, {
@@ -119,7 +124,7 @@ function EscolaUsersPageContent() {
       
       // Update locally
       setUsers(prev => prev.filter(u => u.id !== userId));
-      alert('Usuário desvinculado com sucesso.');
+      setConfirmModalData(null);
     } catch (err) {
       console.error(err);
       alert('Erro ao desvincular usuário.');
@@ -312,6 +317,23 @@ function EscolaUsersPageContent() {
           </div>
         )}
       </div>
+
+      {confirmModalData?.isOpen && (
+        <ConfirmModal
+          title="Desvincular Usuário"
+          description={
+            <>
+              Tem certeza que deseja desvincular o usuário <strong>{confirmModalData.userName}</strong> da sua escola? 
+              Ele perderá imediatamente todos os acessos institucionais vinculados à sua escola.
+            </>
+          }
+          onConfirm={executeUnlink}
+          onCancel={() => setConfirmModalData(null)}
+          confirmText="Desvincular"
+          isLoading={unlinkingId === confirmModalData.userId}
+          isDestructive={true}
+        />
+      )}
     </div>
   );
 }

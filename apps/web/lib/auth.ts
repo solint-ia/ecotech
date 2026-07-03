@@ -66,20 +66,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.accessToken = (user as any).accessToken;
       }
       if (trigger === 'update' && session) {
-        if (session.name) token.name = session.name;
-        if (session.email) token.email = session.email;
-        if (session.profileImage !== undefined) token.profileImage = session.profileImage;
-        if (session.role !== undefined) {
-          token.realRole = session.role;
-          const isPendingOrRejected = (session.roleStatus || token.roleStatus) === 'PENDENTE' || (session.roleStatus || token.roleStatus) === 'REPROVADO';
-          token.role = isPendingOrRejected ? 'USER' : session.role;
+        const data = session.user || session;
+        if (data.name) token.name = data.name;
+        if (data.email) token.email = data.email;
+        if (data.profileImage !== undefined) token.profileImage = data.profileImage;
+        if (data.role !== undefined) {
+          token.realRole = data.role;
+          const isPendingOrRejected = (data.roleStatus || token.roleStatus) === 'PENDENTE' || (data.roleStatus || token.roleStatus) === 'REPROVADO';
+          token.role = isPendingOrRejected ? 'USER' : data.role;
         }
-        if (session.roleStatus !== undefined) {
-          token.roleStatus = session.roleStatus;
-          const isPendingOrRejected = session.roleStatus === 'PENDENTE' || session.roleStatus === 'REPROVADO';
+        if (data.roleStatus !== undefined) {
+          token.roleStatus = data.roleStatus;
+          const isPendingOrRejected = data.roleStatus === 'PENDENTE' || data.roleStatus === 'REPROVADO';
           token.role = isPendingOrRejected ? 'USER' : (token.realRole as string);
         }
-        if (session.schoolId !== undefined) token.schoolId = session.schoolId;
+        if (data.schoolId !== undefined) token.schoolId = data.schoolId;
       }
       return token;
     },
@@ -98,5 +99,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   pages: {
     signIn: '/login',
+  },
+  session: {
+    strategy: 'jwt',
+    maxAge: 60 * 60, // 1 hora
   },
 });
