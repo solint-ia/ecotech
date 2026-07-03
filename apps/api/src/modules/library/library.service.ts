@@ -76,6 +76,8 @@ export class LibraryService {
     const where: any = { userId: user.id };
     if (query.status === 'PUBLISHED') {
       where.approvalStatus = ApprovalStatus.APROVADO;
+    } else if (query.status === 'REJECTED') {
+      where.approvalStatus = ApprovalStatus.REPROVADO;
     } else if (query.status === 'PENDING') {
       where.approvalStatus = { in: [ApprovalStatus.PENDENTE, ApprovalStatus.REPROVADO] };
     }
@@ -103,8 +105,11 @@ export class LibraryService {
 
   async create(dto: CreateLibraryContentDto, user: { id: string; role: string; schoolId?: string }) {
     // Admin directly publishes. Others send to pending.
-    const approvalStatus = user.role === 'ADMIN' ? ApprovalStatus.APROVADO : ApprovalStatus.PENDENTE;
-    const publishedAt = user.role === 'ADMIN' ? new Date() : null;
+    // Commented out approval flow:
+    // const approvalStatus = user.role === 'ADMIN' ? ApprovalStatus.APROVADO : ApprovalStatus.PENDENTE;
+    // const publishedAt = user.role === 'ADMIN' ? new Date() : null;
+    const approvalStatus = ApprovalStatus.APROVADO;
+    const publishedAt = new Date();
 
     return this.prisma.libraryContent.create({
       data: {
@@ -130,6 +135,8 @@ export class LibraryService {
       throw new ForbiddenException('Não autorizado.');
     }
 
+    // Commented out to allow direct edits instead of creating pending drafts:
+    /*
     if (content.approvalStatus === 'APROVADO' && user.role !== 'ADMIN') {
       // Create a draft instead of editing directly
       return this.prisma.libraryContent.create({
@@ -147,6 +154,7 @@ export class LibraryService {
         }
       });
     }
+    */
 
     // Direct edit
     return this.prisma.libraryContent.update({

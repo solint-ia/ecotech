@@ -11,6 +11,7 @@ enum Role {
   SCHOOL_MANAGER
   TEACHER
   STUDENT
+  USER
 }
 
 enum PointType {
@@ -66,7 +67,7 @@ model User {
   email           String           @unique
   phone           String?
   password        String
-  role            Role             @default(STUDENT)
+  role            Role             @default(USER)
   roleStatus      ApprovalStatus   @default(APROVADO)
   schoolId        String?
   profileImage    String?

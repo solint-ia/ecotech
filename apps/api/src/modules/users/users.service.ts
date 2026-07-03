@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -64,6 +64,17 @@ export class UsersService {
       if (data.phone) updateData.phone = data.phone;
       if (publicUrl) updateData.profileImage = publicUrl;
   
+      if (data.schoolId !== undefined && data.schoolId !== currentUser.schoolId) {
+        updateData.schoolId = data.schoolId || null;
+        if (data.schoolId) {
+          updateData.role = 'USER' as any;
+          updateData.roleStatus = 'PENDENTE';
+        } else {
+          updateData.role = 'USER' as any;
+          updateData.roleStatus = 'APROVADO';
+        }
+      }
+
       await this.prisma.user.update({
         where: { id: userId },
         data: updateData,
@@ -88,7 +99,11 @@ export class UsersService {
 
     if (currentUser.role === 'SCHOOL_MANAGER' && currentUser.schoolId) {
       const users = await this.prisma.user.findMany({
-        where: { role: 'TEACHER', roleStatus: { in: ['PENDENTE', 'REPROVADO'] }, schoolId: currentUser.schoolId },
+        where: { 
+          role: { in: ['TEACHER', 'USER' as any] },  
+          roleStatus: { in: ['PENDENTE', 'REPROVADO'] }, 
+          schoolId: currentUser.schoolId 
+        },
         orderBy: { createdAt: 'desc' }
       });
       return users.map(user => {
@@ -100,20 +115,44 @@ export class UsersService {
     return [];
   }
 
-  async approveUser(userId: string) {
+  async approveUser(userId: string, currentUser?: any) {
+    // If a SCHOOL_MANAGER is approving, the user becomes a TEACHER
+    const newRole = currentUser?.role === 'SCHOOL_MANAGER' ? 'TEACHER' : undefined;
+    
     const user = await this.prisma.user.update({
       where: { id: userId },
-      data: { roleStatus: 'APROVADO' }
+      data: newRole ? { roleStatus: 'APROVADO', role: newRole } : { roleStatus: 'APROVADO' }
     });
-    return { success: true, user: { id: user.id, roleStatus: user.roleStatus } };
+    return { success: true, user: { id: user.id, roleStatus: user.roleStatus, role: user.role } };
   }
 
-  async rejectUser(userId: string) {
+  async rejectUser(userId: string, currentUser?: any) {
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: { roleStatus: 'REPROVADO' }
     });
     return { success: true, user: { id: user.id, roleStatus: user.roleStatus } };
+  }
+
+  async unlinkUser(userId: string, currentUser: any) {
+    const userToUnlink = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!userToUnlink) throw new NotFoundException('Usuário não encontrado.');
+    
+    // Ensure the school manager only unlinks users from their own school
+    if (userToUnlink.schoolId !== currentUser.schoolId) {
+      throw new ForbiddenException('Você não tem permissão para desvincular este usuário.');
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: { 
+        schoolId: null, 
+        role: 'USER' as any, 
+        roleStatus: 'APROVADO' 
+      }
+    });
+
+    return { success: true, user: { id: updatedUser.id, role: updatedUser.role } };
   }
 
   async findAllForAdmin(params: { page: number; limit: number; search?: string; role?: string }) {

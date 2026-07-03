@@ -59,7 +59,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.roleStatus = (user as any).roleStatus;
         
         const isPendingOrRejected = token.roleStatus === 'PENDENTE' || token.roleStatus === 'REPROVADO';
-        token.role = isPendingOrRejected ? 'STUDENT' : token.realRole;
+        token.role = isPendingOrRejected ? 'USER' : token.realRole;
         
         token.schoolId = (user as any).schoolId;
         token.profileImage = (user as any).profileImage;
@@ -69,6 +69,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (session.name) token.name = session.name;
         if (session.email) token.email = session.email;
         if (session.profileImage !== undefined) token.profileImage = session.profileImage;
+        if (session.role !== undefined) {
+          token.realRole = session.role;
+          const isPendingOrRejected = (session.roleStatus || token.roleStatus) === 'PENDENTE' || (session.roleStatus || token.roleStatus) === 'REPROVADO';
+          token.role = isPendingOrRejected ? 'USER' : session.role;
+        }
+        if (session.roleStatus !== undefined) {
+          token.roleStatus = session.roleStatus;
+          const isPendingOrRejected = session.roleStatus === 'PENDENTE' || session.roleStatus === 'REPROVADO';
+          token.role = isPendingOrRejected ? 'USER' : (token.realRole as string);
+        }
+        if (session.schoolId !== undefined) token.schoolId = session.schoolId;
       }
       return token;
     },

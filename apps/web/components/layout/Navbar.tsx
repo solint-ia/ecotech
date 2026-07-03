@@ -147,14 +147,16 @@ export default function Navbar() {
                   {user?.role && (
                     <span className="inline-block mt-2.5 text-[10px] font-bold uppercase tracking-wider text-secondary bg-secondary/10 px-2.5 py-1 rounded-full">
                       {user.roleStatus === 'PENDENTE'
-                        ? 'Usuário'
+                        ? 'Aprovação Pendente'
                         : user.role === 'ADMIN'
                           ? 'Administrador'
                           : user.role === 'SCHOOL_MANAGER'
                             ? 'Gestor de Escola'
                             : user.role === 'TEACHER'
                               ? 'Professor'
-                              : 'Estudante'}
+                              : user.role === 'USER'
+                                ? 'Usuário'
+                                : 'Estudante'}
                     </span>
                   )}
                 </div>

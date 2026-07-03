@@ -73,13 +73,24 @@ export class UsersController {
   }
 
   @Patch(':id/approve')
-  approveUser(@Param('id') id: string) {
-    return this.usersService.approveUser(id);
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SCHOOL_MANAGER')
+  approveUser(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.usersService.approveUser(id, user);
   }
 
   @Patch(':id/reject')
-  rejectUser(@Param('id') id: string) {
-    return this.usersService.rejectUser(id);
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SCHOOL_MANAGER')
+  rejectUser(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.usersService.rejectUser(id, user);
+  }
+
+  @Patch(':id/unlink')
+  @UseGuards(RolesGuard)
+  @Roles('SCHOOL_MANAGER')
+  unlinkUser(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.usersService.unlinkUser(id, user);
   }
 
   @Get(':id')

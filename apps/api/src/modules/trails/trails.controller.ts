@@ -210,11 +210,19 @@ export class TrailsController {
   @Roles('ADMIN', 'SCHOOL_MANAGER')
   @Delete('photos/:photoId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  removePhoto(@Param('photoId') photoId: string, @CurrentUser() user: any) {
-    return this.trailsService.removePhoto(photoId, {
+  async removePhoto(@Param('photoId') photoId: string, @CurrentUser() user: any) {
+    const deletedPhoto = await this.trailsService.removePhoto(photoId, {
       id: user.id,
       role: user.role,
       schoolId: user.schoolId,
     });
+
+    if (deletedPhoto?.image) {
+      await this.supabaseService.deleteFile(deletedPhoto.image).catch(e => 
+        console.error('Falha ao excluir arquivo do Supabase:', e)
+      );
+    }
+    
+    return deletedPhoto;
   }
 }

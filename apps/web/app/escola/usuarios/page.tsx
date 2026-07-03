@@ -16,6 +16,7 @@ function getRoleLabel(role: string) {
   switch (role) {
     case 'TEACHER': return 'Professor';
     case 'STUDENT': return 'Estudante';
+    case 'USER': return 'Usuário';
     default: return role;
   }
 }
@@ -24,6 +25,7 @@ function getRoleColor(role: string) {
   switch (role) {
     case 'TEACHER': return 'bg-orange-100 text-orange-700 border-orange-200';
     case 'STUDENT': return 'bg-green-100 text-green-700 border-green-200';
+    case 'USER': return 'bg-slate-100 text-slate-700 border-slate-200';
     default: return 'bg-gray-100 text-gray-700 border-gray-200';
   }
 }
@@ -99,6 +101,33 @@ function EscolaUsersPageContent() {
     fetchUsers(newPage, search, statusFilter);
   };
 
+  const [unlinkingId, setUnlinkingId] = useState<string | null>(null);
+
+  const handleUnlink = async (userId: string, userName: string) => {
+    if (!confirm(`Tem certeza que deseja desvincular o usuário ${userName} da sua escola? Ele perderá todos os acessos institucionais.`)) {
+      return;
+    }
+    
+    setUnlinkingId(userId);
+    try {
+      const res = await fetch(`${API_URL}/users/${userId}/unlink`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${user.accessToken}` }
+      });
+      
+      if (!res.ok) throw new Error('Falha ao desvincular usuário');
+      
+      // Update locally
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      alert('Usuário desvinculado com sucesso.');
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao desvincular usuário.');
+    } finally {
+      setUnlinkingId(null);
+    }
+  };
+
   if (status === 'loading') {
     return <div className="p-12 text-center text-foreground/50">Verificando permissões...</div>;
   }
@@ -171,7 +200,8 @@ function EscolaUsersPageContent() {
                 <th className="px-6 py-4 rounded-tl-2xl">Usuário</th>
                 <th className="px-6 py-4">Tipo (Role)</th>
                 <th className="px-6 py-4">Data de Cadastro</th>
-                <th className="px-6 py-4 rounded-tr-2xl">Status</th>
+                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4 rounded-tr-2xl text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 md:divide-y p-4 md:p-0 block md:table-row-group">
@@ -230,6 +260,21 @@ function EscolaUsersPageContent() {
                           <span className="inline-flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded-full">
                             <XCircle className="w-3 h-3" /> Suspenso
                           </span>
+                        )}
+                      </div>
+                    </td>
+                    
+                    <td className="block md:table-cell mb-2 md:mb-0 px-0 md:px-6 md:py-4 text-right">
+                      <div className="flex justify-between items-center md:table-cell md:justify-end">
+                        <span className="text-xs text-gray-500 md:hidden">Ações:</span>
+                        {u.role !== 'SCHOOL_MANAGER' && (
+                          <button
+                            onClick={() => handleUnlink(u.id, u.name)}
+                            disabled={unlinkingId === u.id}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+                          >
+                            {unlinkingId === u.id ? 'Desvinculando...' : 'Desvincular'}
+                          </button>
                         )}
                       </div>
                     </td>

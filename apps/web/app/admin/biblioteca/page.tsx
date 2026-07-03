@@ -114,7 +114,7 @@ export default function AdminBibliotecaPage() {
           Gerenciamento da Biblioteca
         </h1>
         <p className="text-foreground/70 text-sm">
-          Aprove novos materiais pendentes e gerencie ou exclua os conteúdos já publicados na plataforma.
+          Gerencie, reprove ou exclua os conteúdos publicados na biblioteca da plataforma.
         </p>
       </div>
 
@@ -163,11 +163,6 @@ export default function AdminBibliotecaPage() {
                       {new Date(sub.createdAt).toLocaleDateString('pt-BR')}
                     </td>
                     <td className="p-4">
-                      {sub.approvalStatus === 'PENDENTE' && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs font-bold">
-                          <Clock className="w-3.5 h-3.5" /> PENDENTE
-                        </span>
-                      )}
                       {sub.approvalStatus === 'APROVADO' && (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">
                           <CheckCircle2 className="w-3.5 h-3.5" /> APROVADO

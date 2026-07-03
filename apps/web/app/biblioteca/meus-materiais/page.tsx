@@ -27,7 +27,7 @@ export default function MyMaterialsPage() {
 
   const [materials, setMaterials] = useState<MyMaterial[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState<'PUBLISHED' | 'PENDING'>('PUBLISHED');
+  const [filterStatus, setFilterStatus] = useState<'PUBLISHED' | 'REJECTED'>('PUBLISHED');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -98,7 +98,7 @@ export default function MyMaterialsPage() {
             Meus Materiais
           </h1>
           <p className="text-foreground/70 text-sm mt-1">
-            Gerencie os conteúdos que você publicou ou enviou para análise.
+            Gerencie os conteúdos que você publicou ou que foram reprovados.
           </p>
         </div>
       </div>
@@ -114,12 +114,12 @@ export default function MyMaterialsPage() {
             Publicados
           </button>
           <button
-            onClick={() => setFilterStatus('PENDING')}
+            onClick={() => setFilterStatus('REJECTED')}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-              filterStatus === 'PENDING' ? 'bg-primary text-white' : 'text-primary hover:bg-beige'
+              filterStatus === 'REJECTED' ? 'bg-primary text-white' : 'text-primary hover:bg-beige'
             }`}
           >
-            Em Análise / Pendentes
+            Reprovados
           </button>
         </div>
       )}
@@ -161,11 +161,6 @@ export default function MyMaterialsPage() {
                         {new Date(sub.createdAt).toLocaleDateString('pt-BR')}
                       </span>
                       <div>
-                        {sub.approvalStatus === 'PENDENTE' && (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-[10px] font-bold">
-                            <Clock className="w-3 h-3" /> PENDENTE
-                          </span>
-                        )}
                         {sub.approvalStatus === 'APROVADO' && (
                           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold">
                             <CheckCircle2 className="w-3 h-3" /> APROVADO
@@ -238,11 +233,6 @@ export default function MyMaterialsPage() {
                         {new Date(sub.createdAt).toLocaleDateString('pt-BR')}
                       </td>
                       <td className="p-4">
-                        {sub.approvalStatus === 'PENDENTE' && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs font-bold">
-                            <Clock className="w-3.5 h-3.5" /> PENDENTE
-                          </span>
-                        )}
                         {sub.approvalStatus === 'APROVADO' && (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">
                             <CheckCircle2 className="w-3.5 h-3.5" /> APROVADO

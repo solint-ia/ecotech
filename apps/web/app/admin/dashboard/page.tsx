@@ -148,21 +148,6 @@ export default function AdminDashboardPage() {
         <MetricCard title="Pontos Educ." value={metrics.totalPoints} icon={MapPin} />
         <MetricCard title="Publicações" value={metrics.totalPosts} icon={MessageSquare} />
         <MetricCard title="Biblioteca" value={metrics.totalLibrary} icon={Library} />
-        
-        <div className={`rounded-2xl p-4 shadow-sm flex flex-col justify-between transition-colors border ${metrics.pendingLibrary > 0 ? 'bg-white border-[#D97757]/30 hover:border-[#D97757]/60' : 'bg-white border-border-custom hover:border-forest/30'}`}>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold tracking-wider text-foreground/50 uppercase">Pendentes (Bib.)</span>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${metrics.pendingLibrary > 0 ? 'bg-[#D97757]/10 text-[#D97757]' : 'bg-beige text-foreground/60'}`}>
-              <Clock className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-end justify-between mt-2">
-            <span className={`text-3xl font-bold ${metrics.pendingLibrary > 0 ? 'text-[#D97757]' : 'text-emerald-950'}`}>{metrics.pendingLibrary}</span>
-            <Link href="/admin/biblioteca" className={`text-xs font-semibold hover:underline ${metrics.pendingLibrary > 0 ? 'text-[#D97757]' : 'text-forest'}`}>
-              Avaliar
-            </Link>
-          </div>
-        </div>
       </div>
 
       {/* Main Content Grid */}

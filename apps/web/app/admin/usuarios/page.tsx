@@ -18,6 +18,7 @@ function getRoleLabel(role: string) {
     case 'SCHOOL_MANAGER': return 'Escola';
     case 'TEACHER': return 'Professor';
     case 'STUDENT': return 'Estudante';
+    case 'USER': return 'Usuário';
     default: return role;
   }
 }
@@ -28,6 +29,7 @@ function getRoleColor(role: string) {
     case 'SCHOOL_MANAGER': return 'bg-blue-100 text-blue-700 border-blue-200';
     case 'TEACHER': return 'bg-orange-100 text-orange-700 border-orange-200';
     case 'STUDENT': return 'bg-green-100 text-green-700 border-green-200';
+    case 'USER': return 'bg-slate-100 text-slate-700 border-slate-200';
     default: return 'bg-gray-100 text-gray-700 border-gray-200';
   }
 }

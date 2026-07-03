@@ -163,11 +163,14 @@ export class AuthService {
     // SECURITY FIX: Prevent Privilege Escalation
     // Block users from registering as ADMIN via public endpoints
     const allowedPublicRoles = ['STUDENT', 'SCHOOL_MANAGER', 'TEACHER'];
-    const assignedRole = (registerDto.role && allowedPublicRoles.includes(registerDto.role))
+    const requestedRole = (registerDto.role && allowedPublicRoles.includes(registerDto.role))
       ? registerDto.role
       : 'STUDENT';
 
-    const roleStatus = (assignedRole === 'SCHOOL_MANAGER' || assignedRole === 'TEACHER') ? 'PENDENTE' : 'APROVADO';
+    const roleStatus = (requestedRole === 'SCHOOL_MANAGER' || requestedRole === 'TEACHER') ? 'PENDENTE' : 'APROVADO';
+    
+    // As per requirement: someone registering as a teacher stays as a user until approved
+    const assignedRole = requestedRole === 'TEACHER' ? 'USER' : requestedRole;
 
     const user = await this.prisma.user.create({
       data: {
@@ -175,7 +178,7 @@ export class AuthService {
         email: registerDto.email,
         phone: registerDto.phone,
         password: hashedPassword,
-        role: assignedRole,
+        role: assignedRole as any,
         roleStatus: roleStatus,
         schoolId: schoolId || null,
         profileImage: publicUrl || null,

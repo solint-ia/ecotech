@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { getImageUrl } from '../../lib/image-url';
+import ConfirmDeleteModal from '../feed/ConfirmDeleteModal';
 
 interface TrailPhoto {
   id: string;
@@ -41,6 +42,9 @@ export function TrailGallery({ trailId, trailSchoolId, photos: initialPhotos }: 
   // Lightbox state
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [photoToDelete, setPhotoToDelete] = useState<string | null>(null);
 
   // Sync if parent re-renders with new data (e.g. on navigation)
   useEffect(() => {
@@ -105,18 +109,22 @@ export function TrailGallery({ trailId, trailSchoolId, photos: initialPhotos }: 
   };
 
   // ---------- Delete ----------
-  const handleDelete = async (photoId: string, e?: React.MouseEvent) => {
-    // Prevent opening the lightbox when clicking delete
+  const confirmDelete = (photoId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
+    setPhotoToDelete(photoId);
+    setIsDeleteModalOpen(true);
+  };
 
-    if (!confirm('Tem certeza que deseja excluir esta foto?')) return;
+  const handleDelete = async () => {
+    if (!photoToDelete) return;
 
-    setDeletingId(photoId);
+    setIsDeleteModalOpen(false);
+    setDeletingId(photoToDelete);
     try {
       const token = user?.accessToken;
 
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/trails/photos/${photoId}`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/trails/photos/${photoToDelete}`,
         {
           method: 'DELETE',
           headers: {
@@ -130,11 +138,11 @@ export function TrailGallery({ trailId, trailSchoolId, photos: initialPhotos }: 
       }
 
       // Instant UI update — remove the photo from local state
-      setPhotos((prev) => prev.filter((p) => p.id !== photoId));
+      setPhotos((prev) => prev.filter((p) => p.id !== photoToDelete));
 
       // If lightbox is open and we deleted the current photo, adjust
       if (lightboxOpen) {
-        const newPhotos = photos.filter((p) => p.id !== photoId);
+        const newPhotos = photos.filter((p) => p.id !== photoToDelete);
         if (newPhotos.length === 0) {
           setLightboxOpen(false);
         } else if (lightboxIndex >= newPhotos.length) {
@@ -146,6 +154,7 @@ export function TrailGallery({ trailId, trailSchoolId, photos: initialPhotos }: 
       alert('Erro ao excluir imagem.');
     } finally {
       setDeletingId(null);
+      setPhotoToDelete(null);
     }
   };
 
@@ -253,7 +262,7 @@ export function TrailGallery({ trailId, trailSchoolId, photos: initialPhotos }: 
                 {/* Delete button */}
                 {canManage && (
                   <button
-                    onClick={(e) => handleDelete(photo.id, e)}
+                    onClick={(e) => confirmDelete(photo.id, e)}
                     disabled={deletingId === photo.id}
                     className="absolute top-2.5 right-2.5 bg-red-600/90 hover:bg-red-700 text-white p-2 rounded-lg opacity-0 group-hover/photo:opacity-100 transition-all disabled:opacity-50 shadow-md hover:scale-110 active:scale-95"
                     title="Excluir imagem"
@@ -311,7 +320,7 @@ export function TrailGallery({ trailId, trailSchoolId, photos: initialPhotos }: 
             {/* Delete in lightbox (for admins) */}
             {canManage && (
               <button
-                onClick={(e) => handleDelete(photos[lightboxIndex].id, e)}
+                onClick={(e) => confirmDelete(photos[lightboxIndex].id, e)}
                 disabled={deletingId === photos[lightboxIndex].id}
                 className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 bg-red-600/80 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-all z-20 flex items-center gap-2 backdrop-blur disabled:opacity-50"
                 title="Excluir imagem"
@@ -377,6 +386,20 @@ export function TrailGallery({ trailId, trailSchoolId, photos: initialPhotos }: 
           }
         }
       `}</style>
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <ConfirmDeleteModal
+          title="Excluir Foto"
+          description="Tem certeza que deseja excluir esta foto da galeria? Esta ação não poderá ser desfeita."
+          onConfirm={handleDelete}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setPhotoToDelete(null);
+          }}
+          loading={!!deletingId}
+        />
+      )}
     </>
   );
 }

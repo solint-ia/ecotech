@@ -32,6 +32,8 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [schoolId, setSchoolId] = useState('');
+  const [schools, setSchools] = useState<any[]>([]);
   const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   
@@ -51,8 +53,21 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
     if (status === 'authenticated' && user?.accessToken) {
       fetchProfile();
       fetchPosts();
+      if (isOwner) fetchSchools();
     }
-  }, [status, user, router, profileId]);
+  }, [status, user, router, profileId, isOwner]);
+
+  const fetchSchools = async () => {
+    try {
+      const res = await fetch(`${API_URL}/schools?limit=100`);
+      if (res.ok) {
+        const data = await res.json();
+        setSchools(data || []);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar escolas:', err);
+    }
+  };
 
   const fetchProfile = async () => {
     try {
@@ -100,6 +115,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       setName(data.name || '');
       setEmail(data.email || '');
       setPhone(data.phone || '');
+      setSchoolId(data.schoolId || '');
       setPreviewImage(data.profileImage ? getImageUrl(data.profileImage) : null);
       setProfileImageFile(null);
     }
@@ -131,6 +147,9 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       const formData = new FormData();
       formData.append('name', name);
       formData.append('phone', phone);
+      if (schoolId !== undefined) {
+        formData.append('schoolId', schoolId);
+      }
       if (profileImageFile) {
         formData.append('profileImage', profileImageFile);
       }
@@ -151,12 +170,14 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       const updatedUser = await res.json();
       setProfileData(updatedUser);
       
-      if (updatedUser.name !== user.name || profileImageFile) {
-        await update({
-          name: updatedUser.name,
-          profileImage: updatedUser.profileImage
-        }); 
-      }
+      // Always refresh the session with latest data from the API
+      await update({
+        name: updatedUser.name,
+        profileImage: updatedUser.profileImage,
+        role: updatedUser.role,
+        roleStatus: updatedUser.roleStatus,
+        schoolId: updatedUser.schoolId,
+      });
 
       // Check if email was changed
       if (email.trim() !== user.email && email.trim() !== '') {
@@ -262,7 +283,8 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
     ADMIN: 'Administrador',
     SCHOOL_MANAGER: 'Gestor de Escola',
     TEACHER: 'Professor',
-    STUDENT: 'Estudante'
+    STUDENT: 'Estudante',
+    USER: 'Usuário'
   };
 
   const initials = profileData.name
@@ -328,7 +350,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
                   <span className="bg-forest/10 text-forest border border-forest/20 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
                     {profileData.roleStatus === 'PENDENTE' 
-                      ? 'Usuário' 
+                      ? 'Aprovação Pendente' 
                       : roleLabels[profileData.role] || profileData.role}
                   </span>
                   {profileData.roleStatus !== 'PENDENTE' && profileData.school && (
@@ -408,6 +430,27 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                   placeholder="(00) 00000-0000"
                 />
               </div>
+
+              {profileData.role !== 'SCHOOL_MANAGER' && profileData.role !== 'ADMIN' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Escola Vinculada</label>
+                  <select
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
+                    value={schoolId || ''}
+                    onChange={(e) => setSchoolId(e.target.value)}
+                  >
+                    <option value="">Nenhuma escola</option>
+                    {schools.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                  {schoolId !== profileData.schoolId && (
+                    <p className="text-xs text-amber-600 mt-2 bg-amber-50 p-2 rounded-lg border border-amber-100">
+                      ⚠️ Ao alterar sua escola, seus acessos de professor (se houver) serão revogados e seu perfil entrará em status <b>Pendente</b> até que o novo gestor escolar o aprove.
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="pt-4 flex gap-3">
                 <button

@@ -170,14 +170,10 @@ export default function EscolaDashboardPage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="bg-[#EAF4EE] rounded-xl p-3 text-center border border-emerald-800/15">
               <span className="block text-xl font-bold text-emerald-900">{libraryStats.approved}</span>
               <span className="text-[10px] font-bold text-forest uppercase tracking-wider">Aprovados</span>
-            </div>
-            <div className="bg-amber-50 rounded-xl p-3 text-center border border-amber-200/50">
-              <span className="block text-xl font-bold text-amber-700">{libraryStats.pending}</span>
-              <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Pendentes</span>
             </div>
             <div className="bg-red-50 rounded-xl p-3 text-center border border-red-100">
               <span className="block text-xl font-bold text-red-600">{libraryStats.rejected}</span>
@@ -199,7 +195,6 @@ export default function EscolaDashboardPage() {
                     </div>
                     <div>
                       {sub.approvalStatus === 'APROVADO' && <span title="Aprovado"><CheckCircle2 className="w-5 h-5 text-emerald-500" /></span>}
-                      {sub.approvalStatus === 'PENDENTE' && <span title="Pendente"><Clock className="w-5 h-5 text-amber-500" /></span>}
                       {sub.approvalStatus === 'REPROVADO' && <span title="Reprovado"><XCircle className="w-5 h-5 text-red-500" /></span>}
                     </div>
                   </li>
