@@ -72,6 +72,18 @@ import { RedisThrottlerStorageService } from './common/throttler/redis-throttler
       },
       inject: [ConfigService],
     }),
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        throttlers: [
+          { name: 'short', ttl: 1000, limit: 3 },
+          { name: 'medium', ttl: 10000, limit: 40 },
+          { name: 'default', ttl: 60000, limit: 300 },
+        ],
+        storage: new RedisThrottlerStorageService(configService),
+      }),
+    }),
     AuthModule,
     PrismaModule,
     SchoolsModule,
@@ -92,7 +104,13 @@ import { RedisThrottlerStorageService } from './common/throttler/redis-throttler
     SupabaseModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}
 

@@ -15,6 +15,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { StoriesService } from './stories.service';
@@ -32,6 +33,7 @@ export class StoriesController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('image', { storage }))
   async create(

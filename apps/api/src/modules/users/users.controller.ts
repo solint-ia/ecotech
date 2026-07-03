@@ -1,4 +1,5 @@
 import { Controller, Get, Patch, Body, UseGuards, UseInterceptors, UploadedFile, Param, Query } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { UsersService } from './users.service';
@@ -99,6 +100,7 @@ export class UsersController {
   }
 
   @Patch('me')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @UseInterceptors(
     FileInterceptor('profileImage', {
       storage: memoryStorage(),

@@ -40,7 +40,7 @@ export default function CriarTrilhaPage() {
         headers: { Authorization: `Bearer ${user.accessToken}` },
       })
       .then(res => res.json())
-      .then(data => setSchools(data))
+      .then(data => setSchools(Array.isArray(data) ? data : data.data || []))
       .catch(console.error);
     }
   }, [user]);

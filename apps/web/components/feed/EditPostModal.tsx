@@ -43,7 +43,7 @@ export default function EditPostModal({
   useEffect(() => {
     fetch(`${API_URL}/schools`)
       .then((r) => r.json())
-      .then((data) => setSchools(Array.isArray(data) ? data : []))
+      .then((data) => setSchools(Array.isArray(data) ? data : data.data || []))
       .catch(() => {});
 
     fetch(`${API_URL}/trails`)

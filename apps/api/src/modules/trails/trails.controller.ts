@@ -15,6 +15,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
+import { Throttle } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { TrailsService } from './trails.service';
@@ -112,6 +113,7 @@ export class TrailsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SCHOOL_MANAGER', 'TEACHER')
   @Post()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('coverImage', { storage }))
   async create(
@@ -133,6 +135,7 @@ export class TrailsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SCHOOL_MANAGER', 'TEACHER')
   @Patch(':id')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @UseInterceptors(FileInterceptor('coverImage', { storage }))
   async update(
     @Param('id') id: string,
@@ -188,6 +191,7 @@ export class TrailsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SCHOOL_MANAGER')
   @Post(':id/photos')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @UseInterceptors(FileInterceptor('image', { storage }))
   async addPhoto(
     @Param('id') id: string,

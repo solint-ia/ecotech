@@ -77,7 +77,7 @@ export default function LoginPage() {
         const res = await fetch(`${apiBaseUrl}/schools`);
         if (res.ok) {
           const data = await res.json();
-          setSchools(data);
+          setSchools(Array.isArray(data) ? data : data.data || []);
         }
       } catch (err) {
         console.error('Failed to fetch schools', err);

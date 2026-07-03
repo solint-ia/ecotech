@@ -1,4 +1,5 @@
 import { Controller, Post, Body, Res, HttpCode, HttpStatus, UseInterceptors, UploadedFile, BadRequestException, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -14,7 +15,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly supabaseService: SupabaseService,
-  ) {}
+  ) { }
 
   @Post('check-availability')
   @HttpCode(HttpStatus.OK)
@@ -23,12 +24,14 @@ export class AuthController {
   }
 
   @Post('send-register-otp')
+  @Throttle({ default: { limit: 3, ttl: 600000 } })
   @HttpCode(HttpStatus.OK)
   async sendRegisterOtp(@Body() body: { email: string; phone?: string; cpfManager?: string; cnpj?: string }) {
     return this.authService.sendRegisterOtp(body);
   }
 
   @Post('register')
+  @Throttle({ default: { limit: 10, ttl: 3600000 } })
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('profileImage', {
     storage: memoryStorage(),
@@ -41,14 +44,14 @@ export class AuthController {
     if (!registerDto.otp) {
       throw new BadRequestException('Código OTP é obrigatório.');
     }
-    
+
     let publicUrl: string | undefined;
     if (file) {
       publicUrl = await this.supabaseService.uploadFile(file, 'avatars');
     }
-    
+
     const user = await this.authService.register(registerDto, registerDto.otp, publicUrl);
-    
+
     // Auto-login since OTP is already verified at this stage
     const result = await this.authService.login(user);
 
@@ -63,6 +66,7 @@ export class AuthController {
   }
 
   @Post('verify-email')
+  @Throttle({ default: { limit: 5, ttl: 900000 } })
   @HttpCode(HttpStatus.OK)
   async verifyEmail(
     @Body() body: { email: string; token: string },
@@ -70,9 +74,9 @@ export class AuthController {
   ) {
     // Left for backwards compatibility or manual verification
     const { user } = await this.authService.verifyEmail(body.email, body.token);
-    
+
     const result = await this.authService.login(user);
-    
+
     response.cookie('token', result.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -84,12 +88,14 @@ export class AuthController {
   }
 
   @Post('forgot-password')
+  @Throttle({ default: { limit: 3, ttl: 600000 } })
   @HttpCode(HttpStatus.OK)
   async forgotPassword(@Body() body: { email: string }) {
     return this.authService.forgotPassword(body.email);
   }
 
   @Post('verify-reset-otp')
+  @Throttle({ default: { limit: 3, ttl: 600000 } })
   @HttpCode(HttpStatus.OK)
   async verifyResetOtp(@Body() body: { email: string; token: string }) {
     return this.authService.verifyResetOtp(body.email, body.token);
@@ -102,6 +108,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @Throttle({ default: { limit: 10, ttl: 900000 } })
   @HttpCode(HttpStatus.OK)
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) response: express.Response) {
     const user = await this.authService.validateUser(loginDto);
@@ -130,6 +137,7 @@ export class AuthController {
   }
 
   @Post('request-email-update')
+  @Throttle({ default: { limit: 5, ttl: 900000 } })
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async requestEmailUpdate(@CurrentUser() user: any, @Body() body: { newEmail: string; currentPassword?: string }) {
@@ -140,6 +148,7 @@ export class AuthController {
   }
 
   @Post('verify-email-update')
+  @Throttle({ default: { limit: 5, ttl: 900000 } })
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async verifyEmailUpdate(@CurrentUser() user: any, @Body() body: { newEmail: string; otp: string }) {

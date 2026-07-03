@@ -43,7 +43,7 @@ export default function RedePage() {
       const res = await fetch(url + params.toString());
       if (!res.ok) throw new Error('Falha ao carregar parceiros.');
       const data = await res.json();
-      setPartners(data);
+      setPartners(data.data || []);
     } catch (err) {
       console.error(err);
     } finally {

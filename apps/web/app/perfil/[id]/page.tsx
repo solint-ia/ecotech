@@ -62,7 +62,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       const res = await fetch(`${API_URL}/schools?limit=100`);
       if (res.ok) {
         const data = await res.json();
-        setSchools(data || []);
+        setSchools(data.data || []);
       }
     } catch (err) {
       console.error('Erro ao buscar escolas:', err);

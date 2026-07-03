@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
@@ -7,7 +8,8 @@ import helmet from 'helmet';
 import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.set('trust proxy', 1);
   const configService = app.get(ConfigService);
   const frontendUrls = configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
   const origins = frontendUrls.split(',').map(url => url.trim());
