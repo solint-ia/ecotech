@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import helmet from 'helmet';
 
 import { ConfigService } from '@nestjs/config';
 
@@ -11,6 +12,10 @@ async function bootstrap() {
   const frontendUrls = configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
   const origins = frontendUrls.split(',').map(url => url.trim());
   
+  app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" }
+  }));
+
   app.enableCors({
     origin: origins,
     credentials: true,
