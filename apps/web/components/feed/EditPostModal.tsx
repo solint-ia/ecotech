@@ -13,6 +13,8 @@ interface Trail  { id: string; title: string; slug: string; }
 interface EditPostModalProps {
   post: FeedPost;
   accessToken: string;
+  currentUserRole?: string;
+  currentUserSchoolId?: string | null;
   onClose: () => void;
   onUpdated: () => void;
 }
@@ -20,11 +22,16 @@ interface EditPostModalProps {
 export default function EditPostModal({
   post,
   accessToken,
+  currentUserRole,
+  currentUserSchoolId,
   onClose,
   onUpdated,
 }: EditPostModalProps) {
+  // Only USER and ADMIN can pick a school for the post; every other role
+  // (SCHOOL_MANAGER, TEACHER, STUDENT) is tied to their own school already.
+  const lockedToOwnSchool = currentUserRole !== 'USER' && currentUserRole !== 'ADMIN';
   const [description, setDescription] = useState(post.description || '');
-  const [schoolId, setSchoolId] = useState(post.school?.id || '');
+  const [schoolId, setSchoolId] = useState(lockedToOwnSchool ? (currentUserSchoolId || '') : (post.school?.id || ''));
   const [trailId, setTrailId] = useState(post.trail?.id || '');
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   
@@ -187,20 +194,22 @@ export default function EditPostModal({
           </div>
 
           {/* Dropdowns row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-primary">Escola</label>
-              <select
-                value={schoolId}
-                onChange={(e) => setSchoolId(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-border-custom bg-white focus:ring-2 focus:ring-secondary focus:outline-none text-sm text-foreground/80"
-              >
-                <option value="">Nenhuma</option>
-                {schools.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            </div>
+          <div className={`grid grid-cols-1 gap-3 pt-2 ${lockedToOwnSchool ? '' : 'sm:grid-cols-2'}`}>
+            {!lockedToOwnSchool && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-primary">Escola</label>
+                <select
+                  value={schoolId}
+                  onChange={(e) => setSchoolId(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-border-custom bg-white focus:ring-2 focus:ring-secondary focus:outline-none text-sm text-foreground/80"
+                >
+                  <option value="">Nenhuma</option>
+                  {schools.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <label className="text-sm font-semibold text-primary">Trilha Mencionada</label>

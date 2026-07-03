@@ -44,7 +44,7 @@ function TrilhasPageContent() {
   const [filterCity, setFilterCity] = useState(filterCityUrl);
   const [selectedBiome, setSelectedBiome] = useState(biomeUrl);
   const [selectedDifficulty, setSelectedDifficulty] = useState(difficultyUrl);
-  const [activeTab, setActiveTab] = useState<'publicadas' | 'rascunhos' | 'minhas-trilhas'>(tabUrl as any);
+  const [activeTab, setActiveTab] = useState<'publicadas' | 'rascunhos' | 'minhas-trilhas' | 'salvas'>(tabUrl as any);
 
   const [showFiltersModal, setShowFiltersModal] = useState(false);
   const limit = 12;
@@ -90,6 +90,7 @@ function TrilhasPageContent() {
       let endpoint = `${API_URL}/trails`;
       if (tabUrl === 'rascunhos') endpoint = `${API_URL}/trails/my-drafts`;
       if (tabUrl === 'minhas-trilhas') endpoint = `${API_URL}/trails/my-trails`;
+      if (tabUrl === 'salvas') endpoint = `${API_URL}/trails/saved`;
 
       const params = new URLSearchParams({
         page: String(page),
@@ -155,7 +156,7 @@ function TrilhasPageContent() {
       </div>
 
       {/* Tabs */}
-      {(user?.role === 'ADMIN' || user?.role === 'SCHOOL_MANAGER' || user?.role === 'TEACHER') && (
+      {!!user && (
         <div className="flex items-center gap-6 mb-8 border-b border-border-custom pb-3">
           <button
             onClick={() => setActiveTab('publicadas')}
@@ -167,23 +168,37 @@ function TrilhasPageContent() {
               <span className="absolute -bottom-[13px] left-0 right-0 h-0.5 bg-forest rounded-t-full" />
             )}
           </button>
+          {canManageTrails && (
+            <button
+              onClick={() => setActiveTab('rascunhos')}
+              className={`text-sm font-semibold transition-all relative ${activeTab === 'rascunhos' ? 'text-forest' : 'text-foreground/50 hover:text-foreground/80'
+                }`}
+            >
+              Meus Rascunhos
+              {activeTab === 'rascunhos' && (
+                <span className="absolute -bottom-[13px] left-0 right-0 h-0.5 bg-forest rounded-t-full" />
+              )}
+            </button>
+          )}
+          {canManageTrails && (
+            <button
+              onClick={() => setActiveTab('minhas-trilhas')}
+              className={`text-sm font-semibold transition-all relative ${activeTab === 'minhas-trilhas' ? 'text-forest' : 'text-foreground/50 hover:text-foreground/80'
+                }`}
+            >
+              Minhas Trilhas
+              {activeTab === 'minhas-trilhas' && (
+                <span className="absolute -bottom-[13px] left-0 right-0 h-0.5 bg-forest rounded-t-full" />
+              )}
+            </button>
+          )}
           <button
-            onClick={() => setActiveTab('rascunhos')}
-            className={`text-sm font-semibold transition-all relative ${activeTab === 'rascunhos' ? 'text-forest' : 'text-foreground/50 hover:text-foreground/80'
+            onClick={() => setActiveTab('salvas')}
+            className={`text-sm font-semibold transition-all relative ${activeTab === 'salvas' ? 'text-forest' : 'text-foreground/50 hover:text-foreground/80'
               }`}
           >
-            Meus Rascunhos
-            {activeTab === 'rascunhos' && (
-              <span className="absolute -bottom-[13px] left-0 right-0 h-0.5 bg-forest rounded-t-full" />
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('minhas-trilhas')}
-            className={`text-sm font-semibold transition-all relative ${activeTab === 'minhas-trilhas' ? 'text-forest' : 'text-foreground/50 hover:text-foreground/80'
-              }`}
-          >
-            Minhas Trilhas
-            {activeTab === 'minhas-trilhas' && (
+            Trilhas Salvas
+            {activeTab === 'salvas' && (
               <span className="absolute -bottom-[13px] left-0 right-0 h-0.5 bg-forest rounded-t-full" />
             )}
           </button>

@@ -42,6 +42,23 @@ function SchoolsPageContent() {
   const [filterState, setFilterState] = useState(filterStateUrl);
   const [filterCity, setFilterCity] = useState(filterCityUrl);
   const [loading, setLoading] = useState(true);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  const fetchPendingCount = useCallback(async () => {
+    const role = (session?.user as any)?.role;
+    if (!accessToken || (role !== 'ADMIN' && role !== 'SCHOOL_MANAGER')) return;
+    try {
+      const res = await fetch(`${API_URL}/users/pending`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPendingCount(Array.isArray(data) ? data.length : 0);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar pendências:', error);
+    }
+  }, [accessToken, session]);
 
   const fetchSchools = useCallback(async () => {
     if (!accessToken) return;
@@ -74,8 +91,9 @@ function SchoolsPageContent() {
       router.push('/login');
     } else if (status === 'authenticated') {
       fetchSchools();
+      fetchPendingCount();
     }
-  }, [status, fetchSchools, router]);
+  }, [status, fetchSchools, fetchPendingCount, router]);
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -145,12 +163,21 @@ function SchoolsPageContent() {
         </div>
 
         {((session?.user as any)?.role === 'ADMIN' || (session?.user as any)?.role === 'SCHOOL_MANAGER') && (
-          <Link 
-            href="/escolas/aprovacoes" 
-            className="order-1 md:order-2 w-full md:w-auto justify-center inline-flex items-center gap-2 px-5 py-2.5 bg-amber-100 text-amber-800 text-sm font-semibold rounded-xl hover:bg-amber-200 transition-colors shrink-0"
+          <Link
+            href="/escolas/aprovacoes"
+            className={`order-1 md:order-2 w-full md:w-auto justify-center inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl transition-colors shrink-0 border shadow-sm ${
+              pendingCount > 0
+                ? 'bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-200'
+                : 'bg-white text-primary border-border-custom hover:bg-beige'
+            }`}
           >
             <Users className="w-4 h-4" />
             Gerenciar Solicitações
+            {pendingCount > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-amber-600 text-white text-[11px] font-bold">
+                {pendingCount}
+              </span>
+            )}
           </Link>
         )}
       </div>

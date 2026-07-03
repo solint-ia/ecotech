@@ -460,9 +460,9 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </select>
-                  {schoolId !== profileData.schoolId && (
+                  {profileData.role === 'TEACHER' && schoolId !== profileData.schoolId && (
                     <p className="text-xs text-amber-600 mt-2 bg-amber-50 p-2 rounded-lg border border-amber-100">
-                      ⚠️ Ao alterar {isOwner ? 'sua' : 'a'} escola, {isOwner ? 'seus' : 'os'} acessos de professor (se houver) serão revogados e {isOwner ? 'seu' : 'o'} perfil entrará em status <b>Pendente</b> até que o novo gestor escolar {isOwner ? 'o' : ''} aprove.
+                      ⚠️ Ao alterar {isOwner ? 'sua' : 'a'} escola, {isOwner ? 'seus' : 'os'} acessos de professor serão revogados e {isOwner ? 'seu' : 'o'} perfil entrará em status <b>Pendente</b> até que o novo gestor escolar {isOwner ? 'o' : ''} aprove.
                     </p>
                   )}
                 </div>

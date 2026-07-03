@@ -372,9 +372,14 @@ export default function TrailDetailTabs({ trail }: TrailDetailTabsProps) {
               </p>
             ) : (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                <p className="text-sm text-amber-800 leading-relaxed whitespace-pre-line">
-                  {trail.safetyWarnings}
-                </p>
+                <ul className="space-y-2">
+                  {trail.safetyWarnings.split('\n').filter(Boolean).map((tip: string, i: number) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-amber-800 leading-relaxed">
+                      <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                      {tip}
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>

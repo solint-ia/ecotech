@@ -6,6 +6,8 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { ArrowLeft, Save, ChevronDown } from 'lucide-react';
 import { StateCitySelect } from '../../../components/shared/StateCitySelect';
+import SafetyTipsField from '../../../components/trilhas/SafetyTipsField';
+import { DEFAULT_SAFETY_TIPS, safetyTipsToString } from '../../../lib/trail-safety-tips';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -26,7 +28,7 @@ export default function CriarTrilhaPage() {
   const [duration, setDuration] = useState('');
   const [difficulty, setDifficulty] = useState('FACIL');
   const [wikilocUrl, setWikilocUrl] = useState('');
-  const [safetyWarnings, setSafetyWarnings] = useState('');
+  const [safetyWarnings, setSafetyWarnings] = useState<string[]>([...DEFAULT_SAFETY_TIPS]);
   const [publishNow, setPublishNow] = useState(false);
   const [schoolId, setSchoolId] = useState('');
   const [schools, setSchools] = useState<any[]>([]);
@@ -78,7 +80,8 @@ export default function CriarTrilhaPage() {
       if (duration) formData.append('duration', duration);
       if (coverImage) formData.append('coverImage', coverImage);
       if (wikilocUrl) formData.append('wikilocUrl', wikilocUrl);
-      if (safetyWarnings) formData.append('safetyWarnings', safetyWarnings);
+      const safetyWarningsStr = safetyTipsToString(safetyWarnings);
+      if (safetyWarningsStr) formData.append('safetyWarnings', safetyWarningsStr);
       if (schoolId) formData.append('schoolId', schoolId);
 
       const res = await fetch(`${API_URL}/trails`, {
@@ -308,16 +311,10 @@ export default function CriarTrilhaPage() {
 
         {/* Avisos de segurança */}
         <div>
-          <label htmlFor="trail-safety" className="block text-sm font-medium mb-1.5 text-foreground">
+          <label className="block text-sm font-medium mb-1.5 text-foreground">
             Avisos de segurança
           </label>
-          <textarea
-            id="trail-safety"
-            rows={3}
-            value={safetyWarnings}
-            onChange={(e) => setSafetyWarnings(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl border border-border-custom bg-background focus:outline-none focus:ring-2 focus:ring-secondary text-sm transition-all resize-y"
-          />
+          <SafetyTipsField tips={safetyWarnings} onChange={setSafetyWarnings} />
         </div>
 
         {/* Publicar */}

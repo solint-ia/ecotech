@@ -10,6 +10,7 @@ import {
 import Link from 'next/link';
 import { getImageUrl } from '../../../lib/image-url';
 import { PartnerGallery } from '../../../components/rede/PartnerGallery';
+import { formatOpeningHoursDisplay } from '../../../lib/opening-hours';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -187,7 +188,7 @@ export default function PartnerDetailPage() {
               Horário de Funcionamento
             </h3>
             <p className="text-sm text-foreground/80 whitespace-pre-wrap">
-              {partner.openingHours}
+              {formatOpeningHoursDisplay(partner.openingHours)}
             </p>
           </div>
           

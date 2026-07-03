@@ -171,6 +171,13 @@ export default function LoginPage() {
         setMessage({ type: 'error', text: 'As senhas não coincidem.' });
         return;
       }
+
+      if (role !== 'SCHOOL_MANAGER' && !schoolId) {
+        setErrors({ schoolId: 'Selecione uma escola para vincular seu cadastro.' });
+        setIsLoading(false);
+        setMessage({ type: 'error', text: 'Por favor, corrija os erros apontados.' });
+        return;
+      }
     }
 
     setErrors({});
@@ -472,14 +479,23 @@ export default function LoginPage() {
                     <label className="block text-sm font-semibold text-primary/80 mb-1.5">Vincular a uma Escola</label>
                     <select
                       value={schoolId}
-                      onChange={(e) => setSchoolId(e.target.value)}
-                      className="w-full px-4 py-3.5 rounded-xl border border-primary/30 bg-transparent text-primary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all appearance-none"
+                      onChange={(e) => {
+                        setSchoolId(e.target.value);
+                        if (errors.schoolId) setErrors(prev => { const c = { ...prev }; delete c.schoolId; return c; });
+                      }}
+                      className={`w-full px-4 py-3.5 rounded-xl border bg-transparent text-primary focus:outline-none focus:ring-1 transition-all appearance-none ${errors.schoolId ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-primary/30 focus:border-primary focus:ring-primary'}`}
+                      required
                     >
-                      <option value="">Nenhuma (ou procurar depois)</option>
+                      <option value="">Selecione sua escola</option>
                       {schools.map(school => (
                         <option key={school.id} value={school.id}>{school.name} ({school.city})</option>
                       ))}
                     </select>
+                    {errors.schoolId && (
+                      <p className="text-xs text-red-500 font-medium mt-1 animate-in fade-in duration-200">
+                        {errors.schoolId}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}

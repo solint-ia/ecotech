@@ -102,6 +102,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   session: {
     strategy: 'jwt',
-    maxAge: 60 * 60, // 1 hora
+    maxAge: 10 * 365 * 24 * 60 * 60, // 10 anos (o usuário permanece logado indefinidamente)
   },
 });

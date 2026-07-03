@@ -59,7 +59,7 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000, // 24 horas
+      maxAge: 10 * 365 * 24 * 60 * 60 * 1000, // 10 anos (o usuário permanece logado indefinidamente)
     });
 
     return { success: true, user: result.user, accessToken: result.access_token };
@@ -81,7 +81,7 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000,
+      maxAge: 10 * 365 * 24 * 60 * 60 * 1000,
     });
 
     return { success: true, user: result.user, accessToken: result.access_token };
@@ -119,7 +119,7 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000, // 24 horas
+      maxAge: 10 * 365 * 24 * 60 * 60 * 1000, // 10 anos (o usuário permanece logado indefinidamente)
     });
 
     return { user: result.user, accessToken: result.access_token };

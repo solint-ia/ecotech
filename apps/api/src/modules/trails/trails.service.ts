@@ -246,6 +246,65 @@ export class TrailsService {
     };
   }
 
+  async findSaved(userId: string, query: { page?: number; limit?: number }) {
+    const page = Math.max(1, query.page || 1);
+    const limit = Math.min(50, query.limit || 12);
+    const skip = (page - 1) * limit;
+
+    const [saved, total] = await this.prisma.$transaction([
+      this.prisma.savedTrail.findMany({
+        where: { userId },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          trail: {
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+              shortDescription: true,
+              state: true,
+              city: true,
+              coverImage: true,
+              biome: true,
+              distanceKm: true,
+              duration: true,
+              difficulty: true,
+              school: { select: { id: true, name: true } },
+              _count: { select: { likes: true, points: true } },
+              viewsCount: true,
+              likesCount: true,
+            },
+          },
+        },
+      }),
+      this.prisma.savedTrail.count({ where: { userId } }),
+    ]);
+
+    const mappedData = saved.map(({ trail }) => {
+      const { _count, ...rest } = trail;
+      return {
+        ...rest,
+        _count: {
+          likes: _count.likes,
+          points: _count.points,
+          educationalPoints: _count.points,
+        },
+      };
+    });
+
+    return {
+      data: mappedData,
+      meta: {
+        totalCount: total,
+        totalPages: Math.ceil(total / limit),
+        currentPage: page,
+        limit,
+      },
+    };
+  }
+
   async findAllForAdmin(query: { page?: number; limit?: number; schoolId?: string }) {
     const page = Math.max(1, query.page || 1);
     const limit = Math.min(50, query.limit || 20);
@@ -369,6 +428,7 @@ export class TrailsService {
         ...(dto.wikilocUrl !== undefined && { wikilocUrl: dto.wikilocUrl }),
         ...(dto.safetyWarnings !== undefined && { safetyWarnings: dto.safetyWarnings }),
         ...(dto.status !== undefined && { status: dto.status }),
+        ...(dto.schoolId !== undefined && requestingUser.role === 'ADMIN' && { schoolId: dto.schoolId || null }),
       },
     });
 

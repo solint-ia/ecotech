@@ -6,6 +6,8 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { ArrowLeft, Save, ChevronDown } from 'lucide-react';
 import { StateCitySelect } from '../../../../components/shared/StateCitySelect';
+import SafetyTipsField from '../../../../components/trilhas/SafetyTipsField';
+import { safetyTipsToString, safetyTipsFromString } from '../../../../lib/trail-safety-tips';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -32,8 +34,10 @@ export default function EditarTrilhaPage() {
   const [difficulty, setDifficulty] = useState('FACIL');
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [wikilocUrl, setWikilocUrl] = useState('');
-  const [safetyWarnings, setSafetyWarnings] = useState('');
+  const [safetyWarnings, setSafetyWarnings] = useState<string[]>([]);
   const [publishNow, setPublishNow] = useState(false);
+  const [schoolId, setSchoolId] = useState('');
+  const [schools, setSchools] = useState<any[]>([]);
 
   useEffect(() => {
     if (slug) {
@@ -52,13 +56,26 @@ export default function EditarTrilhaPage() {
             setDuration(data.duration || '');
             setDifficulty(data.difficulty || 'FACIL');
             setWikilocUrl(data.wikilocUrl || '');
-            setSafetyWarnings(data.safetyWarnings || '');
+            setSafetyWarnings(safetyTipsFromString(data.safetyWarnings));
             setPublishNow(data.status);
+            setSchoolId(data.schoolId || '');
           }
         })
         .catch(() => setError('Erro ao carregar os dados da trilha.'));
     }
   }, [slug]);
+
+  // Fetch schools if admin
+  useEffect(() => {
+    if (user?.role === 'ADMIN' && user?.accessToken) {
+      fetch(`${API_URL}/schools`, {
+        headers: { Authorization: `Bearer ${user.accessToken}` },
+      })
+      .then(res => res.json())
+      .then(data => setSchools(Array.isArray(data) ? data : data.data || []))
+      .catch(console.error);
+    }
+  }, [user]);
 
   // Redirect if not authorized
   useEffect(() => {
@@ -89,7 +106,9 @@ export default function EditarTrilhaPage() {
       if (duration) formData.append('duration', duration);
       if (coverImage) formData.append('coverImage', coverImage);
       if (wikilocUrl) formData.append('wikilocUrl', wikilocUrl);
-      if (safetyWarnings) formData.append('safetyWarnings', safetyWarnings);
+      const safetyWarningsStr = safetyTipsToString(safetyWarnings);
+      formData.append('safetyWarnings', safetyWarningsStr);
+      if (user?.role === 'ADMIN') formData.append('schoolId', schoolId);
 
       const res = await fetch(`${API_URL}/trails/${trailId}`, {
         method: 'PATCH',
@@ -167,6 +186,26 @@ export default function EditarTrilhaPage() {
           onCityChange={setCity}
           inline={true}
         />
+
+        {/* Seleção de Escola (Somente Admin) */}
+        {user?.role === 'ADMIN' && (
+          <div>
+            <label htmlFor="trail-school" className="block text-sm font-medium mb-1.5 text-foreground">
+              Escola Vinculada (Opcional)
+            </label>
+            <select
+              id="trail-school"
+              value={schoolId}
+              onChange={(e) => setSchoolId(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border border-border-custom bg-background focus:outline-none focus:ring-2 focus:ring-secondary text-sm"
+            >
+              <option value="">-- Nenhuma escola --</option>
+              {schools.map(school => (
+                <option key={school.id} value={school.id}>{school.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Descrição curta */}
         <div>
@@ -298,16 +337,10 @@ export default function EditarTrilhaPage() {
 
         {/* Avisos de segurança */}
         <div>
-          <label htmlFor="trail-safety" className="block text-sm font-medium mb-1.5 text-foreground">
+          <label className="block text-sm font-medium mb-1.5 text-foreground">
             Avisos de segurança
           </label>
-          <textarea
-            id="trail-safety"
-            rows={3}
-            value={safetyWarnings}
-            onChange={(e) => setSafetyWarnings(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl border border-border-custom bg-background focus:outline-none focus:ring-2 focus:ring-secondary text-sm transition-all resize-y"
-          />
+          <SafetyTipsField tips={safetyWarnings} onChange={setSafetyWarnings} />
         </div>
 
         {/* Publicar */}

@@ -34,7 +34,9 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
 
   const [photos, setPhotos] = useState<PartnerPhoto[]>(initialPhotos);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -58,6 +60,9 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
     if (!files.length) return;
 
     setIsUploading(true);
+    setUploadError('');
+    const failedFiles: string[] = [];
+
     try {
       const token = user?.accessToken;
 
@@ -77,16 +82,22 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
         );
 
         if (!res.ok) {
-          console.error('Falha ao enviar imagem', file.name);
+          const errData = await res.json().catch(() => null);
+          console.error('Falha ao enviar imagem', file.name, errData);
+          failedFiles.push(file.name);
           continue;
         }
 
         const newPhoto: PartnerPhoto = await res.json();
         setPhotos((prev) => [...prev, newPhoto]);
       }
+
+      if (failedFiles.length > 0) {
+        setUploadError(`Não foi possível enviar: ${failedFiles.join(', ')}. Tente novamente em instantes.`);
+      }
     } catch (error) {
       console.error(error);
-      alert('Erro ao enviar imagem.');
+      setUploadError('Erro de conexão ao enviar imagem.');
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
@@ -104,6 +115,7 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
     if (!deletingId) return;
 
     setIsUploading(true); // Reusing this for loading state in modal or can just use isUploading
+    setDeleteError('');
     try {
       const token = user?.accessToken;
 
@@ -133,7 +145,7 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
       }
     } catch (error) {
       console.error(error);
-      alert('Erro ao excluir imagem.');
+      setDeleteError('Erro ao excluir imagem. Tente novamente.');
     } finally {
       setIsUploading(false);
       setDeletingId(null);
@@ -217,6 +229,12 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
             </div>
           )}
         </div>
+
+        {(uploadError || deleteError) && (
+          <div className="mb-6 p-3 bg-red-50 text-red-600 rounded-xl border border-red-100 text-sm">
+            {uploadError || deleteError}
+          </div>
+        )}
 
         {/* Carousel */}
         {photos.length > 0 ? (

@@ -193,6 +193,16 @@ export default function Navbar() {
       {/* Mobile Navigation (Bottom Navigation Bar) */}
       <nav id="mobile-navbar" className="fixed bottom-0 left-0 right-0 z-40 border-t border-border-custom bg-white md:hidden">
         <div className="flex h-16 items-center justify-around px-2">
+          {(user?.role === 'ADMIN' || user?.role === 'SCHOOL_MANAGER') && (
+            <Link
+              href={user.role === 'ADMIN' ? '/admin/dashboard' : '/escola/dashboard'}
+              className={`flex flex-col items-center justify-center gap-1 w-12 h-12 rounded-full transition-colors ${pathname?.includes('dashboard') ? 'text-primary' : 'text-gray-500 hover:text-secondary'
+                }`}
+            >
+              <LayoutDashboard className="w-6 h-6" />
+              <span className="text-[10px] font-medium">Dashboard</span>
+            </Link>
+          )}
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname?.startsWith(item.href);

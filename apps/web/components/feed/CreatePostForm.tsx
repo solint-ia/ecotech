@@ -14,6 +14,7 @@ interface CreatePostFormProps {
   userName: string;
   userImage?: string | null;
   userSchoolId?: string | null;
+  userRole?: string;
   onCreated: () => void;
 }
 
@@ -22,8 +23,12 @@ export default function CreatePostForm({
   userName,
   userImage,
   userSchoolId,
+  userRole,
   onCreated,
 }: CreatePostFormProps) {
+  // Only USER and ADMIN can pick a school for the post; every other role
+  // (SCHOOL_MANAGER, TEACHER, STUDENT) is tied to their own school already.
+  const lockedToOwnSchool = userRole !== 'USER' && userRole !== 'ADMIN';
   const [description, setDescription] = useState('');
   const [schoolId, setSchoolId] = useState(userSchoolId || '');
   const [trailId, setTrailId] = useState('');
@@ -211,22 +216,24 @@ export default function CreatePostForm({
           />
 
           {/* Dropdowns row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="relative">
-              <select
-                value={schoolId}
-                onChange={(e) => setSchoolId(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-black/5 bg-white focus:ring-1 focus:ring-forest focus:border-forest focus:outline-none text-sm text-foreground/60 transition-all shadow-sm appearance-none pr-10"
-              >
-                <option value="">Escola do autor (opcional)</option>
-                {schools.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-foreground/40">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+          <div className={`grid grid-cols-1 gap-3 ${lockedToOwnSchool ? '' : 'sm:grid-cols-2'}`}>
+            {!lockedToOwnSchool && (
+              <div className="relative">
+                <select
+                  value={schoolId}
+                  onChange={(e) => setSchoolId(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-black/5 bg-white focus:ring-1 focus:ring-forest focus:border-forest focus:outline-none text-sm text-foreground/60 transition-all shadow-sm appearance-none pr-10"
+                >
+                  <option value="">Escola do autor (opcional)</option>
+                  {schools.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-foreground/40">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="relative">
               <select

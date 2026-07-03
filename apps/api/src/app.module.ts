@@ -77,8 +77,11 @@ import { RedisThrottlerStorageService } from './common/throttler/redis-throttler
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         throttlers: [
-          { name: 'short', ttl: 1000, limit: 3 },
-          { name: 'medium', ttl: 10000, limit: 40 },
+          // "short"/"medium" guard against real bursts/flooding without
+          // punishing normal page loads, which routinely fire several
+          // concurrent requests (session check, resource fetch, images...).
+          { name: 'short', ttl: 1000, limit: 20 },
+          { name: 'medium', ttl: 10000, limit: 100 },
           { name: 'default', ttl: 60000, limit: 300 },
         ],
         storage: new RedisThrottlerStorageService(configService),

@@ -86,6 +86,20 @@ export class TrailsController {
     return this.trailsService.findMyTrails(schoolId);
   }
 
+  /** GET /trails/saved - Trails saved by the current user */
+  @UseGuards(JwtAuthGuard)
+  @Get('saved')
+  findSaved(
+    @CurrentUser() user: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.trailsService.findSaved(user.id, {
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 12,
+    });
+  }
+
   /** GET /trails/admin - All trails (admin/school view, requires auth) */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SCHOOL_MANAGER')

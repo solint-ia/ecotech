@@ -80,6 +80,8 @@ export default function FeedPage() {
         <EditPostModal
           post={editingPost}
           accessToken={accessToken}
+          currentUserRole={user?.role}
+          currentUserSchoolId={user?.schoolId}
           onClose={() => setEditingPost(null)}
           onUpdated={handlePostUpdated}
         />
@@ -112,6 +114,7 @@ export default function FeedPage() {
           userName={user?.name || 'Usuário'}
           userImage={user?.profileImage}
           userSchoolId={user?.schoolId}
+          userRole={user?.role}
           onCreated={handlePostCreated}
         />
       )}

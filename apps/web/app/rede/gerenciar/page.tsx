@@ -65,6 +65,7 @@ function GerenciarParceirosPageContent() {
   const confirmDelete = async () => {
     if (!partnerToDelete) return;
     setIsDeleting(true);
+    setError('');
 
     try {
       const res = await fetch(`${API_URL}/partners/${partnerToDelete.id}`, {
@@ -73,12 +74,13 @@ function GerenciarParceirosPageContent() {
       });
 
       if (!res.ok && res.status !== 204) throw new Error('Falha ao excluir o parceiro.');
-      
+
       // Remove from list
       setPartners(prev => prev.filter(p => p.id !== partnerToDelete.id));
       setPartnerToDelete(null);
     } catch (err: any) {
-      alert(err.message || 'Erro ao excluir.');
+      setError(err.message || 'Erro ao excluir.');
+      setPartnerToDelete(null);
     } finally {
       setIsDeleting(false);
     }

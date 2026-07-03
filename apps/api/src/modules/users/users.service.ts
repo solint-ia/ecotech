@@ -66,12 +66,11 @@ export class UsersService {
   
       if (data.schoolId !== undefined && data.schoolId !== currentUser.schoolId) {
         updateData.schoolId = data.schoolId || null;
-        if (data.schoolId) {
+        // Only teachers lose their access and go back to pending approval when
+        // changing schools; students keep their role/status as-is.
+        if (currentUser.role === 'TEACHER') {
           updateData.role = 'USER' as any;
-          updateData.roleStatus = 'PENDENTE';
-        } else {
-          updateData.role = 'USER' as any;
-          updateData.roleStatus = 'APROVADO';
+          updateData.roleStatus = data.schoolId ? 'PENDENTE' : 'APROVADO';
         }
       }
 

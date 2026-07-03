@@ -167,8 +167,12 @@ export class AuthService {
       ? registerDto.role
       : 'STUDENT';
 
+    if ((requestedRole === 'STUDENT' || requestedRole === 'TEACHER') && !schoolId) {
+      throw new BadRequestException('Selecione uma escola para vincular seu cadastro.');
+    }
+
     const roleStatus = (requestedRole === 'SCHOOL_MANAGER' || requestedRole === 'TEACHER') ? 'PENDENTE' : 'APROVADO';
-    
+
     // As per requirement: someone registering as a teacher stays as a user until approved
     const assignedRole = requestedRole === 'TEACHER' ? 'USER' : requestedRole;
 

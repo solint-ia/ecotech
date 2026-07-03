@@ -3,8 +3,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { 
-  Users, School, Compass, MapPin, MessageSquare, Library, Clock, Trophy, Heart, Eye, LayoutDashboard, User as UserIcon
+import {
+  Users, School, Compass, MapPin, MessageSquare, Library, Clock, Trophy, Heart, Eye, LayoutDashboard, User as UserIcon, AlertTriangle
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -40,6 +40,7 @@ export default function AdminDashboardPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isActivitiesOpen, setIsActivitiesOpen] = useState(false);
+  const [pendingSchools, setPendingSchools] = useState(0);
 
   const fetchData = useCallback(async () => {
     if (!user?.accessToken) return;
@@ -57,14 +58,29 @@ export default function AdminDashboardPage() {
     }
   }, [user?.accessToken]);
 
+  const fetchPendingSchools = useCallback(async () => {
+    if (!user?.accessToken) return;
+    try {
+      const res = await fetch(`${API_URL}/users/pending`, {
+        headers: { Authorization: `Bearer ${user.accessToken}` }
+      });
+      if (!res.ok) throw new Error();
+      const json = await res.json();
+      setPendingSchools(Array.isArray(json) ? json.length : 0);
+    } catch {
+      console.error('Failed to load pending schools count');
+    }
+  }, [user?.accessToken]);
+
   useEffect(() => {
     if (status === 'unauthenticated' || (status === 'authenticated' && user?.role !== 'ADMIN')) {
       router.push('/');
     }
     if (status === 'authenticated' && user?.role === 'ADMIN') {
       fetchData();
+      fetchPendingSchools();
     }
-  }, [status, user, router, fetchData]);
+  }, [status, user, router, fetchData, fetchPendingSchools]);
 
   if (status === 'loading' || loading || !data) {
     return <div className="p-12 text-center text-foreground/50">Carregando dashboard...</div>;
@@ -137,6 +153,35 @@ export default function AdminDashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Pending Approvals Card */}
+      <Link
+        href="/escolas/aprovacoes"
+        className={`flex items-center justify-between gap-4 rounded-2xl p-5 border shadow-sm transition-colors ${
+          pendingSchools > 0
+            ? 'bg-amber-50 border-amber-200 hover:bg-amber-100'
+            : 'bg-white border-border-custom hover:border-forest/30'
+        }`}
+      >
+        <div className="flex items-center gap-4">
+          <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${pendingSchools > 0 ? 'bg-amber-100 text-amber-700' : 'bg-beige text-forest'}`}>
+            <AlertTriangle className="w-5 h-5" />
+          </div>
+          <div>
+            <p className={`text-sm font-bold ${pendingSchools > 0 ? 'text-amber-900' : 'text-emerald-950'}`}>
+              {pendingSchools > 0
+                ? `${pendingSchools} ${pendingSchools === 1 ? 'pendência aguardando aprovação' : 'pendências aguardando aprovação'}`
+                : 'Nenhuma pendência de aprovação'}
+            </p>
+            <p className={`text-xs mt-0.5 ${pendingSchools > 0 ? 'text-amber-700/80' : 'text-foreground/50'}`}>
+              Cadastros de escolas aguardando revisão
+            </p>
+          </div>
+        </div>
+        <span className={`text-xs font-semibold shrink-0 ${pendingSchools > 0 ? 'text-amber-800' : 'text-forest'}`}>
+          Ver solicitações
+        </span>
+      </Link>
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
