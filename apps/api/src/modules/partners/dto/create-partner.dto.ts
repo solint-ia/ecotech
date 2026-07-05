@@ -1,5 +1,43 @@
-import { IsString, IsOptional, IsBoolean, IsNotEmpty, IsUrl } from 'class-validator';
-import { Transform } from 'class-transformer';
+import {
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsNotEmpty,
+  IsUrl,
+  IsArray,
+  IsIn,
+  Matches,
+  ValidateNested,
+} from 'class-validator';
+import { Transform, Type, plainToInstance } from 'class-transformer';
+import { DAY_KEYS } from '../opening-hours.util';
+
+export class ShiftDto {
+  @IsString()
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, {
+    message: 'Horário de abertura inválido (use HH:mm).',
+  })
+  open: string;
+
+  @IsString()
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, {
+    message: 'Horário de fechamento inválido (use HH:mm).',
+  })
+  close: string;
+}
+
+export class DayScheduleDto {
+  @IsIn(DAY_KEYS, { message: 'Dia da semana inválido.' })
+  day: (typeof DAY_KEYS)[number];
+
+  @IsBoolean()
+  enabled: boolean;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ShiftDto)
+  shifts: ShiftDto[];
+}
 
 export class CreatePartnerDto {
   @IsString()
@@ -47,9 +85,15 @@ export class CreatePartnerDto {
   @IsUrl()
   website?: string;
 
-  @IsString()
-  @IsNotEmpty()
-  openingHours: string;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Transform(({ value }): DayScheduleDto[] => {
+    const parsed = (
+      typeof value === 'string' ? JSON.parse(value) : value
+    ) as Record<string, unknown>[];
+    return plainToInstance(DayScheduleDto, parsed);
+  })
+  openingHours: DayScheduleDto[];
 
   @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)

@@ -1,17 +1,22 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePartnerDto } from './dto/create-partner.dto';
 import { UpdatePartnerDto } from './dto/update-partner.dto';
+import { validateOpeningHours } from './opening-hours.util';
 
 @Injectable()
 export class PartnersService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(createPartnerDto: CreatePartnerDto) {
+    validateOpeningHours(createPartnerDto.openingHours);
+
     return this.prisma.partner.create({
       data: {
         ...createPartnerDto,
         coverImage: createPartnerDto.coverImage || '',
+        openingHours: createPartnerDto.openingHours as unknown as Prisma.InputJsonValue,
       },
     });
   }
@@ -75,9 +80,16 @@ export class PartnersService {
   async update(id: string, updatePartnerDto: UpdatePartnerDto) {
     await this.findOne(id); // Check existence
 
+    if (updatePartnerDto.openingHours) {
+      validateOpeningHours(updatePartnerDto.openingHours);
+    }
+
     return this.prisma.partner.update({
       where: { id },
-      data: updatePartnerDto,
+      data: {
+        ...updatePartnerDto,
+        openingHours: updatePartnerDto.openingHours as unknown as Prisma.InputJsonValue | undefined,
+      },
     });
   }
 

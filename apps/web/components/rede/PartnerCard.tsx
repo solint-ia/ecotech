@@ -59,21 +59,27 @@ export function PartnerCard({ partner }: PartnerCardProps) {
 
         <hr className="border-border-custom mb-4 mt-auto" />
 
-        <div className="flex items-center gap-2 mt-auto">
-          <span className="flex-1 text-center py-2 bg-beige text-primary rounded-lg text-xs font-medium group-hover:bg-beige/80 transition-colors border border-border-custom">
+        <div className="flex flex-nowrap items-center gap-2 mt-auto">
+          <span className="flex-1 min-w-0 text-center py-2 bg-beige text-primary rounded-lg text-xs font-medium group-hover:bg-beige/80 transition-colors border border-border-custom truncate">
             Ver Detalhes
           </span>
           {partner.whatsapp && (
-            <a
-              href={`https://wa.me/55${partner.whatsapp.replace(/\D/g, '')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="flex items-center justify-center p-2 bg-[#25D366] text-white rounded-lg hover:bg-[#1ebd5a] transition-colors shadow-sm"
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                window.open(
+                  `https://wa.me/55${partner.whatsapp!.replace(/\D/g, '')}`,
+                  '_blank',
+                  'noopener,noreferrer'
+                );
+              }}
+              className="flex items-center justify-center p-2 bg-[#25D366] text-white rounded-lg hover:bg-[#1ebd5a] transition-colors shadow-sm shrink-0"
               title="Contato via WhatsApp"
             >
               <MessageCircle className="w-4 h-4" />
-            </a>
+            </button>
           )}
         </div>
       </div>

@@ -5,7 +5,8 @@ import { useRouter, useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { ArrowLeft, Save } from 'lucide-react';
-import { WEEK_DAYS, buildOpeningHours, parseOpeningHours } from '../../../../lib/opening-hours';
+import { OpeningHours, createEmptySchedule, validateSchedule } from '../../../../lib/opening-hours';
+import { OpeningHoursEditor } from '../../../../components/rede/OpeningHoursEditor';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -33,16 +34,7 @@ export default function EditarParceiroPage() {
   const [whatsapp, setWhatsapp] = useState('');
   const [instagram, setInstagram] = useState('');
   const [website, setWebsite] = useState('');
-  const [open247, setOpen247] = useState(false);
-  const [selectedDays, setSelectedDays] = useState<string[]>(WEEK_DAYS.map((d) => d.code));
-  const [timeStart, setTimeStart] = useState('08:00');
-  const [timeEnd, setTimeEnd] = useState('18:00');
-
-  const toggleDay = (code: string) => {
-    setSelectedDays((prev) =>
-      prev.includes(code) ? prev.filter((d) => d !== code) : [...prev, code]
-    );
-  };
+  const [schedule, setSchedule] = useState<OpeningHours>(createEmptySchedule());
   const [statusActive, setStatusActive] = useState(true);
 
   const [loading, setLoading] = useState(true);
@@ -75,11 +67,11 @@ export default function EditarParceiroPage() {
         setWhatsapp(data.whatsapp || '');
         setInstagram(data.instagram || '');
         setWebsite(data.website || '');
-        const parsedHours = parseOpeningHours(data.openingHours);
-        setOpen247(parsedHours.is247);
-        setSelectedDays(parsedHours.days);
-        setTimeStart(parsedHours.start);
-        setTimeEnd(parsedHours.end);
+        setSchedule(
+          Array.isArray(data.openingHours) && data.openingHours.length > 0
+            ? data.openingHours
+            : createEmptySchedule(),
+        );
         setStatusActive(data.status);
       } catch (err) {
         console.error(err);
@@ -99,8 +91,9 @@ export default function EditarParceiroPage() {
     setSaving(true);
     setError('');
 
-    if (!open247 && selectedDays.length === 0) {
-      setError('Selecione ao menos um dia de funcionamento.');
+    const scheduleError = validateSchedule(schedule);
+    if (scheduleError) {
+      setError(scheduleError);
       setSaving(false);
       return;
     }
@@ -118,9 +111,7 @@ export default function EditarParceiroPage() {
         finalWebsite = `https://${finalWebsite}`;
       }
       
-      const finalOpeningHours = buildOpeningHours(selectedDays, timeStart, timeEnd, open247);
-
-      formData.append('openingHours', finalOpeningHours);
+      formData.append('openingHours', JSON.stringify(schedule));
       formData.append('status', String(statusActive));
 
       if (whatsapp) formData.append('whatsapp', whatsapp);
@@ -326,72 +317,7 @@ export default function EditarParceiroPage() {
               placeholder="Descreva o que o parceiro oferece..."
             />
           </div>
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-primary">
-                Horário de Funcionamento *
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={open247}
-                  onChange={(e) => setOpen247(e.target.checked)}
-                  className="rounded text-secondary focus:ring-secondary cursor-pointer"
-                />
-                <span className="text-xs font-semibold text-primary">Aberto 24/7</span>
-              </label>
-            </div>
-            
-            {!open247 ? (
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs font-medium text-foreground/60 mb-1.5">Dias de funcionamento</label>
-                  <div className="flex flex-wrap gap-2">
-                    {WEEK_DAYS.map((day) => (
-                      <button
-                        key={day.code}
-                        type="button"
-                        onClick={() => toggleDay(day.code)}
-                        className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
-                          selectedDays.includes(day.code)
-                            ? 'bg-secondary text-white border-secondary'
-                            : 'bg-white text-foreground/60 border-border-custom hover:border-secondary/50'
-                        }`}
-                      >
-                        {day.code}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <label className="block text-xs font-medium text-foreground/60 mb-1">Abertura</label>
-                    <input
-                      type="time"
-                      required={!open247}
-                      value={timeStart}
-                      onChange={(e) => setTimeStart(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg border border-border-custom bg-white text-sm focus:ring-2 focus:ring-secondary focus:outline-none"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-xs font-medium text-foreground/60 mb-1">Fechamento</label>
-                    <input
-                      type="time"
-                      required={!open247}
-                      value={timeEnd}
-                      onChange={(e) => setTimeEnd(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg border border-border-custom bg-white text-sm focus:ring-2 focus:ring-secondary focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="w-full px-3 py-3 rounded-lg border border-emerald-200 bg-emerald-50 text-sm font-medium text-emerald-800 text-center">
-                Este estabelecimento funciona 24h todos os dias.
-              </div>
-            )}
-          </div>
+          <OpeningHoursEditor value={schedule} onChange={setSchedule} />
         </div>
 
         {/* Cover Image */}

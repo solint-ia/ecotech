@@ -5,12 +5,13 @@ import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import {
   ArrowLeft, MapPin, Phone, MessageCircle, 
-  Globe, Instagram, Clock, Info, Image as ImageIcon, Store
+  Globe, Instagram, Info, Image as ImageIcon, Store
 } from 'lucide-react';
 import Link from 'next/link';
 import { getImageUrl } from '../../../lib/image-url';
 import { PartnerGallery } from '../../../components/rede/PartnerGallery';
-import { formatOpeningHoursDisplay } from '../../../lib/opening-hours';
+import { OpeningHoursDisplay } from '../../../components/rede/OpeningHoursDisplay';
+import { OpeningHours, isOpenNow } from '../../../lib/opening-hours';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -26,7 +27,7 @@ interface Partner {
   whatsapp?: string;
   instagram?: string;
   website?: string;
-  openingHours: string;
+  openingHours: OpeningHours;
   photos: { id: string; image: string }[];
 }
 
@@ -113,10 +114,23 @@ export default function PartnerDetailPage() {
         
         <div className="p-6 sm:p-8">
           <h1 className="text-3xl font-bold text-primary mb-2">{partner.name}</h1>
-          <p className="text-foreground/70 flex items-center gap-2 mb-6 text-sm sm:text-base">
-            <MapPin className="w-5 h-5 text-secondary" />
-            {partner.address}, {partner.city}
-          </p>
+          <div className="flex flex-wrap items-center gap-3 mb-6">
+            <p className="text-foreground/70 flex items-center gap-2 text-sm sm:text-base">
+              <MapPin className="w-5 h-5 text-secondary" />
+              {partner.address}, {partner.city}
+            </p>
+            {Array.isArray(partner.openingHours) && partner.openingHours.length > 0 && (
+              isOpenNow(partner.openingHours) ? (
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-50 text-green-700 border border-green-200">
+                  Aberto agora
+                </span>
+              ) : (
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">
+                  Fechado agora
+                </span>
+              )
+            )}
+          </div>
 
           <div className="flex flex-wrap gap-3">
             {partner.whatsapp && (
@@ -163,40 +177,22 @@ export default function PartnerDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {/* Main Content */}
-        <div className="md:col-span-2 space-y-8">
-          <section className="bg-white rounded-2xl p-6 sm:p-8 border border-border-custom shadow-sm">
-            <h2 className="text-xl font-bold text-primary mb-4 flex items-center gap-2">
-              <Info className="w-6 h-6 text-secondary" />
-              Sobre o Parceiro
-            </h2>
-            <div className="prose prose-sm sm:prose-base text-foreground/80 whitespace-pre-wrap">
-              {partner.description}
-            </div>
-          </section>
-
-          {/* Gallery Section */}
-          <PartnerGallery partnerId={partner.id} photos={partner.photos || []} />
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <div className="bg-white rounded-2xl p-6 border border-border-custom shadow-sm">
-            <h3 className="font-bold text-primary mb-4 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-secondary" />
-              Horário de Funcionamento
-            </h3>
-            <p className="text-sm text-foreground/80 whitespace-pre-wrap">
-              {formatOpeningHoursDisplay(partner.openingHours)}
-            </p>
+      <div className="space-y-8">
+        <section className="bg-white rounded-2xl p-6 sm:p-8 border border-border-custom shadow-sm">
+          <h2 className="text-xl font-bold text-primary mb-4 flex items-center gap-2">
+            <Info className="w-6 h-6 text-secondary" />
+            Sobre o Parceiro
+          </h2>
+          <div className="prose prose-sm sm:prose-base text-foreground/80 whitespace-pre-wrap">
+            {partner.description}
           </div>
-          
+        </section>
 
-        </div>
+        <OpeningHoursDisplay schedule={Array.isArray(partner.openingHours) ? partner.openingHours : []} />
+
+        {/* Gallery Section */}
+        <PartnerGallery partnerId={partner.id} photos={partner.photos || []} />
       </div>
-
-
     </div>
   );
 }

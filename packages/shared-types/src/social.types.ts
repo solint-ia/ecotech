@@ -62,6 +62,28 @@ export interface LibraryContentDTO {
   updatedAt: Date;
 }
 
+export type DayKey =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
+
+export interface Shift {
+  open: string; // "HH:mm"
+  close: string; // "HH:mm"
+}
+
+export interface DaySchedule {
+  day: DayKey;
+  enabled: boolean;
+  shifts: Shift[];
+}
+
+export type OpeningHours = DaySchedule[];
+
 export interface PartnerDTO {
   id: string;
   name: string;
@@ -74,7 +96,7 @@ export interface PartnerDTO {
   whatsapp?: string;
   instagram?: string;
   website?: string;
-  openingHours: string;
+  openingHours: OpeningHours;
   status: boolean;
   createdAt: Date;
   updatedAt: Date;

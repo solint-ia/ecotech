@@ -370,7 +370,7 @@ model Partner {
   whatsapp     String?
   instagram    String?
   website      String?
-  openingHours String
+  openingHours Json           @default("[]")
   status       Boolean        @default(true)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
