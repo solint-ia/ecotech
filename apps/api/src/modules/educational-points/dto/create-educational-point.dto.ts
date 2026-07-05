@@ -19,6 +19,11 @@ export enum PointTypeEnum {
   OUTRO = 'OUTRO',
 }
 
+export enum PdfModeEnum {
+  UPLOAD = 'UPLOAD',
+  AUTO = 'AUTO',
+}
+
 export class CreateEducationalPointDto {
   @IsString()
   trailId: string;
@@ -77,7 +82,6 @@ export class CreateEducationalPointDto {
   @Transform(({ value }) => value === 'true' || value === true)
   status?: boolean;
 
-  @IsString()
-  @IsOptional()
-  pdfUrl?: string;
+  @IsEnum(PdfModeEnum, { message: 'Modo de PDF inválido.' })
+  pdfMode: PdfModeEnum;
 }

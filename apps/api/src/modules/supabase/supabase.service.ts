@@ -33,6 +33,33 @@ export class SupabaseService {
     return this.uploadBuffer(file.buffer, file.mimetype, file.originalname, folder);
   }
 
+  /**
+   * Uploads to an exact, caller-chosen path (no random suffix), overwriting in place
+   * (upsert). Used for assets that must live at a stable, predictable location per
+   * record (e.g. one PDF per educational point) so regeneration/replacement doesn't
+   * leave the old file at a different path.
+   */
+  async uploadFileAt(file: Express.Multer.File, storagePath: string): Promise<string> {
+    return this.uploadBufferAt(file.buffer, file.mimetype, storagePath);
+  }
+
+  async uploadBufferAt(buffer: Buffer, mimetype: string, storagePath: string): Promise<string> {
+    const { error } = await this.supabase.storage
+      .from('uploads')
+      .upload(storagePath, buffer, {
+        contentType: mimetype,
+        upsert: true,
+      });
+
+    if (error) {
+      this.logger.error(`Error uploading to Supabase at ${storagePath}: ${error.message}`);
+      throw new Error('Falha ao enviar o arquivo.');
+    }
+
+    const { data: publicUrlData } = this.supabase.storage.from('uploads').getPublicUrl(storagePath);
+    return publicUrlData.publicUrl;
+  }
+
   async uploadBuffer(buffer: Buffer, mimetype: string, originalname: string, folder: string): Promise<string> {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const ext = extname(originalname) || '';

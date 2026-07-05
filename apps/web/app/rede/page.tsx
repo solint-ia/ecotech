@@ -88,7 +88,7 @@ export default function RedePage() {
 
       {/* Search Bar and Filters */}
       <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <div className="flex gap-2 w-full md:w-1/3">
+        <div className="flex gap-2 w-full md:flex-1">
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/40" />
             <input
@@ -107,8 +107,8 @@ export default function RedePage() {
             Filtros
           </button>
         </div>
-        
-        <div className="hidden md:block md:w-2/3">
+
+        <div className="hidden md:block md:flex-1">
           <StateCitySelect
             selectedState={filterState}
             selectedCity={filterCity}
@@ -117,22 +117,22 @@ export default function RedePage() {
             inline={true}
           />
         </div>
-      </div>
 
-      {/* Categories Dropdown */}
-      <div className="relative mb-6 md:w-1/3">
-        <select
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-          className="w-full pl-4 pr-10 py-3 rounded-xl border border-sage/50 focus:outline-none focus:ring-2 focus:ring-forest text-sm font-medium appearance-none cursor-pointer shadow-sm bg-sage text-forest"
-        >
-          {CATEGORIES.map((category) => (
-            <option key={category} value={category}>
-              {category === 'Todos' ? 'Todas as Categorias' : category}
-            </option>
-          ))}
-        </select>
-        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-forest pointer-events-none" />
+        {/* Categories Dropdown */}
+        <div className="relative w-full md:w-56 shrink-0">
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="w-full pl-4 pr-10 py-3 rounded-xl border border-sage/50 focus:outline-none focus:ring-2 focus:ring-forest text-sm font-medium appearance-none cursor-pointer shadow-sm bg-sage text-forest"
+          >
+            {CATEGORIES.map((category) => (
+              <option key={category} value={category}>
+                {category === 'Todos' ? 'Todas as Categorias' : category}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-forest pointer-events-none" />
+        </div>
       </div>
 
       {/* Partners Grid */}

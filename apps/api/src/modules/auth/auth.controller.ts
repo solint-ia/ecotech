@@ -8,6 +8,7 @@ import * as express from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { SupabaseService } from '../supabase/supabase.service';
 
 @Controller('auth')
@@ -134,6 +135,14 @@ export class AuthController {
       sameSite: 'strict',
     });
     return { message: 'Desconectado com sucesso.' };
+  }
+
+  @Post('change-password')
+  @Throttle({ default: { limit: 5, ttl: 900000 } })
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async changePassword(@CurrentUser() user: any, @Body() body: ChangePasswordDto) {
+    return this.authService.changePassword(user.id, body.currentPassword, body.newPassword);
   }
 
   @Post('request-email-update')

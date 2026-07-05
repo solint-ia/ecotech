@@ -6,8 +6,9 @@ import {
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { PdfSource } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateEducationalPointDto } from './dto/create-educational-point.dto';
+import { CreateEducationalPointDto, PdfModeEnum } from './dto/create-educational-point.dto';
 import { UpdateEducationalPointDto } from './dto/update-educational-point.dto';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -22,6 +23,10 @@ const COLOR_BEIGE = '#F5EFE0';
 const UPLOADS_DIR = path.resolve(process.cwd(), 'uploads');
 
 import { SupabaseService } from '../supabase/supabase.service';
+
+function getPdfStoragePath(slug: string): string {
+  return `pdfs/ponto-${slug}.pdf`;
+}
 
 function slugify(text: string): string {
   return text
@@ -107,9 +112,9 @@ async function generatePdf(point: {
   trail: { title: string; school?: { name: string } | null };
 }): Promise<Buffer> {
   return new Promise(async (resolve, reject) => {
-    const doc = new PDFDocument({ 
-      size: 'A4', 
-      margins: { top: 60, bottom: 60, left: 50, right: 50 }, 
+    const doc = new PDFDocument({
+      size: 'A4',
+      margins: { top: 60, bottom: 60, left: 50, right: 50 },
       info: { Title: point.title, Author: 'EcoTech' },
       bufferPages: true
     });
@@ -178,7 +183,7 @@ async function generatePdf(point: {
 
     const safeType = cleanPdfText(point.type);
     const safeTrail = cleanPdfText(point.trail.title);
-    
+
     const chips = [
       `Tipo: ${safeType}`,
       `Trilha: ${safeTrail}`,
@@ -259,7 +264,7 @@ async function generatePdf(point: {
 
     // --- Space Before Content ---
     contentY += 15;
-    
+
     // --- Structured Content (Single Column - Fluid Flow) ---
     const contentWidth = pageWidth - 100;
 
@@ -277,17 +282,17 @@ async function generatePdf(point: {
 
       if (isFirst) {
         doc.fill(COLOR_DEEP_FOREST).fontSize(14).font('Helvetica-Bold')
-           .text(safeTitle, 50, contentY, { width: contentWidth, align: 'left' });
+          .text(safeTitle, 50, contentY, { width: contentWidth, align: 'left' });
         doc.moveDown(0.5);
         doc.fill(COLOR_TEXT).fontSize(10).font('Helvetica')
-           .text(safeContent, { width: contentWidth, align: 'justify' });
+          .text(safeContent, { width: contentWidth, align: 'justify' });
       } else {
         doc.moveDown(1.5);
         doc.fill(COLOR_DEEP_FOREST).fontSize(14).font('Helvetica-Bold')
-           .text(safeTitle, { width: contentWidth, align: 'left' });
+          .text(safeTitle, { width: contentWidth, align: 'left' });
         doc.moveDown(0.5);
         doc.fill(COLOR_TEXT).fontSize(10).font('Helvetica')
-           .text(safeContent, { width: contentWidth, align: 'justify' });
+          .text(safeContent, { width: contentWidth, align: 'justify' });
       }
     });
 
@@ -296,7 +301,7 @@ async function generatePdf(point: {
     const pages = doc.bufferedPageRange();
     for (let i = 0; i < pages.count; i++) {
       doc.switchToPage(i);
-      
+
       const originalBottom = doc.page.margins.bottom;
       doc.page.margins.bottom = 0;
 
@@ -308,7 +313,7 @@ async function generatePdf(point: {
 
       doc.page.margins.bottom = originalBottom;
     }
-    
+
     doc.flushPages();
 
     doc.end();
@@ -321,7 +326,7 @@ export class EducationalPointsService {
     private prisma: PrismaService,
     @InjectQueue('pdf-queue') private pdfQueue: Queue,
     private supabaseService: SupabaseService,
-  ) {}
+  ) { }
 
   async findBySlug(slug: string) {
     const point = await this.prisma.educationalPoint.findFirst({
@@ -362,6 +367,7 @@ export class EducationalPointsService {
   async create(
     dto: CreateEducationalPointDto,
     requestingUser: { id: string; role: string; schoolId?: string },
+    educationalFile?: Express.Multer.File,
   ) {
     // Validate trail access
     const trail = await this.prisma.trail.findUnique({
@@ -383,6 +389,10 @@ export class EducationalPointsService {
       throw new BadRequestException('Já existe um ponto cadastrado nesta posição. Por favor, escolha outra ordem.');
     }
 
+    if (dto.pdfMode === PdfModeEnum.UPLOAD && !educationalFile) {
+      throw new BadRequestException('Selecione um arquivo PDF para upload.');
+    }
+
     // Generate unique slug
     const baseSlug = slugify(dto.title);
     let slug = baseSlug;
@@ -390,6 +400,13 @@ export class EducationalPointsService {
     while (await this.prisma.educationalPoint.findFirst({ where: { slug } })) {
       attempt++;
       slug = `${baseSlug}-${attempt}`;
+    }
+
+    // Upload the custom PDF (if any) to its deterministic, per-point path before
+    // touching the database — if this fails, nothing is created.
+    let pdfUrl: string | undefined;
+    if (dto.pdfMode === PdfModeEnum.UPLOAD && educationalFile) {
+      pdfUrl = await this.supabaseService.uploadFileAt(educationalFile, getPdfStoragePath(slug));
     }
 
     // Create the point first
@@ -408,17 +425,17 @@ export class EducationalPointsService {
         mainImage: dto.mainImage ?? '',
         offlineSummary: dto.offlineSummary ?? '',
         status: dto.status ?? false,
-        ...(dto.pdfUrl && { pdfUrl: dto.pdfUrl }),
+        pdfSource: dto.pdfMode,
+        ...(pdfUrl && { pdfUrl }),
       },
     });
 
-    const isCustom = !!dto.pdfUrl?.includes('custom-pdfs');
-
-    // Generate QR Code and PDF in background via BullMQ (Worker Isolado)
+    // Generate QR Code and PDF in background via BullMQ (Worker Isolado).
+    // Skip PDF generation entirely when a custom file was uploaded.
     await this.pdfQueue.add('generate-pdf', {
       pointId: point.id,
       trailId: trail.id,
-      skipPdfGeneration: isCustom
+      skipPdfGeneration: dto.pdfMode === PdfModeEnum.UPLOAD,
     });
 
     return point;
@@ -428,6 +445,7 @@ export class EducationalPointsService {
     id: string,
     dto: UpdateEducationalPointDto,
     requestingUser: { id: string; role: string; schoolId?: string },
+    educationalFile?: Express.Multer.File,
   ) {
     const point = await this.prisma.educationalPoint.findUnique({
       where: { id },
@@ -453,18 +471,32 @@ export class EducationalPointsService {
       }
     }
 
-    // Clean up old mainImage if a new one is provided
+    // Clean up old mainImage if a new one is provided (unaffected by the PDF safe-swap below)
     if (dto.mainImage && point.mainImage && dto.mainImage !== point.mainImage) {
       if (point.mainImage.includes('supabase')) {
         await this.supabaseService.deleteFile(point.mainImage);
       }
     }
 
-    // Clean up old pdfUrl if a new CUSTOM file is provided
-    if (dto.pdfUrl && point.pdfUrl && dto.pdfUrl !== point.pdfUrl) {
-      if (point.pdfUrl.includes('supabase')) {
-        await this.supabaseService.deleteFile(point.pdfUrl);
+    // Resolve the requested PDF mode and, for UPLOAD, the new file's URL — BEFORE
+    // writing to the database. If this throws (missing file, upload failure), the
+    // request aborts here and the point (and its existing PDF) is left untouched.
+    let pdfUrl: string | undefined;
+    let pdfSource: PdfSource | undefined;
+
+    if (dto.pdfMode === PdfModeEnum.UPLOAD) {
+      if (educationalFile) {
+        pdfUrl = await this.supabaseService.uploadFileAt(educationalFile, getPdfStoragePath(point.slug));
+      } else if (point.pdfSource === PdfSource.UPLOAD && point.pdfUrl) {
+        pdfUrl = point.pdfUrl; // keeping the already-uploaded file as-is
+      } else {
+        throw new BadRequestException('Selecione um arquivo PDF para upload.');
       }
+      pdfSource = PdfSource.UPLOAD;
+    } else if (dto.pdfMode === PdfModeEnum.AUTO) {
+      pdfSource = PdfSource.AUTO;
+      // pdfUrl is left untouched here; the async queue job regenerates and swaps it
+      // in (see generateAssetsForPoint), using the same safe generate-then-replace order.
     }
 
     const updated = await this.prisma.educationalPoint.update({
@@ -482,19 +514,30 @@ export class EducationalPointsService {
         ...(dto.preservationCare !== undefined && { preservationCare: dto.preservationCare }),
         ...(dto.mainImage !== undefined && { mainImage: dto.mainImage }),
         ...(dto.offlineSummary !== undefined && { offlineSummary: dto.offlineSummary }),
-        ...(dto.pdfUrl !== undefined && { pdfUrl: dto.pdfUrl }),
+        ...(pdfUrl !== undefined && { pdfUrl }),
+        ...(pdfSource !== undefined && { pdfSource }),
         ...(dto.status !== undefined && { status: dto.status }),
       },
       include: { trail: { select: { id: true, title: true, slug: true, school: { select: { name: true } } } } },
     });
 
-    const isCustom = updated.pdfUrl?.includes('custom-pdfs') ?? false;
+    // Only now that the new file (if any) is confirmed uploaded AND persisted do we
+    // remove a stale old PDF living at a different path (e.g. a legacy custom-pdfs/
+    // upload, or a leftover from a mode switch). A delete failure here is logged but
+    // does not fail the request — the point already has a valid, working PDF.
+    if (point.pdfUrl && updated.pdfUrl && point.pdfUrl !== updated.pdfUrl) {
+      try {
+        await this.supabaseService.deleteFile(point.pdfUrl);
+      } catch (e) {
+        console.error(`Failed to delete stale PDF for point ${point.id}:`, e);
+      }
+    }
 
     // Re-generate QR Code and PDF whenever point is updated via Queue
     await this.pdfQueue.add('generate-pdf', {
       pointId: updated.id,
       trailId: updated.trail.id,
-      skipPdfGeneration: isCustom
+      skipPdfGeneration: updated.pdfSource === PdfSource.UPLOAD,
     });
 
     return updated;
@@ -546,24 +589,36 @@ export class EducationalPointsService {
       },
     });
 
-    // Generate PDF ONLY IF skipPdfGeneration is not true
+    // Generate PDF ONLY IF skipPdfGeneration is not true.
+    // Safe order: generate -> upload the new file -> persist it -> only THEN remove
+    // a stale old one. If generation or upload fails, the old PDF (and the DB row)
+    // are left completely untouched, so the point is never left without a PDF.
     if (!skipPdfGeneration) {
-      // Clean up old PDF if it was auto-generated (or if for some reason it wasn't cleaned up by the update method)
-      if (point.pdfUrl && point.pdfUrl.includes('supabase')) {
-        await this.supabaseService.deleteFile(point.pdfUrl).catch(e => console.error(e));
-      }
-
       const pdfBuffer = await generatePdf(pointForGen);
 
-      // Upload PDF to Supabase
-      const pdfFilename = `ponto-${point.slug}.pdf`;
-      const pdfUrl = await this.supabaseService.uploadBuffer(pdfBuffer, 'application/pdf', pdfFilename, 'pdfs');
+      const pdfUrl = await this.supabaseService.uploadBufferAt(
+        pdfBuffer,
+        'application/pdf',
+        getPdfStoragePath(point.slug),
+      );
 
-      // Save pdfUrl back to point
+      const oldPdfUrl = point.pdfUrl;
+
       await this.prisma.educationalPoint.update({
         where: { id: point.id },
-        data: { pdfUrl },
+        data: { pdfUrl, pdfSource: PdfSource.AUTO },
       });
+
+      // Clean up a stale old PDF only if it lived at a different path (e.g. a
+      // leftover custom upload, or pre-refactor filename) — same slug/path means
+      // uploadBufferAt already overwrote it in place (upsert).
+      if (oldPdfUrl && oldPdfUrl !== pdfUrl) {
+        try {
+          await this.supabaseService.deleteFile(oldPdfUrl);
+        } catch (e) {
+          console.error(`Failed to delete stale PDF for point ${point.id}:`, e);
+        }
+      }
     }
   }
 

@@ -73,15 +73,12 @@ export class EducationalPointsController {
     }
 
     const educationalFile = files?.find(f => f.fieldname === 'educationalFile');
-    if (educationalFile) {
-      dto.pdfUrl = await this.supabaseService.uploadFile(educationalFile, 'custom-pdfs');
-    }
 
-    return this.educationalPointsService.create(dto, {
-      id: user.id,
-      role: user.role,
-      schoolId: user.schoolId,
-    });
+    return this.educationalPointsService.create(
+      dto,
+      { id: user.id, role: user.role, schoolId: user.schoolId },
+      educationalFile,
+    );
   }
 
   /** PATCH /educational-points/:id - Update an educational point */
@@ -102,15 +99,13 @@ export class EducationalPointsController {
     }
 
     const educationalFile = files?.find(f => f.fieldname === 'educationalFile');
-    if (educationalFile) {
-      dto.pdfUrl = await this.supabaseService.uploadFile(educationalFile, 'custom-pdfs');
-    }
 
-    return this.educationalPointsService.update(id, dto, {
-      id: user.id,
-      role: user.role,
-      schoolId: user.schoolId,
-    });
+    return this.educationalPointsService.update(
+      id,
+      dto,
+      { id: user.id, role: user.role, schoolId: user.schoolId },
+      educationalFile,
+    );
   }
 
   /** DELETE /educational-points/:id - Delete an educational point */

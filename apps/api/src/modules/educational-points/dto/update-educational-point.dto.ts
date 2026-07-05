@@ -9,7 +9,7 @@ import {
   Min,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
-import { PointTypeEnum } from './create-educational-point.dto';
+import { PointTypeEnum, PdfModeEnum } from './create-educational-point.dto';
 
 export class UpdateEducationalPointDto {
   @IsString()
@@ -69,7 +69,7 @@ export class UpdateEducationalPointDto {
   @Transform(({ value }) => value === 'true' || value === true)
   status?: boolean;
 
-  @IsString()
+  @IsEnum(PdfModeEnum, { message: 'Modo de PDF inválido.' })
   @IsOptional()
-  pdfUrl?: string;
+  pdfMode?: PdfModeEnum;
 }

@@ -26,6 +26,11 @@ enum PointType {
   MANGUEZAL
 }
 
+enum PdfSource {
+  UPLOAD
+  AUTO
+}
+
 enum Difficulty {
   FACIL
   MODERADA
@@ -210,6 +215,7 @@ model EducationalPoint {
   mainImage               String
   offlineSummary          String
   pdfUrl                  String?
+  pdfSource               PdfSource        @default(AUTO)
   status                  Boolean          @default(false)
   createdAt               DateTime         @default(now())
   updatedAt               DateTime         @updatedAt

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { MapPin, Plus, Download, QrCode, ChevronRight } from 'lucide-react';
 import { useSession } from 'next-auth/react';
@@ -32,13 +32,27 @@ export default function TrailDetailTabs({ trail }: TrailDetailTabsProps) {
   const user = session?.user as any;
   const isAdminOrManager = user?.role === 'ADMIN' || (user?.role === 'SCHOOL_MANAGER' && user?.schoolId === trail.schoolId);
 
-  const biodiversity: any[] = trail.biodiversity ?? trail.biodiversityItems ?? [];
+  const biodiversity: any[] = useMemo(
+    () => trail.biodiversity ?? trail.biodiversityItems ?? [],
+    [trail.biodiversity, trail.biodiversityItems],
+  );
 
   // Split-View States for Biodiversidade Tab
   const [activeBioFilter, setActiveBioFilter] = useState<'ALL' | 'FAUNA' | 'FLORA'>('ALL');
   const [selectedBioItem, setSelectedBioItem] = useState<any>(null);
+  const hasAutoSelectedBioItem = useRef(false);
 
   const filteredBioItems = biodiversity.filter(i => activeBioFilter === 'ALL' || i.groupType === activeBioFilter);
+
+  // Quick Win: auto-select the first item on initial load so the detail panel
+  // isn't empty on first paint. Runs once (guarded by the ref) so it never
+  // overrides a selection the user made afterwards (e.g. via filters/clicks).
+  useEffect(() => {
+    if (!hasAutoSelectedBioItem.current && biodiversity.length > 0) {
+      setSelectedBioItem(biodiversity[0]);
+      hasAutoSelectedBioItem.current = true;
+    }
+  }, [biodiversity]);
 
   useEffect(() => {
     if (activeTab === 'biodiversidade') {

@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState, useRef, use } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Camera, User, Mail, Phone, Calendar, School, Save, Edit2, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Camera, User, Mail, Phone, Calendar, School, Save, Edit2, Loader2, Image as ImageIcon, Lock } from 'lucide-react';
 import { getImageUrl } from '../../../lib/image-url';
 import FeedPostCard, { FeedPost } from '../../../components/feed/FeedPostCard';
 
@@ -45,7 +45,14 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
   const [showOtpPrompt, setShowOtpPrompt] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [pendingEmail, setPendingEmail] = useState('');
-  
+
+  // Change Password Flow States
+  const [showPasswordSection, setShowPasswordSection] = useState(false);
+  const [currentPasswordForChange, setCurrentPasswordForChange] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -128,6 +135,56 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
     resetForm();
     setError('');
     setSuccess('');
+    setShowPasswordSection(false);
+    setCurrentPasswordForChange('');
+    setNewPassword('');
+    setConfirmNewPassword('');
+  };
+
+  const handleChangePassword = async () => {
+    setError('');
+    setSuccess('');
+
+    if (newPassword.length < 6) {
+      setError('A nova senha deve ter no mínimo 6 caracteres.');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setError('As senhas não coincidem.');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const res = await fetch(`${API_URL}/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${user.accessToken}`,
+        },
+        body: JSON.stringify({ currentPassword: currentPasswordForChange, newPassword }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Erro ao alterar senha.');
+      }
+
+      setCurrentPasswordForChange('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+      setShowPasswordSection(false);
+      setSuccess('Senha alterada com sucesso! Você será desconectado para entrar novamente com a nova senha...');
+
+      setTimeout(async () => {
+        await signOut({ redirect: false });
+        router.push('/login');
+      }, 1800);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -464,6 +521,67 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                     <p className="text-xs text-amber-600 mt-2 bg-amber-50 p-2 rounded-lg border border-amber-100">
                       ⚠️ Ao alterar {isOwner ? 'sua' : 'a'} escola, {isOwner ? 'seus' : 'os'} acessos de professor serão revogados e {isOwner ? 'seu' : 'o'} perfil entrará em status <b>Pendente</b> até que o novo gestor escolar {isOwner ? 'o' : ''} aprove.
                     </p>
+                  )}
+                </div>
+              )}
+
+              {isOwner && (
+                <div className="pt-2 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordSection((v) => !v)}
+                    className="flex items-center gap-2 text-sm font-semibold text-primary hover:underline mt-4"
+                  >
+                    <Lock className="w-4 h-4" />
+                    {showPasswordSection ? 'Cancelar alteração de senha' : 'Alterar senha'}
+                  </button>
+
+                  {showPasswordSection && (
+                    <div className="mt-4 space-y-3 bg-gray-50 rounded-xl p-4 border border-gray-100">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Senha atual</label>
+                        <input
+                          type="password"
+                          autoComplete="current-password"
+                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                          value={currentPasswordForChange}
+                          onChange={(e) => setCurrentPasswordForChange(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Nova senha</label>
+                        <input
+                          type="password"
+                          autoComplete="new-password"
+                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="Mínimo de 6 caracteres"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Confirme a nova senha</label>
+                        <input
+                          type="password"
+                          autoComplete="new-password"
+                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                          value={confirmNewPassword}
+                          onChange={(e) => setConfirmNewPassword(e.target.value)}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleChangePassword}
+                        disabled={changingPassword || !currentPasswordForChange || !newPassword || !confirmNewPassword}
+                        className="w-full py-2.5 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {changingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+                        Salvar nova senha
+                      </button>
+                      <p className="text-xs text-gray-500">
+                        Ao trocar a senha, você será desconectado e precisará entrar novamente com as novas credenciais.
+                      </p>
+                    </div>
                   )}
                 </div>
               )}

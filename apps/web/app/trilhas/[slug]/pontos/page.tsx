@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, Save, ChevronDown, ChevronUp, Edit2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, ChevronDown, ChevronUp, Edit2, FileUp, Sparkles, FileText } from 'lucide-react';
 import { getImageUrl } from '../../../../lib/image-url';
 import ConfirmDeleteModal from '../../../../components/feed/ConfirmDeleteModal';
 
@@ -32,6 +32,8 @@ interface Point {
   mainImage: string;
   offlineSummary: string;
   status: boolean;
+  pdfUrl?: string;
+  pdfSource?: 'UPLOAD' | 'AUTO';
 }
 
 export default function PontosPage() {
@@ -55,6 +57,8 @@ export default function PontosPage() {
   const [editingPointId, setEditingPointId] = useState<string | null>(null);
   const [pointImage, setPointImage] = useState<File | null>(null);
   const [educationalFile, setEducationalFile] = useState<File | null>(null);
+  const [pdfMode, setPdfMode] = useState<'UPLOAD' | 'AUTO'>('AUTO');
+  const [existingPdfUrl, setExistingPdfUrl] = useState('');
   const [formData, setFormData] = useState({
     title: '',
     type: 'FAUNA',
@@ -111,6 +115,8 @@ export default function PontosPage() {
     setEditingPointId(null);
     setPointImage(null);
     setEducationalFile(null);
+    setPdfMode('AUTO');
+    setExistingPdfUrl('');
     setFormData({
       title: '',
       type: 'FAUNA',
@@ -144,6 +150,8 @@ export default function PontosPage() {
     });
     setPointImage(null);
     setEducationalFile(null);
+    setPdfMode(point.pdfSource === 'UPLOAD' ? 'UPLOAD' : 'AUTO');
+    setExistingPdfUrl(point.pdfUrl || '');
     setOfflineSummaryLeft(250 - (point.offlineSummary?.length || 0));
     setShowForm(true);
     setExpandedPointId(null);
@@ -151,9 +159,15 @@ export default function PontosPage() {
 
   const handleSavePoint = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
     setError('');
-    
+
+    if (pdfMode === 'UPLOAD' && !educationalFile && !existingPdfUrl) {
+      setError('Selecione um arquivo PDF para upload.');
+      return;
+    }
+
+    setSaving(true);
+
     try {
       const payload = new FormData();
       payload.append('title', formData.title);
@@ -161,7 +175,8 @@ export default function PontosPage() {
       payload.append('order', String(formData.order));
       payload.append('status', String(formData.status));
       payload.append('trailId', trail.id);
-      
+      payload.append('pdfMode', pdfMode);
+
       if (formData.shortDescription) payload.append('shortDescription', formData.shortDescription);
       if (formData.fullDescription) payload.append('fullDescription', formData.fullDescription);
       if (formData.curiosities) payload.append('curiosities', formData.curiosities);
@@ -169,7 +184,7 @@ export default function PontosPage() {
       if (formData.preservationCare) payload.append('preservationCare', formData.preservationCare);
       if (formData.offlineSummary) payload.append('offlineSummary', formData.offlineSummary);
       if (pointImage) payload.append('mainImage', pointImage);
-      if (educationalFile) payload.append('educationalFile', educationalFile);
+      if (pdfMode === 'UPLOAD' && educationalFile) payload.append('educationalFile', educationalFile);
 
       const url = editingPointId ? `${API_URL}/educational-points/${editingPointId}` : `${API_URL}/educational-points`;
       const method = editingPointId ? 'PATCH' : 'POST';
@@ -513,19 +528,62 @@ export default function PontosPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium mb-1 text-foreground" htmlFor="point-educational-file">
-              Arquivo Educativo (PDF/Doc)
-              <span className="block text-foreground/50 font-normal mt-0.5 mb-1">
-                Se enviado, substituirá o PDF gerado automaticamente pela plataforma.
-              </span>
+            <label className="block text-xs font-medium mb-2 text-foreground">
+              Arquivo Educativo (PDF)
             </label>
-            <input
-              id="point-educational-file"
-              type="file"
-              accept=".pdf,.doc,.docx"
-              onChange={(e) => setEducationalFile(e.target.files?.[0] || null)}
-              className="w-full text-sm text-foreground/60 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-beige file:text-primary hover:file:bg-beige/80 transition-colors"
-            />
+            <div className="flex gap-2 mb-3">
+              <button
+                type="button"
+                onClick={() => setPdfMode('AUTO')}
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold transition-colors ${
+                  pdfMode === 'AUTO'
+                    ? 'bg-secondary text-white border-secondary'
+                    : 'bg-white text-foreground/60 border-border-custom hover:border-secondary/50'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Gerar automaticamente
+              </button>
+              <button
+                type="button"
+                onClick={() => setPdfMode('UPLOAD')}
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold transition-colors ${
+                  pdfMode === 'UPLOAD'
+                    ? 'bg-secondary text-white border-secondary'
+                    : 'bg-white text-foreground/60 border-border-custom hover:border-secondary/50'
+                }`}
+              >
+                <FileUp className="w-3.5 h-3.5" />
+                Upload personalizado
+              </button>
+            </div>
+
+            {pdfMode === 'UPLOAD' ? (
+              <div>
+                <input
+                  id="point-educational-file"
+                  type="file"
+                  accept=".pdf"
+                  onChange={(e) => setEducationalFile(e.target.files?.[0] || null)}
+                  className="w-full text-sm text-foreground/60 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-beige file:text-primary hover:file:bg-beige/80 transition-colors"
+                />
+                {existingPdfUrl && !educationalFile && (
+                  <a
+                    href={getImageUrl(existingPdfUrl)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-secondary hover:underline"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    Ver PDF atual
+                  </a>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-foreground/50 bg-beige/50 rounded-lg px-3 py-2">
+                Um PDF será gerado automaticamente com o conteúdo deste ponto.
+              </p>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
