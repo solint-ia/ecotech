@@ -2,7 +2,7 @@ import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  secret: process.env.AUTH_SECRET || "dev-nextauth-secret-key-67890-very-secure",
+  secret: process.env.AUTH_SECRET,
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -57,10 +57,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id;
         token.realRole = (user as any).role;
         token.roleStatus = (user as any).roleStatus;
-        
+
         const isPendingOrRejected = token.roleStatus === 'PENDENTE' || token.roleStatus === 'REPROVADO';
         token.role = isPendingOrRejected ? 'USER' : token.realRole;
-        
+
         token.schoolId = (user as any).schoolId;
         token.profileImage = (user as any).profileImage;
         token.accessToken = (user as any).accessToken;

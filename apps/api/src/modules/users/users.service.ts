@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 
@@ -39,6 +39,14 @@ export class UsersService {
   async updateMe(userId: string, data: any, publicUrl?: string) {
     const currentUser = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!currentUser) throw new NotFoundException('Usuário não encontrado.');
+
+    // Phone must stay unique across users (same rule enforced at registration).
+    if (data.phone && data.phone !== currentUser.phone) {
+      const existingPhone = await this.prisma.user.findFirst({
+        where: { phone: data.phone, NOT: { id: userId } },
+      });
+      if (existingPhone) throw new ConflictException('Este telefone já está em uso.');
+    }
 
     if (currentUser.role === 'SCHOOL_MANAGER' && currentUser.schoolId) {
       const schoolUpdateData: any = {};
@@ -102,6 +110,14 @@ export class UsersService {
     if (data.email && data.email !== targetUser.email) {
       const existingUser = await this.prisma.user.findUnique({ where: { email: data.email } });
       if (existingUser) throw new ForbiddenException('Este e-mail já está em uso.');
+    }
+
+    // Phone must stay unique across users (same rule enforced at registration).
+    if (data.phone && data.phone !== targetUser.phone) {
+      const existingPhone = await this.prisma.user.findFirst({
+        where: { phone: data.phone, NOT: { id: targetUserId } },
+      });
+      if (existingPhone) throw new ConflictException('Este telefone já está em uso.');
     }
 
     // Admins can set a new password directly, without the current password.

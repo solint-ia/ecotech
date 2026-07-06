@@ -57,6 +57,9 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
   const [adminNewPassword, setAdminNewPassword] = useState('');
   const [adminConfirmPassword, setAdminConfirmPassword] = useState('');
 
+  // Inline per-field validation errors (e.g. duplicate phone/email)
+  const [fieldErrors, setFieldErrors] = useState<{ phone?: string; email?: string }>({});
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -141,6 +144,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
     resetForm();
     setError('');
     setSuccess('');
+    setFieldErrors({});
     setShowPasswordSection(false);
     setCurrentPasswordForChange('');
     setNewPassword('');
@@ -209,6 +213,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
     setSaving(true);
     setError('');
     setSuccess('');
+    setFieldErrors({});
 
     const editingAsAdmin = isAdmin && !isOwner;
 
@@ -290,7 +295,17 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
         setSuccess('Perfil atualizado com sucesso!');
       }
     } catch (err: any) {
-      setError(err.message);
+      // Surface uniqueness conflicts inline under the matching field (like the
+      // registration form), instead of only the top banner.
+      const msg: string = err.message || 'Erro ao atualizar perfil.';
+      const lower = msg.toLowerCase();
+      if (lower.includes('telefone')) {
+        setFieldErrors((prev) => ({ ...prev, phone: msg }));
+      } else if (lower.includes('e-mail') || lower.includes('email')) {
+        setFieldErrors((prev) => ({ ...prev, email: msg }));
+      } else {
+        setError(msg);
+      }
     } finally {
       setSaving(false);
     }
@@ -515,21 +530,33 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                 <input
                   type="email"
                   required
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className={`w-full px-4 py-2.5 rounded-xl border focus:outline-none focus:ring-2 ${fieldErrors.email ? 'border-red-500 focus:ring-red-500/40' : 'border-gray-200 focus:ring-primary/50'}`}
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: undefined }));
+                  }}
                 />
+                {fieldErrors.email && (
+                  <p className="text-xs text-red-600 mt-1.5">{fieldErrors.email}</p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
                 <input
                   type="tel"
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className={`w-full px-4 py-2.5 rounded-xl border focus:outline-none focus:ring-2 ${fieldErrors.phone ? 'border-red-500 focus:ring-red-500/40' : 'border-gray-200 focus:ring-primary/50'}`}
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    if (fieldErrors.phone) setFieldErrors((prev) => ({ ...prev, phone: undefined }));
+                  }}
                   placeholder="(00) 00000-0000"
                 />
+                {fieldErrors.phone && (
+                  <p className="text-xs text-red-600 mt-1.5">{fieldErrors.phone}</p>
+                )}
               </div>
 
               {profileData.role !== 'SCHOOL_MANAGER' && profileData.role !== 'ADMIN' && (
