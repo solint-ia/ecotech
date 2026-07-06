@@ -31,6 +31,7 @@ export default function AprovacoesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'ALL' | 'SCHOOL_MANAGER' | 'TEACHER'>('ALL');
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -110,6 +111,14 @@ export default function AprovacoesPage() {
 
   const isAdmin = user?.role === 'ADMIN';
 
+  // Pending teachers are stored with role USER while awaiting approval, so the
+  // "Professores" bucket is everyone that isn't a school registration.
+  const filteredUsers = users.filter((u) => {
+    if (!isAdmin || filter === 'ALL') return true;
+    if (filter === 'SCHOOL_MANAGER') return u.role === 'SCHOOL_MANAGER';
+    return u.role !== 'SCHOOL_MANAGER';
+  });
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       
@@ -123,11 +132,33 @@ export default function AprovacoesPage() {
             Gerenciamento de Solicitações
           </h1>
           <p className="text-sm text-foreground/70 mt-1">
-            {isAdmin 
-              ? 'Aprove ou recuse os cadastros de Escolas Parceiras.' 
+            {isAdmin
+              ? 'Aprove ou recuse os cadastros de Escolas Parceiras e de Professores.'
               : 'Aprove ou recuse os cadastros de Professores da sua Escola.'}
           </p>
         </div>
+
+        {isAdmin && (
+          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl self-start">
+            {([
+              { key: 'ALL', label: 'Todos' },
+              { key: 'SCHOOL_MANAGER', label: 'Escolas' },
+              { key: 'TEACHER', label: 'Professores' },
+            ] as const).map((opt) => (
+              <button
+                key={opt.key}
+                onClick={() => setFilter(opt.key)}
+                className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                  filter === opt.key
+                    ? 'bg-white text-primary shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {error && (
@@ -141,12 +172,12 @@ export default function AprovacoesPage() {
         
         {/* Mobile View (Cards) */}
         <div className="flex flex-col gap-4 md:hidden py-4">
-          {users.length === 0 ? (
+          {filteredUsers.length === 0 ? (
             <div className="text-center text-gray-500 py-8">
               Nenhuma solicitação pendente no momento.
             </div>
           ) : (
-            users.map(u => (
+            filteredUsers.map(u => (
               <div key={`mobile-${u.id}`} className="flex flex-col gap-3 bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                 
                 {/* Header do Card */}
@@ -238,14 +269,14 @@ export default function AprovacoesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {users.length === 0 ? (
+              {filteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
                     Nenhuma solicitação pendente no momento.
                   </td>
                 </tr>
               ) : (
-                users.map(u => (
+                filteredUsers.map(u => (
                   <tr key={`desktop-${u.id}`} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">

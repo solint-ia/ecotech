@@ -16,7 +16,6 @@ import * as QRCode from 'qrcode';
 import PDFDocument from 'pdfkit';
 
 // Brand colors
-const COLOR_DARK_GREEN = '#1A3D2B';
 const COLOR_LIGHT_GREEN = '#4C8B5E';
 const COLOR_BEIGE = '#F5EFE0';
 
@@ -82,9 +81,12 @@ async function generateQrCode(
 
   const buffer = await QRCode.toBuffer(textContent, {
     errorCorrectionLevel: 'M',
-    width: 400,
-    margin: 2,
-    color: { dark: COLOR_DARK_GREEN, light: '#FFFFFF' },
+    // Higher resolution + a wider quiet zone (margin) and pure black on white
+    // give the best contrast/sharpness, which iPhone cameras need to read the
+    // (fairly dense) offline payload reliably.
+    width: 600,
+    margin: 4,
+    color: { dark: '#000000', light: '#FFFFFF' },
   });
 
   return { textContent, buffer };
@@ -96,6 +98,41 @@ function cleanPdfText(text: string | null | undefined): string {
   let t = text.replace(/\r/g, '').replace(/Ð/g, '');
   // Remove emojis and non-latin symbols, keeping basic latin + latin-1 supplement + a few standard punctuations
   return t.replace(/[^\x00-\xFF\u0152\u0153\u0178\u2013\u2014\u2018\u2019\u201A\u201C\u201D\u201E\u2020\u2021\u2022\u2026\u2030\u20AC]/g, '').trim();
+}
+
+// ---------------------------------------------------------------------------
+// PDF layout palette — mirrors the "Ponto Educativo" tailwind design tokens.
+// ---------------------------------------------------------------------------
+const PDF_FLORESTA = '#123a29'; // header / footer / green cards
+const PDF_ECO = '#1f6b47'; // number badge text on white cards
+const PDF_SALVIA = '#f4f6f1'; // page background
+const PDF_FOLHA = '#eef3ea'; // number badge background on white cards
+const PDF_BORDA = '#eaeee5'; // card / divider borders
+const PDF_TERRA = '#d99b78'; // accent (type badge, card 03)
+const PDF_TEXTO = '#4a5249'; // body text on white cards
+const PDF_MUDO = '#a3ab99'; // muted metadata labels
+const PDF_CREME = '#eef1e9'; // light text on green surfaces
+const PDF_MINT = '#a9d6bd'; // number badge text on green card 02
+
+function truncateText(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return text.slice(0, max - 1).trimEnd() + '…';
+}
+
+async function loadImageBuffer(source: string): Promise<Buffer | null> {
+  try {
+    if (source.startsWith('http')) {
+      const response = await fetch(source);
+      if (!response.ok) return null;
+      const arrayBuffer = await response.arrayBuffer();
+      return Buffer.from(arrayBuffer);
+    }
+    const localImgPath = path.resolve(process.cwd(), source.replace(/^\//, ''));
+    if (fs.existsSync(localImgPath)) return fs.readFileSync(localImgPath);
+  } catch (e) {
+    console.error('Error loading image for PDF', e);
+  }
+  return null;
 }
 
 async function generatePdf(point: {
@@ -114,9 +151,9 @@ async function generatePdf(point: {
   return new Promise(async (resolve, reject) => {
     const doc = new PDFDocument({
       size: 'A4',
-      margins: { top: 60, bottom: 60, left: 50, right: 50 },
+      margin: 0,
       info: { Title: point.title, Author: 'EcoTech' },
-      bufferPages: true
+      bufferPages: true,
     });
 
     const chunks: Buffer[] = [];
@@ -126,196 +163,282 @@ async function generatePdf(point: {
 
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
-    const COLOR_DEEP_FOREST = '#0B5D3B';
-    const COLOR_CREME = '#FAFCFA';
-    const COLOR_TEXT = '#2d3748';
 
-    // Handle new pages to keep background
+    const MX = 40; // horizontal page margin
+    const contentW = pageWidth - MX * 2;
+    const FOOTER_H = 34;
+    const CARD_PAD = 18;
+    const CARD_RADIUS = 14;
+    const CARD_GAP = 14;
+
+    // Keep the salvia background on every page (including auto-added overflow pages).
     doc.on('pageAdded', () => {
-      doc.rect(0, 0, pageWidth, pageHeight).fill(COLOR_CREME);
-      doc.fill(COLOR_TEXT);
+      doc.rect(0, 0, pageWidth, pageHeight).fill(PDF_SALVIA);
     });
+    doc.rect(0, 0, pageWidth, pageHeight).fill(PDF_SALVIA);
 
-    // Background first page
-    doc.rect(0, 0, pageWidth, pageHeight).fill(COLOR_CREME);
+    // ===================== HEADER (green) =====================
+    const safeTitle = cleanPdfText(point.title);
+    const safeType = cleanPdfText(point.type);
+    const safeTrail = cleanPdfText(point.trail.title);
+    const rawSubtitle = cleanPdfText(point.shortDescription);
+    const subtitle = rawSubtitle
+      ? truncateText(rawSubtitle, 95)
+      : `Trilha ${safeTrail}`;
 
-    const texturePath = path.resolve(process.cwd(), '../../apps/web/public/fundo-logo-pdf.jpg');
-    let hasTexture = false;
-    if (fs.existsSync(texturePath)) {
-      hasTexture = true;
-    }
+    const HEADER_PAD_TOP = 30;
+    const TOPROW_H = 40;
+    const GAP_AFTER_TOPROW = 20;
+    const HEADER_PAD_BOTTOM = 26;
+    const titleW = contentW;
 
-    // --- Header Section ---
-    // Calculate Title Height to make header dynamic
-    const safeTitle = cleanPdfText(point.title).toUpperCase();
-    doc.fontSize(26).font('Helvetica-Bold');
-    const titleHeight = doc.heightOfString(safeTitle, { width: pageWidth - 220 });
-    const headerHeight = Math.max(120, 35 + titleHeight + 45);
+    doc.font('Helvetica-Bold').fontSize(26);
+    const titleH = doc.heightOfString(safeTitle, { width: titleW });
+    doc.font('Helvetica-Oblique').fontSize(11);
+    const subH = doc.heightOfString(subtitle, { width: titleW });
 
-    // Full width green header
-    doc.rect(0, 0, pageWidth, headerHeight).fill(COLOR_DEEP_FOREST);
+    const headerH =
+      HEADER_PAD_TOP + TOPROW_H + GAP_AFTER_TOPROW + titleH + 5 + subH + HEADER_PAD_BOTTOM;
 
+    doc.rect(0, 0, pageWidth, headerH).fill(PDF_FLORESTA);
+
+    // Decorative circles (clipped to header)
+    doc.save();
+    doc.rect(0, 0, pageWidth, headerH).clip();
+    doc.lineWidth(1).strokeOpacity(0.15).strokeColor(PDF_CREME);
+    doc.circle(pageWidth - 30, 6, 78).stroke();
+    doc.strokeOpacity(0.1);
+    doc.circle(pageWidth - 12, 34, 56).stroke();
+    doc.strokeOpacity(1);
+    doc.restore();
+
+    // Logo (white emblem) top-left. Rendered a bit larger than the top-row
+    // height without growing the green header: the header height is driven by
+    // TOPROW_H, and the title only starts at HEADER_PAD_TOP + TOPROW_H +
+    // GAP_AFTER_TOPROW (=90), so a 52px logo (30→82) still clears the title.
+    const LOGO_H = 52;
     const logoPath = path.resolve(process.cwd(), '../../apps/web/public/logo-header.png');
-    let hasLogo = false;
     if (fs.existsSync(logoPath)) {
-      hasLogo = true;
-    }
-
-    // Logo on the left
-    if (hasLogo) {
       try {
-        const logoWidth = 70;
-        doc.image(logoPath, 40, 25, { width: logoWidth });
+        // Keep the logo vertically centered on the original top row so the extra
+        // height grows symmetrically instead of only downward.
+        const logoY = HEADER_PAD_TOP + (TOPROW_H - LOGO_H) / 2;
+        doc.image(logoPath, MX, logoY, { height: LOGO_H });
       } catch (e) {
         console.error('Error loading logo', e);
       }
     }
 
-    // Title
-    doc.fill('#FFFFFF').fontSize(26).font('Helvetica-Bold').text(safeTitle, 110, 35, { align: 'center', width: pageWidth - 220 });
+    // Type badge (terra pill) top-right
+    const badgeLabel = safeType.toUpperCase();
+    doc.font('Helvetica-Bold').fontSize(8.5);
+    const badgeLabelW = doc.widthOfString(badgeLabel);
+    const badgeH = 20;
+    const badgeW = badgeLabelW + 32;
+    const badgeX = pageWidth - MX - badgeW;
+    const badgeY = HEADER_PAD_TOP + (TOPROW_H - badgeH) / 2;
+    doc.roundedRect(badgeX, badgeY, badgeW, badgeH, badgeH / 2)
+      .fillOpacity(0.18)
+      .fill(PDF_TERRA);
+    doc.fillOpacity(1);
+    doc.circle(badgeX + 13, badgeY + badgeH / 2, 2.5).fill(PDF_TERRA);
+    doc.fill(PDF_TERRA).font('Helvetica-Bold').fontSize(8.5)
+      .text(badgeLabel, badgeX + 21, badgeY + 6, { lineBreak: false });
 
-    // Subtitle
-    doc.fill('#EAF4EE').fontSize(13).font('Helvetica-Oblique').text(`Natureza e Educação Ambiental`, 110, doc.y + 5, { align: 'center', width: pageWidth - 220 });
+    // Title + subtitle
+    const titleY = HEADER_PAD_TOP + TOPROW_H + GAP_AFTER_TOPROW;
+    doc.fill('#FFFFFF').font('Helvetica-Bold').fontSize(26)
+      .text(safeTitle, MX, titleY, { width: titleW });
+    doc.fillOpacity(0.7).fill(PDF_CREME).font('Helvetica-Oblique').fontSize(11)
+      .text(subtitle, MX, titleY + titleH + 5, { width: titleW });
+    doc.fillOpacity(1);
 
-    // --- Metadata Row (Chips) ---
-    let chipY = headerHeight + 25;
-    doc.font('Helvetica-Bold').fontSize(10);
+    // ===================== METADATA ROW (white) =====================
+    const metaY = headerH;
+    const metaH = 50;
+    doc.rect(0, metaY, pageWidth, metaH).fill('#FFFFFF');
+    doc.moveTo(0, metaY + metaH).lineTo(pageWidth, metaY + metaH)
+      .lineWidth(1).strokeColor(PDF_BORDA).stroke();
 
-    const safeType = cleanPdfText(point.type);
-    const safeTrail = cleanPdfText(point.trail.title);
-
-    const chips = [
-      `Tipo: ${safeType}`,
-      `Trilha: ${safeTrail}`,
-      `Ordem: ${point.order}`
+    const metaCols = [
+      { label: 'TIPO', value: safeType, weight: 1 },
+      { label: 'TRILHA', value: safeTrail, weight: 1.8 },
+      { label: 'ORDEM', value: String(point.order), weight: 0.9 },
     ];
-
-    // Calculate total width of chips to center them
-    const chipPadding = 20;
-    const chipSpacing = 15;
-    const chipWidths = chips.map(c => doc.widthOfString(c) + chipPadding * 2);
-    const totalChipsWidth = chipWidths.reduce((a, b) => a + b, 0) + (chips.length - 1) * chipSpacing;
-    let currentX = (pageWidth - totalChipsWidth) / 2;
-
-    chips.forEach((chipText, i) => {
-      const w = chipWidths[i];
-      doc.roundedRect(currentX, chipY, w, 24, 12)
-        .lineWidth(1)
-        .strokeColor(COLOR_DEEP_FOREST)
-        .stroke();
-
-      doc.fill(COLOR_DEEP_FOREST).text(chipText, currentX, chipY + 7, { width: w, align: 'center' });
-      currentX += w + chipSpacing;
+    const weightTotal = metaCols.reduce((a, c) => a + c.weight, 0);
+    let colX = MX;
+    metaCols.forEach((col, i) => {
+      const colW = (contentW * col.weight) / weightTotal;
+      const pad = i === 0 ? 0 : 14;
+      doc.fill(PDF_MUDO).font('Courier-Bold').fontSize(8)
+        .text(col.label, colX + pad, metaY + 12, { width: colW - pad, lineBreak: false });
+      doc.fill(PDF_FLORESTA).font('Helvetica-Bold').fontSize(12)
+        .text(truncateText(col.value, 34), colX + pad, metaY + 26, { width: colW - pad, lineBreak: false });
+      if (i < metaCols.length - 1) {
+        doc.moveTo(colX + colW, metaY + 10).lineTo(colX + colW, metaY + metaH - 10)
+          .lineWidth(1).strokeColor(PDF_BORDA).stroke();
+      }
+      colX += colW;
     });
 
-    let contentY = chipY + 50;
+    // ===================== MAIN IMAGE =====================
+    const imgY = metaY + metaH + 20;
+    const imgH = 200;
+    const imageBuffer = point.mainImage ? await loadImageBuffer(point.mainImage) : null;
 
-    // --- Main Image ---
-    if (point.mainImage) {
+    doc.save();
+    doc.roundedRect(MX, imgY, contentW, imgH, CARD_RADIUS).clip();
+    if (imageBuffer) {
       try {
-        let imageBuffer: Buffer | null = null;
-        if (point.mainImage.startsWith('http')) {
-          const response = await fetch(point.mainImage);
-          if (response.ok) {
-            const arrayBuffer = await response.arrayBuffer();
-            imageBuffer = Buffer.from(arrayBuffer);
-          }
-        } else {
-          const localImgPath = path.resolve(process.cwd(), point.mainImage.replace(/^\//, ''));
-          if (fs.existsSync(localImgPath)) {
-            imageBuffer = fs.readFileSync(localImgPath);
-          }
-        }
-
-        if (imageBuffer) {
-          const imgWidth = 400;
-          const imgHeight = 250;
-          doc.save();
-          const imgX = (pageWidth - imgWidth) / 2;
-          doc.image(imageBuffer, imgX, contentY, { width: imgWidth, height: imgHeight, fit: [imgWidth, imgHeight], align: 'center', valign: 'center' });
-          doc.restore();
-          contentY += imgHeight + 40;
-        } else {
-          contentY += 20;
-        }
+        doc.image(imageBuffer, MX, imgY, { cover: [contentW, imgH], align: 'center', valign: 'center' });
       } catch (e) {
         console.error('Error rendering image in PDF', e);
-        contentY += 20;
       }
     } else {
-      contentY += 20;
-    }
-
-    // Bottom Background Texture (Informative Text Section)
-    if (hasTexture) {
-      try {
-        doc.save();
-        const bottomHeight = pageHeight - contentY - 40; // up to footer
-        if (bottomHeight > 0) {
-          doc.rect(0, contentY - 10, pageWidth, bottomHeight + 10).clip();
-          doc.opacity(0.15); // Subtle texture opacity
-          doc.image(texturePath, 0, contentY - 10, { width: pageWidth, height: bottomHeight + 10, cover: [pageWidth, bottomHeight + 10] });
-        }
-        doc.restore();
-      } catch (e) {
-        console.error('Error drawing bottom texture', e);
+      // Placeholder: soft fill + diagonal hatch + mono caption
+      doc.rect(MX, imgY, contentW, imgH).fill('#dfe4d8');
+      doc.lineWidth(1).strokeColor(PDF_FLORESTA).strokeOpacity(0.07);
+      for (let i = -imgH; i < contentW; i += 14) {
+        doc.moveTo(MX + i, imgY + imgH).lineTo(MX + i + imgH, imgY).stroke();
       }
+      doc.strokeOpacity(1);
+      doc.fillOpacity(0.55).fill(PDF_ECO).font('Courier').fontSize(8)
+        .text(`imagem principal — ${safeTitle}`, MX + 12, imgY + imgH - 18, { lineBreak: false });
+      doc.fillOpacity(1);
     }
+    doc.restore();
 
-    // --- Space Before Content ---
-    contentY += 15;
+    // ===================== CARDS =====================
+    let y = imgY + imgH + 18;
+    const bottomLimit = pageHeight - FOOTER_H - 20;
 
-    // --- Structured Content (Single Column - Fluid Flow) ---
-    const contentWidth = pageWidth - 100;
+    const ensureSpace = (h: number) => {
+      if (y + h > bottomLimit) {
+        doc.addPage();
+        y = 40;
+      }
+    };
 
-    const sections = [
-      { title: 'Descrição Completa', content: point.fullDescription || point.shortDescription },
-      { title: 'Importância Ambiental', content: point.environmentalImportance },
-      { title: 'Curiosidades', content: point.curiosities },
-      { title: 'Cuidados e Preservação', content: point.preservationCare }
-    ].filter(s => !!s.content);
+    // Height of a card given its wrapped body text.
+    const cardHeight = (w: number, body: string, variant: 'white' | 'green'): number => {
+      const innerW = w - CARD_PAD * 2;
+      const bodySize = variant === 'green' ? 9.5 : 10;
+      doc.font('Helvetica').fontSize(bodySize);
+      const th = doc.heightOfString(body, { width: innerW, lineGap: 2 });
+      return CARD_PAD + 22 + 10 + th + CARD_PAD;
+    };
 
-    sections.forEach((sec, idx) => {
-      const isFirst = idx === 0;
-      const safeTitle = cleanPdfText(sec.title);
-      const safeContent = cleanPdfText(sec.content);
-
-      if (isFirst) {
-        doc.fill(COLOR_DEEP_FOREST).fontSize(14).font('Helvetica-Bold')
-          .text(safeTitle, 50, contentY, { width: contentWidth, align: 'left' });
-        doc.moveDown(0.5);
-        doc.fill(COLOR_TEXT).fontSize(10).font('Helvetica')
-          .text(safeContent, { width: contentWidth, align: 'justify' });
+    const drawCard = (
+      x: number,
+      cardY: number,
+      w: number,
+      h: number,
+      num: string,
+      title: string,
+      body: string,
+      variant: 'white' | 'green',
+    ) => {
+      if (variant === 'green') {
+        doc.roundedRect(x, cardY, w, h, CARD_RADIUS).fill(PDF_FLORESTA);
       } else {
-        doc.moveDown(1.5);
-        doc.fill(COLOR_DEEP_FOREST).fontSize(14).font('Helvetica-Bold')
-          .text(safeTitle, { width: contentWidth, align: 'left' });
-        doc.moveDown(0.5);
-        doc.fill(COLOR_TEXT).fontSize(10).font('Helvetica')
-          .text(safeContent, { width: contentWidth, align: 'justify' });
+        doc.roundedRect(x, cardY, w, h, CARD_RADIUS).fill('#FFFFFF');
+        doc.roundedRect(x, cardY, w, h, CARD_RADIUS).lineWidth(1).strokeColor(PDF_BORDA).stroke();
       }
-    });
 
-    // --- Footer Bar Text (Buffered Pages) ---
-    // Now loop over all pages and draw the footer background and text
+      const ix = x + CARD_PAD;
+      const iy = cardY + CARD_PAD;
+      const badgeSize = 22;
+
+      // Number badge
+      if (variant === 'green') {
+        const accent03 = num === '03';
+        doc.roundedRect(ix, iy, badgeSize, badgeSize, 6)
+          .fillOpacity(accent03 ? 0.18 : 0.1)
+          .fill(accent03 ? PDF_TERRA : '#FFFFFF');
+        doc.fillOpacity(1);
+        doc.fill(accent03 ? PDF_TERRA : PDF_MINT).font('Helvetica-Bold').fontSize(11)
+          .text(num, ix, iy + 6, { width: badgeSize, align: 'center' });
+        doc.fill('#FFFFFF').font('Helvetica-Bold').fontSize(12)
+          .text(title, ix + badgeSize + 10, iy + 5, { lineBreak: false });
+      } else {
+        doc.roundedRect(ix, iy, badgeSize, badgeSize, 6).fill(PDF_FOLHA);
+        doc.fill(PDF_ECO).font('Helvetica-Bold').fontSize(11)
+          .text(num, ix, iy + 6, { width: badgeSize, align: 'center' });
+        doc.fill(PDF_FLORESTA).font('Helvetica-Bold').fontSize(13)
+          .text(title, ix + badgeSize + 10, iy + 5, { lineBreak: false });
+      }
+
+      // Body
+      const bodyY = iy + badgeSize + 10;
+      const innerW = w - CARD_PAD * 2;
+      const bodySize = variant === 'green' ? 9.5 : 10;
+      if (variant === 'green') {
+        doc.fillOpacity(0.85).fill('#FFFFFF');
+      } else {
+        doc.fill(PDF_TEXTO);
+      }
+      doc.font('Helvetica').fontSize(bodySize)
+        .text(body, ix, bodyY, { width: innerW, align: 'left', lineGap: 2 });
+      doc.fillOpacity(1);
+    };
+
+    // 01 · Descrição (white)
+    const descText = cleanPdfText(point.fullDescription || point.shortDescription);
+    if (descText) {
+      const h = cardHeight(contentW, descText, 'white');
+      ensureSpace(h);
+      drawCard(MX, y, contentW, h, '01', 'Descrição', descText, 'white');
+      y += h + CARD_GAP;
+    }
+
+    // 02 + 03 · green cards (side by side when both exist)
+    const greens: { num: string; title: string; body: string }[] = [];
+    const importText = cleanPdfText(point.environmentalImportance);
+    const curioText = cleanPdfText(point.curiosities);
+    if (importText) greens.push({ num: '02', title: 'Importância', body: importText });
+    if (curioText) greens.push({ num: '03', title: 'Curiosidades', body: curioText });
+
+    if (greens.length === 2) {
+      const gw = (contentW - CARD_GAP) / 2;
+      const h = Math.max(
+        cardHeight(gw, greens[0].body, 'green'),
+        cardHeight(gw, greens[1].body, 'green'),
+      );
+      ensureSpace(h);
+      drawCard(MX, y, gw, h, greens[0].num, greens[0].title, greens[0].body, 'green');
+      drawCard(MX + gw + CARD_GAP, y, gw, h, greens[1].num, greens[1].title, greens[1].body, 'green');
+      y += h + CARD_GAP;
+    } else if (greens.length === 1) {
+      const g = greens[0];
+      const h = cardHeight(contentW, g.body, 'green');
+      ensureSpace(h);
+      drawCard(MX, y, contentW, h, g.num, g.title, g.body, 'green');
+      y += h + CARD_GAP;
+    }
+
+    // 04 · Cuidados e Preservação (white)
+    const careText = cleanPdfText(point.preservationCare);
+    if (careText) {
+      const h = cardHeight(contentW, careText, 'white');
+      ensureSpace(h);
+      drawCard(MX, y, contentW, h, '04', 'Cuidados e Preservação', careText, 'white');
+      y += h + CARD_GAP;
+    }
+
+    // ===================== FOOTER (green, all pages) =====================
     const pages = doc.bufferedPageRange();
     for (let i = 0; i < pages.count; i++) {
       doc.switchToPage(i);
-
-      const originalBottom = doc.page.margins.bottom;
-      doc.page.margins.bottom = 0;
-
-      doc.rect(0, pageHeight - 40, pageWidth, 40).fill(COLOR_DEEP_FOREST);
-      doc.fill('#EAF4EE').fontSize(9).font('Helvetica').text(
-        'Educação Ambiental, Trilhas Educativas e Conexão com a Natureza. © 2026 Ecotech.',
-        0, pageHeight - 25, { align: 'center', width: pageWidth, lineBreak: false }
-      );
-
-      doc.page.margins.bottom = originalBottom;
+      doc.rect(0, pageHeight - FOOTER_H, pageWidth, FOOTER_H).fill(PDF_FLORESTA);
+      doc.fillOpacity(0.6).fill(PDF_CREME).font('Courier').fontSize(8);
+      doc.text('EDUCACAO AMBIENTAL - TRILHAS EDUCATIVAS', MX, pageHeight - FOOTER_H + 13, { lineBreak: false });
+      const rightTxt = '(c) 2026 ECOTECH';
+      const rightW = doc.widthOfString(rightTxt);
+      doc.text(rightTxt, pageWidth - MX - rightW, pageHeight - FOOTER_H + 13, { lineBreak: false });
+      doc.fillOpacity(1);
     }
 
     doc.flushPages();
-
     doc.end();
   });
 }

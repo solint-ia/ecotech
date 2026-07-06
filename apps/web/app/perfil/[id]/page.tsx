@@ -53,6 +53,10 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
 
+  // Admin-only: reset another user's password directly (no current password)
+  const [adminNewPassword, setAdminNewPassword] = useState('');
+  const [adminConfirmPassword, setAdminConfirmPassword] = useState('');
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -106,7 +110,9 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
   const fetchPosts = async () => {
     try {
       setLoadingPosts(true);
-      const res = await fetch(`${API_URL}/feed?userId=${profileId}`, {
+      let url = `${API_URL}/feed?userId=${profileId}`;
+      if (user?.id) url += `&currentUserId=${user.id}`;
+      const res = await fetch(url, {
         headers: { Authorization: `Bearer ${user.accessToken}` }
       });
       if (!res.ok) throw new Error('Falha ao carregar posts');
@@ -139,6 +145,8 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
     setCurrentPasswordForChange('');
     setNewPassword('');
     setConfirmNewPassword('');
+    setAdminNewPassword('');
+    setAdminConfirmPassword('');
   };
 
   const handleChangePassword = async () => {
@@ -204,6 +212,20 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
 
     const editingAsAdmin = isAdmin && !isOwner;
 
+    // Admins can set a new password directly; validate before sending.
+    if (editingAsAdmin && adminNewPassword) {
+      if (adminNewPassword.length < 6) {
+        setError('A nova senha deve ter no mínimo 6 caracteres.');
+        setSaving(false);
+        return;
+      }
+      if (adminNewPassword !== adminConfirmPassword) {
+        setError('As senhas não coincidem.');
+        setSaving(false);
+        return;
+      }
+    }
+
     try {
       const formData = new FormData();
       formData.append('name', name);
@@ -218,6 +240,10 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       // no OTP confirmation needed (that flow is only for self-service edits).
       if (editingAsAdmin && email.trim() !== profileData.email) {
         formData.append('email', email.trim());
+      }
+      // Admins can reset the password directly, no current-password check.
+      if (editingAsAdmin && adminNewPassword) {
+        formData.append('password', adminNewPassword);
       }
 
       const res = await fetch(`${API_URL}/users/${editingAsAdmin ? profileId : 'me'}`, {
@@ -238,6 +264,8 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
 
       if (editingAsAdmin) {
         setIsEditing(false);
+        setAdminNewPassword('');
+        setAdminConfirmPassword('');
         setSuccess('Perfil atualizado com sucesso!');
         setSaving(false);
         return;
@@ -583,6 +611,41 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                       </p>
                     </div>
                   )}
+                </div>
+              )}
+
+              {isAdmin && !isOwner && (
+                <div className="pt-4 border-t border-gray-100">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-primary mb-3">
+                    <Lock className="w-4 h-4" />
+                    Redefinir senha (opcional)
+                  </div>
+                  <div className="space-y-3 bg-gray-50 rounded-xl p-4 border border-gray-100">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nova senha</label>
+                      <input
+                        type="password"
+                        autoComplete="new-password"
+                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        value={adminNewPassword}
+                        onChange={(e) => setAdminNewPassword(e.target.value)}
+                        placeholder="Deixe em branco para manter a atual"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Confirme a nova senha</label>
+                      <input
+                        type="password"
+                        autoComplete="new-password"
+                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        value={adminConfirmPassword}
+                        onChange={(e) => setAdminConfirmPassword(e.target.value)}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Como administrador, você define a nova senha diretamente. O usuário deverá usá-la no próximo login.
+                    </p>
+                  </div>
                 </div>
               )}
 

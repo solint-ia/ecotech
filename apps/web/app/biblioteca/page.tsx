@@ -110,7 +110,7 @@ function BibliotecaPageContent() {
               Gerenciar Materiais
             </Link>
           )}
-          {user?.role && user.role !== 'STUDENT' && (
+          {canSubmit && (
             <Link
               href="/biblioteca/meus-materiais"
               className="px-4 py-2 bg-white border border-border-custom text-primary rounded-lg text-sm font-semibold hover:bg-beige transition-colors shadow-sm"

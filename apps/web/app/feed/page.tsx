@@ -103,7 +103,7 @@ export default function FeedPage() {
       {isLoggedIn && (
         <StoriesBar 
           accessToken={accessToken} 
-          currentUser={{ id: user?.id, name: user?.name || 'Usuário', profileImage: user?.profileImage }}
+          currentUser={{ id: user?.id, name: user?.name || 'Usuário', profileImage: user?.profileImage, role: user?.role }}
         />
       )}
 

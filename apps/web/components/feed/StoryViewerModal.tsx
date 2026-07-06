@@ -27,11 +27,12 @@ interface StoryViewerModalProps {
   initialIndex: number;
   onClose: () => void;
   currentUserId?: string;
+  currentUserRole?: string;
   accessToken?: string;
   onDeleteStory?: (id: string) => void;
 }
 
-export default function StoryViewerModal({ stories, initialIndex, onClose, currentUserId, accessToken, onDeleteStory }: StoryViewerModalProps) {
+export default function StoryViewerModal({ stories, initialIndex, onClose, currentUserId, currentUserRole, accessToken, onDeleteStory }: StoryViewerModalProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [showMenu, setShowMenu] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -151,6 +152,8 @@ export default function StoryViewerModal({ stories, initialIndex, onClose, curre
   if (!currentStory) return null;
 
   const isOwner = currentUserId === currentStory.user.id;
+  // Admins can edit/delete anyone's story, just like the owner.
+  const canManage = isOwner || currentUserRole === 'ADMIN';
 
   const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -165,7 +168,7 @@ export default function StoryViewerModal({ stories, initialIndex, onClose, curre
   };
 
   const handleDelete = async () => {
-    if (!accessToken || !isOwner || isDeleting) return;
+    if (!accessToken || !canManage || isDeleting) return;
 
     setIsDeleting(true);
     try {
@@ -288,12 +291,12 @@ export default function StoryViewerModal({ stories, initialIndex, onClose, curre
                   >
                     <Link className="w-4 h-4" /> Compartilhar link
                   </button>
-                  {isOwner && (
+                  {canManage && (
                     <>
                       <button
-                        onClick={(e) => { 
-                          e.stopPropagation(); 
-                          setEditCaption(currentStory.caption || ''); 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditCaption(currentStory.caption || '');
                           setEditLocation(currentStory.location || ''); 
                           setIsEditing(true); 
                           setShowMenu(false); 

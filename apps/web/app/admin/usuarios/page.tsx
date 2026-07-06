@@ -3,13 +3,14 @@
 import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { 
+import {
   Users, CheckCircle, XCircle, Search, Filter,
-  UserX, UserCheck, LayoutDashboard
+  UserX, UserCheck, LayoutDashboard, Unlink
 } from 'lucide-react';
 import Link from 'next/link';
 import { getImageUrl } from '../../../lib/image-url';
 import { Pagination } from '../../../components/shared/Pagination';
+import ConfirmModal from '../../../components/shared/ConfirmModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -55,6 +56,8 @@ function AdminUsersPageContent() {
   const [searchInput, setSearchInput] = useState(search);
 
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; userId: string; currentStatus: boolean; name: string } | null>(null);
+  const [unlinkModal, setUnlinkModal] = useState<{ userId: string; name: string } | null>(null);
+  const [unlinkingId, setUnlinkingId] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
     if (!user?.accessToken) return;
@@ -129,6 +132,27 @@ function AdminUsersPageContent() {
     } catch (err) {
       console.error(err);
       alert('Erro ao realizar a operação. Tente novamente.');
+    }
+  };
+
+  const executeUnlink = async () => {
+    if (!unlinkModal || !user?.accessToken) return;
+    setUnlinkingId(unlinkModal.userId);
+    try {
+      const res = await fetch(`${API_URL}/users/${unlinkModal.userId}/unlink`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${user.accessToken}` }
+      });
+
+      if (!res.ok) throw new Error('Falha ao desvincular usuário');
+
+      fetchUsers();
+      setUnlinkModal(null);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao desvincular usuário.');
+    } finally {
+      setUnlinkingId(null);
     }
   };
 
@@ -285,6 +309,16 @@ function AdminUsersPageContent() {
                     <td className="block md:table-cell mt-3 pt-3 border-t border-gray-50 md:mt-0 md:pt-0 md:border-none px-0 md:px-6 md:py-4 md:text-right">
                       {u.role !== 'ADMIN' && (
                         <div className="flex justify-end gap-4 md:inline-flex md:items-center">
+                          {u.schoolId && u.role !== 'SCHOOL_MANAGER' && (
+                            <button
+                              onClick={() => setUnlinkModal({ userId: u.id, name: u.name || u.email })}
+                              disabled={unlinkingId === u.id}
+                              className="p-2 rounded-lg text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-50"
+                              title="Desvincular da escola"
+                            >
+                              <Unlink className="w-4 h-4" />
+                            </button>
+                          )}
                           <button
                             onClick={() => setConfirmModal({ isOpen: true, userId: u.id, currentStatus: u.status, name: u.name || u.email })}
                             className={`p-2 rounded-lg transition-colors ${u.status ? 'text-red-600 hover:bg-red-50' : 'text-blue-600 hover:bg-blue-50'}`}
@@ -338,6 +372,23 @@ function AdminUsersPageContent() {
             </div>
           </div>
         </div>
+      )}
+
+      {unlinkModal && (
+        <ConfirmModal
+          title="Desvincular Usuário"
+          description={
+            <>
+              Tem certeza que deseja desvincular <strong>{unlinkModal.name}</strong> da escola?
+              O usuário perderá o vínculo institucional e voltará a ser um usuário comum.
+            </>
+          }
+          onConfirm={executeUnlink}
+          onCancel={() => setUnlinkModal(null)}
+          confirmText="Desvincular"
+          isLoading={unlinkingId === unlinkModal.userId}
+          isDestructive={true}
+        />
       )}
     </div>
   );

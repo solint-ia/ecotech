@@ -89,7 +89,7 @@ export default function CriarParceiroPage() {
       if (finalWebsite && !finalWebsite.startsWith('http://') && !finalWebsite.startsWith('https://')) {
         finalWebsite = `https://${finalWebsite}`;
       }
-      
+
       formData.append('openingHours', JSON.stringify(schedule));
       formData.append('status', String(statusActive));
 
@@ -223,7 +223,7 @@ export default function CriarParceiroPage() {
               value={phone}
               onChange={(e) => setPhone(formatPhone(e.target.value))}
               className="w-full px-3 py-2 rounded-lg border border-border-custom bg-white text-sm focus:ring-2 focus:ring-secondary focus:outline-none"
-              placeholder="(00) 9 0000-0000"
+              placeholder="(79) 9 0000-0000"
             />
           </div>
           <div>
@@ -235,7 +235,7 @@ export default function CriarParceiroPage() {
               value={whatsapp}
               onChange={(e) => setWhatsapp(formatPhone(e.target.value))}
               className="w-full px-3 py-2 rounded-lg border border-border-custom bg-white text-sm focus:ring-2 focus:ring-secondary focus:outline-none"
-              placeholder="(00) 9 0000-0000"
+              placeholder="(79) 9 0000-0000"
             />
           </div>
           <div>

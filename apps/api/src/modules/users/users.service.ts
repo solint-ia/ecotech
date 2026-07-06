@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
@@ -71,6 +72,17 @@ export class UsersService {
         if (currentUser.role === 'TEACHER') {
           updateData.role = 'USER' as any;
           updateData.roleStatus = data.schoolId ? 'PENDENTE' : 'APROVADO';
+        } else if (
+          currentUser.role === 'USER' &&
+          currentUser.roleStatus !== 'PENDENTE' &&
+          data.schoolId
+        ) {
+          // A plain user (e.g. a student who was previously unlinked from a
+          // school) that links to a school again becomes a student, mirroring
+          // the role assigned on public registration. Pending teachers awaiting
+          // approval are left untouched.
+          updateData.role = 'STUDENT' as any;
+          updateData.roleStatus = 'APROVADO';
         }
       }
 
@@ -92,6 +104,15 @@ export class UsersService {
       if (existingUser) throw new ForbiddenException('Este e-mail já está em uso.');
     }
 
+    // Admins can set a new password directly, without the current password.
+    let hashedPassword: string | undefined;
+    if (data.password) {
+      if (String(data.password).length < 6) {
+        throw new BadRequestException('A senha deve ter no mínimo 6 caracteres.');
+      }
+      hashedPassword = await bcrypt.hash(String(data.password), 10);
+    }
+
     if (targetUser.role === 'SCHOOL_MANAGER' && targetUser.schoolId) {
       const schoolUpdateData: any = {};
       if (data.name) schoolUpdateData.name = data.name;
@@ -107,6 +128,7 @@ export class UsersService {
       const userUpdateData: any = {};
       if (data.phone) userUpdateData.phone = data.phone;
       if (data.email) userUpdateData.email = data.email;
+      if (hashedPassword) userUpdateData.password = hashedPassword;
 
       if (Object.keys(userUpdateData).length > 0) {
         await this.prisma.user.update({
@@ -120,6 +142,7 @@ export class UsersService {
       if (data.phone) updateData.phone = data.phone;
       if (data.email) updateData.email = data.email;
       if (publicUrl) updateData.profileImage = publicUrl;
+      if (hashedPassword) updateData.password = hashedPassword;
 
       if (data.schoolId !== undefined && data.schoolId !== targetUser.schoolId) {
         updateData.schoolId = data.schoolId || null;
@@ -138,8 +161,18 @@ export class UsersService {
 
   async getPendingUsers(currentUser: any) {
     if (currentUser.role === 'ADMIN') {
+      // Admins see both pending school registrations (SCHOOL_MANAGER) and
+      // pending teacher approvals from every school. A pending teacher is
+      // stored with role USER while awaiting approval, so it is matched by the
+      // USER/TEACHER + schoolId branch.
       const users = await this.prisma.user.findMany({
-        where: { role: 'SCHOOL_MANAGER', roleStatus: { in: ['PENDENTE', 'REPROVADO'] } },
+        where: {
+          roleStatus: { in: ['PENDENTE', 'REPROVADO'] },
+          OR: [
+            { role: 'SCHOOL_MANAGER' },
+            { role: { in: ['TEACHER', 'USER' as any] }, schoolId: { not: null } },
+          ],
+        },
         include: { school: true },
         orderBy: { createdAt: 'desc' }
       });
@@ -167,13 +200,21 @@ export class UsersService {
     return [];
   }
 
-  async approveUser(userId: string, currentUser?: any) {
-    // If a SCHOOL_MANAGER is approving, the user becomes a TEACHER
-    const newRole = currentUser?.role === 'SCHOOL_MANAGER' ? 'TEACHER' : undefined;
-    
+  async approveUser(userId: string, _currentUser?: any) {
+    const target = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!target) throw new NotFoundException('Usuário não encontrado.');
+
+    // A pending teacher is stored with role USER while awaiting approval;
+    // approving promotes them to TEACHER (regardless of whether an ADMIN or the
+    // school's own SCHOOL_MANAGER approves). School managers keep their role.
+    const data: any = { roleStatus: 'APROVADO' };
+    if (target.role === 'USER' && target.schoolId) {
+      data.role = 'TEACHER';
+    }
+
     const user = await this.prisma.user.update({
       where: { id: userId },
-      data: newRole ? { roleStatus: 'APROVADO', role: newRole } : { roleStatus: 'APROVADO' }
+      data,
     });
     return { success: true, user: { id: user.id, roleStatus: user.roleStatus, role: user.role } };
   }
@@ -190,8 +231,9 @@ export class UsersService {
     const userToUnlink = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!userToUnlink) throw new NotFoundException('Usuário não encontrado.');
     
-    // Ensure the school manager only unlinks users from their own school
-    if (userToUnlink.schoolId !== currentUser.schoolId) {
+    // Ensure the school manager only unlinks users from their own school.
+    // Admins can unlink any user, regardless of school.
+    if (currentUser.role !== 'ADMIN' && userToUnlink.schoolId !== currentUser.schoolId) {
       throw new ForbiddenException('Você não tem permissão para desvincular este usuário.');
     }
 

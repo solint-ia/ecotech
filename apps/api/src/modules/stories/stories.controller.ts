@@ -70,7 +70,7 @@ export class StoriesController {
     @Body() updateDto: { caption?: string; location?: string },
     @Request() req: any,
   ) {
-    return this.storiesService.updateStory(id, req.user.id, updateDto.caption, updateDto.location);
+    return this.storiesService.updateStory(id, req.user.id, req.user.role, updateDto.caption, updateDto.location);
   }
 
   @UseGuards(JwtAuthGuard)

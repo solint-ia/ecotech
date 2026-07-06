@@ -89,7 +89,7 @@ export class UsersController {
 
   @Patch(':id/unlink')
   @UseGuards(RolesGuard)
-  @Roles('SCHOOL_MANAGER')
+  @Roles('ADMIN', 'SCHOOL_MANAGER')
   unlinkUser(@Param('id') id: string, @CurrentUser() user: any) {
     return this.usersService.unlinkUser(id, user);
   }

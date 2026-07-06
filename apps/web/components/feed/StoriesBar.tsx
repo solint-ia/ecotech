@@ -13,6 +13,7 @@ interface StoriesBarProps {
     id?: string;
     name: string;
     profileImage?: string | null;
+    role?: string;
   };
 }
 
@@ -149,6 +150,7 @@ export default function StoriesBar({ accessToken, currentUser }: StoriesBarProps
           initialIndex={viewerIndex}
           onClose={() => setViewerIndex(null)}
           currentUserId={currentUser.id}
+          currentUserRole={currentUser.role}
           accessToken={accessToken}
           onDeleteStory={handleDeleteStory}
         />

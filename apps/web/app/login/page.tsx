@@ -309,7 +309,7 @@ export default function LoginPage() {
       }
 
       setShowActivationModal(false);
-      
+
       if (data.user && ['ADMIN', 'SCHOOL_MANAGER'].includes(data.user.role)) {
         router.push(data.user.role === 'ADMIN' ? '/admin/dashboard' : '/escola/dashboard');
       } else {
@@ -439,7 +439,7 @@ export default function LoginPage() {
                             if (errors.phone) setErrors(prev => { const c = { ...prev }; delete c.phone; return c; });
                           }}
                           className={`w-full px-4 py-3.5 rounded-xl border bg-transparent text-primary focus:outline-none focus:ring-1 transition-all ${errors.phone ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-primary/30 focus:border-primary focus:ring-primary'}`}
-                          placeholder="(00) 9 0000-0000"
+                          placeholder="(79) 9 0000-0000"
                         />
                         {errors.phone && (
                           <p className="text-xs text-red-500 font-medium mt-1 animate-in fade-in duration-200">

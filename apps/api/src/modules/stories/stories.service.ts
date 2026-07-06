@@ -53,10 +53,10 @@ export class StoriesService {
     return this.prisma.story.delete({ where: { id } });
   }
 
-  async updateStory(id: string, userId: string, caption?: string, location?: string) {
+  async updateStory(id: string, userId: string, role: string, caption?: string, location?: string) {
     const story = await this.prisma.story.findUnique({ where: { id } });
     if (!story) throw new Error('Story não encontrado.');
-    if (story.userId !== userId) {
+    if (story.userId !== userId && role !== 'ADMIN') {
       throw new Error('Sem permissão para editar este story.');
     }
     return this.prisma.story.update({
