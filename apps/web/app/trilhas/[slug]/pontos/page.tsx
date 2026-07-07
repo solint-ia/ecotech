@@ -512,7 +512,7 @@ export default function PontosPage() {
                 rows={3}
                 value={formData.preservationCare}
                 onChange={(e) => setFormData({ ...formData, preservationCare: e.target.value })}
-                placeholder="Oriente como visitar e preservar o local: o que fazer e o que evitar. Ex.: “Não deixe lixo, evite pisar na vegetação e não retire plantas ou animais...”"
+                placeholder="Oriente como visitar e preservar o local. Ex.: Não toque na planta (pode ser venenosa), não se aproxime demais da margem, evite fazer barulho excessivo..."
                 className="w-full px-3 py-2 rounded-lg border border-border-custom bg-background text-sm focus:outline-none focus:ring-2 focus:ring-secondary resize-none"
               />
             </div>
