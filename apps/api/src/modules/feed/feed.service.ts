@@ -20,11 +20,23 @@ export class FeedService {
    * Any authenticated user can publish.
    */
   async createPost(
-    userId: string, 
-    createPostDto: CreatePostDto, 
+    requestingUser: { id: string; role: string },
+    createPostDto: CreatePostDto,
     imagesUrls: string[] = [],
     mediaType: 'IMAGE' | 'VIDEO' = 'IMAGE'
   ) {
+    const userId = requestingUser.id;
+
+    // A teacher can only tag a post with a school where they are approved.
+    if (createPostDto.schoolId && requestingUser.role === 'TEACHER') {
+      const link = await this.prisma.teacherSchool.findFirst({
+        where: { teacherId: userId, schoolId: createPostDto.schoolId, status: 'APROVADO' },
+      });
+      if (!link) {
+        throw new ForbiddenException('Você só pode vincular publicações a escolas onde é professor aprovado.');
+      }
+    }
+
     return this.prisma.feedPost.create({
       data: {
         userId,

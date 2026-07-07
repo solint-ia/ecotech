@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn, useSession } from 'next-auth/react';
-import { Leaf, Camera, UploadCloud, Mail, Lock, Compass } from 'lucide-react';
+import { Leaf, Camera, UploadCloud, Mail, Lock, Compass, Calendar } from 'lucide-react';
 import { AuthFooter } from '@/components/AuthFooter';
 import ActivationModal from '@/components/shared/ActivationModal';
 import ForgotPasswordModal from '@/components/shared/ForgotPasswordModal';
@@ -15,7 +15,10 @@ import {
   formatPhone,
   formatCPF,
   formatCNPJ,
-  validateFullName
+  validateFullName,
+  formatDateBR,
+  validateBirthDate,
+  birthDateToISO
 } from '@/lib/validation';
 
 export default function LoginPage() {
@@ -46,6 +49,7 @@ export default function LoginPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [birthDate, setBirthDate] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -53,6 +57,8 @@ export default function LoginPage() {
   const [role, setRole] = useState('STUDENT'); // STUDENT, TEACHER, SCHOOL_MANAGER
   const [schools, setSchools] = useState<any[]>([]);
   const [schoolId, setSchoolId] = useState('');
+  // Teachers can link to several schools (N:N).
+  const [schoolIds, setSchoolIds] = useState<string[]>([]);
 
   // School Manager specific fields
   const [schoolName, setSchoolName] = useState('');
@@ -108,6 +114,10 @@ export default function LoginPage() {
       if (currentStep === 1) {
         if (!validateFullName(name)) newErrors.name = role === 'SCHOOL_MANAGER' ? 'Insira o nome completo do gestor.' : 'Insira seu nome completo.';
         if (phone && !validatePhone(phone)) newErrors.phone = 'Insira um telefone válido com DDD.';
+        if (role !== 'SCHOOL_MANAGER') {
+          if (!birthDate) newErrors.birthDate = 'Insira sua data de nascimento.';
+          else if (!validateBirthDate(birthDate)) newErrors.birthDate = 'Data de nascimento inválida.';
+        }
         if (!email) newErrors.email = 'Insira seu e-mail.';
       } else if (role === 'SCHOOL_MANAGER') {
         if (currentStep === 2) {
@@ -175,7 +185,14 @@ export default function LoginPage() {
         return;
       }
 
-      if (role !== 'SCHOOL_MANAGER' && !schoolId) {
+      if (role === 'TEACHER' && schoolIds.length === 0) {
+        setErrors({ schoolId: 'Selecione ao menos uma escola para vincular seu cadastro.' });
+        setIsLoading(false);
+        setMessage({ type: 'error', text: 'Por favor, corrija os erros apontados.' });
+        return;
+      }
+
+      if (role === 'STUDENT' && !schoolId) {
         setErrors({ schoolId: 'Selecione uma escola para vincular seu cadastro.' });
         setIsLoading(false);
         setMessage({ type: 'error', text: 'Por favor, corrija os erros apontados.' });
@@ -288,7 +305,13 @@ export default function LoginPage() {
         formData.append('managerName', name);
         if (cpfManager) formData.append('cpfManager', cpfManager);
       } else {
-        if (schoolId) formData.append('schoolId', schoolId);
+        if (role === 'TEACHER') {
+          schoolIds.forEach(id => formData.append('schoolIds', id));
+        } else if (schoolId) {
+          formData.append('schoolId', schoolId);
+        }
+        const isoBirth = birthDateToISO(birthDate);
+        if (isoBirth) formData.append('birthDate', isoBirth);
       }
 
       const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -466,6 +489,32 @@ export default function LoginPage() {
                     </div>
                   )}
 
+                  {!isLogin && role !== 'SCHOOL_MANAGER' && (
+                    <div>
+                      <label className="block text-sm font-semibold text-primary/80 mb-1.5">Data de Nascimento</label>
+                      <div className="relative">
+                        <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary/40" />
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={birthDate}
+                          onChange={(e) => {
+                            setBirthDate(formatDateBR(e.target.value));
+                            if (errors.birthDate) setErrors(prev => { const c = { ...prev }; delete c.birthDate; return c; });
+                          }}
+                          placeholder="DD/MM/AAAA"
+                          maxLength={10}
+                          className={`w-full pl-11 pr-4 py-3.5 rounded-xl border bg-transparent text-primary text-sm focus:outline-none focus:ring-1 transition-all ${errors.birthDate ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-primary/30 focus:border-primary focus:ring-primary'}`}
+                        />
+                      </div>
+                      {errors.birthDate && (
+                        <p className="text-xs text-red-500 font-medium mt-1 animate-in fade-in duration-200">
+                          {errors.birthDate}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   <div className="relative z-10">
                     <label className="block text-sm font-semibold text-primary/80 mb-1.5 ml-1">E-mail</label>
                     <div className="relative">
@@ -488,8 +537,8 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {/* STEP 2 (STUDENT/TEACHER) */}
-              {!isLogin && role !== 'SCHOOL_MANAGER' && currentStep === 2 && (
+              {/* STEP 2 (STUDENT) — single school */}
+              {!isLogin && role === 'STUDENT' && currentStep === 2 && (
                 <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
                   <div>
                     <label className="block text-sm font-semibold text-primary/80 mb-1.5">Vincular a uma Escola</label>
@@ -507,6 +556,59 @@ export default function LoginPage() {
                         <option key={school.id} value={school.id}>{school.name} ({school.city})</option>
                       ))}
                     </select>
+                    {errors.schoolId && (
+                      <p className="text-xs text-red-500 font-medium mt-1 animate-in fade-in duration-200">
+                        {errors.schoolId}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 2 (TEACHER) — multiple schools (chips) */}
+              {!isLogin && role === 'TEACHER' && currentStep === 2 && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div>
+                    <label className="block text-sm font-semibold text-primary/80 mb-1.5">Vincular a Escolas</label>
+                    <p className="text-xs text-primary/60 mb-2">
+                      Você pode se vincular a mais de uma escola. Cada vínculo passa por aprovação do gestor/professor responsável.
+                    </p>
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        if (id && !schoolIds.includes(id)) setSchoolIds(prev => [...prev, id]);
+                        if (errors.schoolId) setErrors(prev => { const c = { ...prev }; delete c.schoolId; return c; });
+                      }}
+                      className={`w-full px-4 py-3.5 rounded-xl border bg-transparent text-primary focus:outline-none focus:ring-1 transition-all appearance-none ${errors.schoolId ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-primary/30 focus:border-primary focus:ring-primary'}`}
+                    >
+                      <option value="">+ Adicionar escola</option>
+                      {schools.filter(s => !schoolIds.includes(s.id)).map(school => (
+                        <option key={school.id} value={school.id}>{school.name} ({school.city})</option>
+                      ))}
+                    </select>
+
+                    {schoolIds.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {schoolIds.map(id => {
+                          const s = schools.find(sc => sc.id === id);
+                          return (
+                            <span key={id} className="inline-flex items-center gap-1.5 pl-3 pr-2 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold">
+                              {s ? s.name : id}
+                              <button
+                                type="button"
+                                onClick={() => setSchoolIds(prev => prev.filter(x => x !== id))}
+                                className="rounded-full hover:bg-primary/20 w-4 h-4 flex items-center justify-center leading-none"
+                                aria-label="Remover escola"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+
                     {errors.schoolId && (
                       <p className="text-xs text-red-500 font-medium mt-1 animate-in fade-in duration-200">
                         {errors.schoolId}

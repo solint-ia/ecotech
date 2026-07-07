@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Heart, MessageCircle, Share2, Pencil, Trash2, MoreHorizontal, MapPin, Calendar, User as UserIcon, Send, Loader2, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Pencil, Trash2, MoreHorizontal, MapPin, Calendar, User as UserIcon, Send, Loader2, X, ChevronLeft, ChevronRight, Lock } from 'lucide-react';
+import AlertModal, { CONTRIBUTION_RESTRICTED } from './AlertModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -83,6 +84,12 @@ export default function FeedPostCard({
   const [sharesCount, setSharesCount] = useState(post.sharesCount || 0);
   const [showMenu, setShowMenu] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
+  const [showRestrictionAlert, setShowRestrictionAlert] = useState(false);
+
+  // Logged-in users whose role is USER (plain accounts and pending
+  // students/teachers, whose session role is downgraded) can't like or comment.
+  // We intercept client-side so they get a friendly notice instead of a 403.
+  const isRestrictedMember = !!accessToken && currentUserRole === 'USER';
 
   useEffect(() => {
     setLiked(post.hasLiked || false);
@@ -137,6 +144,7 @@ export default function FeedPostCard({
 
   const handleLike = async () => {
     if (!accessToken || isLiking) return;
+    if (isRestrictedMember) { setShowRestrictionAlert(true); return; }
     setIsLiking(true);
     try {
       const res = await fetch(`${API_URL}/feed/${post.id}/like`, {
@@ -246,7 +254,8 @@ export default function FeedPostCard({
 
   const handleLikeComment = async (commentId: string) => {
     if (!accessToken) return;
-    
+    if (isRestrictedMember) { setShowRestrictionAlert(true); return; }
+
     // Optimistic update
     setComments((prev) => prev.map(c => {
       if (c.id === commentId) {
@@ -520,7 +529,16 @@ export default function FeedPostCard({
       {showComments && (
         <div className="px-5 py-4 bg-[#FAFCFA] border-t border-black/5 animate-in slide-in-from-top-2 duration-300">
           {/* Add Comment Input */}
-          {accessToken ? (
+          {!accessToken ? (
+            <p className="text-xs text-foreground/50 text-center mb-4">Faça login para comentar.</p>
+          ) : isRestrictedMember ? (
+            <div className="flex items-start gap-2.5 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-3 mb-5">
+              <Lock className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
+              <span className="leading-relaxed">
+                Seu cadastro ainda não foi aprovado, por isso você não pode curtir ou comentar. Assim que um professor, escola ou administrador aprovar seu acesso, você poderá interagir.
+              </span>
+            </div>
+          ) : (
             <form onSubmit={handleAddComment} className="flex gap-3 mb-5">
               <div className="w-8 h-8 rounded-full bg-forest/10 flex-shrink-0 flex items-center justify-center text-xs font-bold text-forest">
                 <UserIcon className="w-4 h-4" />
@@ -546,8 +564,6 @@ export default function FeedPostCard({
                 </button>
               </div>
             </form>
-          ) : (
-            <p className="text-xs text-foreground/50 text-center mb-4">Faça login para comentar.</p>
           )}
 
           {/* Comments List */}
@@ -633,6 +649,14 @@ export default function FeedPostCard({
           loading={isDeletingLoading}
           onClose={() => setCommentToDelete(null)}
           onConfirm={handleDeleteComment}
+        />
+      )}
+
+      {showRestrictionAlert && (
+        <AlertModal
+          title={CONTRIBUTION_RESTRICTED.title}
+          message={CONTRIBUTION_RESTRICTED.message}
+          onClose={() => setShowRestrictionAlert(false)}
         />
       )}
     </article>

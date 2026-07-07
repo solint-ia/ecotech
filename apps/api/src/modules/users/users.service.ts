@@ -1,6 +1,11 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
+
+// Prisma client or an interactive-transaction client — both expose the model
+// delegates we use in checkTeacherPermissions and the link mutations.
+type Db = PrismaService | Prisma.TransactionClient;
 
 @Injectable()
 export class UsersService {
@@ -18,7 +23,16 @@ export class UsersService {
             location: true,
             coverImage: true,
           }
-        }
+        },
+        teacherSchools: {
+          select: {
+            id: true,
+            status: true,
+            schoolId: true,
+            school: { select: { id: true, name: true, city: true } },
+          },
+          orderBy: { createdAt: 'asc' },
+        },
       }
     });
 
@@ -181,27 +195,82 @@ export class UsersService {
   }
 
   /**
+   * Schools where a teacher currently has an APPROVED link. Source of truth for
+   * every teacher scoping decision (student approval, creation, dashboards).
+   */
+  private async getApprovedSchoolIds(teacherId: string, db: Db = this.prisma): Promise<string[]> {
+    const links = await db.teacherSchool.findMany({
+      where: { teacherId, status: 'APROVADO' },
+      select: { schoolId: true },
+    });
+    return links.map((l) => l.schoolId);
+  }
+
+  /**
+   * Recomputes a teacher's role/status from their TeacherSchool links. Must run
+   * inside the same transaction as any link change so a teacher never observes
+   * an inconsistent intermediate state.
+   * - >= 1 approved link  -> role TEACHER / APROVADO, schoolId = first approved.
+   * - 0 approved links     -> role USER, schoolId = first remaining link (pending)
+   *                           or null; roleStatus PENDENTE if any link remains,
+   *                           APROVADO otherwise (a plain user isn't left stuck).
+   * Only acts on teacher-track users (role TEACHER or USER); never touches
+   * ADMIN, SCHOOL_MANAGER or STUDENT.
+   */
+  async checkTeacherPermissions(userId: string, db: Db = this.prisma) {
+    const user = await db.user.findUnique({ where: { id: userId }, select: { role: true } });
+    if (!user || (user.role !== 'TEACHER' && user.role !== 'USER')) return;
+
+    const links = await db.teacherSchool.findMany({
+      where: { teacherId: userId },
+      orderBy: { createdAt: 'asc' },
+      select: { schoolId: true, status: true },
+    });
+
+    const approved = links.filter((l) => l.status === 'APROVADO');
+
+    if (approved.length >= 1) {
+      await db.user.update({
+        where: { id: userId },
+        data: { role: 'TEACHER' as any, roleStatus: 'APROVADO', schoolId: approved[0].schoolId },
+      });
+    } else {
+      await db.user.update({
+        where: { id: userId },
+        data: {
+          role: 'USER' as any,
+          roleStatus: links.length > 0 ? 'PENDENTE' : 'APROVADO',
+          schoolId: links.length > 0 ? links[0].schoolId : null,
+        },
+      });
+    }
+  }
+
+  /**
    * Authorization for approve/reject/unlink actions over a target user.
    * - ADMIN: any user.
    * - SCHOOL_MANAGER: any non-manager user of their own school (teachers + students).
-   * - TEACHER: only students of their own school.
+   * - TEACHER: only students of a school where the teacher is approved.
    */
-  private assertCanManage(currentUser: any, target: { role: string; schoolId: string | null }) {
+  private async assertCanManage(currentUser: any, target: { role: string; schoolId: string | null }) {
     if (currentUser.role === 'ADMIN') return;
-
-    if (!currentUser.schoolId || target.schoolId !== currentUser.schoolId) {
-      throw new ForbiddenException('Você não tem permissão para gerenciar este usuário.');
-    }
 
     if (currentUser.role === 'TEACHER') {
       // A pending student keeps role STUDENT while awaiting approval.
       if (target.role !== 'STUDENT') {
-        throw new ForbiddenException('Professores só podem gerenciar estudantes da própria escola.');
+        throw new ForbiddenException('Professores só podem gerenciar estudantes das suas escolas.');
+      }
+      const approvedSchoolIds = await this.getApprovedSchoolIds(currentUser.id);
+      if (!target.schoolId || !approvedSchoolIds.includes(target.schoolId)) {
+        throw new ForbiddenException('Você não tem permissão para gerenciar este usuário.');
       }
       return;
     }
 
     if (currentUser.role === 'SCHOOL_MANAGER') {
+      if (!currentUser.schoolId || target.schoolId !== currentUser.schoolId) {
+        throw new ForbiddenException('Você não tem permissão para gerenciar este usuário.');
+      }
       if (target.role === 'SCHOOL_MANAGER') {
         throw new ForbiddenException('Você não tem permissão para gerenciar este usuário.');
       }
@@ -214,45 +283,67 @@ export class UsersService {
   async getPendingUsers(currentUser: any) {
     const strip = (users: any[]) => users.map(({ password, ...rest }) => rest);
 
+    // Maps a pending TeacherSchool link into a flat "pending item" the UIs can
+    // render alongside pending students. Teacher items carry teacherSchoolId so
+    // the frontend calls the per-link approve/reject endpoints.
+    const mapTeacherLink = (link: any) => {
+      const { password, ...teacher } = link.teacher;
+      return {
+        ...teacher,
+        role: 'TEACHER',
+        roleStatus: link.status,
+        schoolId: link.schoolId,
+        school: link.school,
+        teacherSchoolId: link.id,
+      };
+    };
+
     if (currentUser.role === 'ADMIN') {
-      // Admins see pending school registrations (SCHOOL_MANAGER), pending
-      // teachers (stored as role USER while awaiting approval) and pending
-      // students, across every school.
-      const users = await this.prisma.user.findMany({
-        where: {
-          roleStatus: { in: ['PENDENTE', 'REPROVADO'] },
-          OR: [
-            { role: 'SCHOOL_MANAGER' },
-            { role: { in: ['TEACHER', 'USER', 'STUDENT'] as any }, schoolId: { not: null } },
-          ],
-        },
-        include: { school: true },
-        orderBy: { createdAt: 'desc' },
-      });
-      return strip(users);
+      const [students, managers, teacherLinks] = await Promise.all([
+        this.prisma.user.findMany({
+          where: { role: 'STUDENT' as any, roleStatus: { in: ['PENDENTE', 'REPROVADO'] }, schoolId: { not: null } },
+          include: { school: true },
+          orderBy: { createdAt: 'desc' },
+        }),
+        this.prisma.user.findMany({
+          where: { role: 'SCHOOL_MANAGER', roleStatus: { in: ['PENDENTE', 'REPROVADO'] } },
+          include: { school: true },
+          orderBy: { createdAt: 'desc' },
+        }),
+        this.prisma.teacherSchool.findMany({
+          where: { status: { in: ['PENDENTE', 'REPROVADO'] } },
+          include: { teacher: true, school: true },
+          orderBy: { createdAt: 'desc' },
+        }),
+      ]);
+      return [...teacherLinks.map(mapTeacherLink), ...strip(managers), ...strip(students)];
     }
 
     if (currentUser.role === 'SCHOOL_MANAGER' && currentUser.schoolId) {
-      // Managers see pending teachers and students of their own school.
-      const users = await this.prisma.user.findMany({
-        where: {
-          role: { in: ['TEACHER', 'USER', 'STUDENT'] as any },
-          roleStatus: { in: ['PENDENTE', 'REPROVADO'] },
-          schoolId: currentUser.schoolId,
-        },
-        include: { school: true },
-        orderBy: { createdAt: 'desc' },
-      });
-      return strip(users);
+      const [students, teacherLinks] = await Promise.all([
+        this.prisma.user.findMany({
+          where: { role: 'STUDENT' as any, roleStatus: { in: ['PENDENTE', 'REPROVADO'] }, schoolId: currentUser.schoolId },
+          include: { school: true },
+          orderBy: { createdAt: 'desc' },
+        }),
+        this.prisma.teacherSchool.findMany({
+          where: { status: { in: ['PENDENTE', 'REPROVADO'] }, schoolId: currentUser.schoolId },
+          include: { teacher: true, school: true },
+          orderBy: { createdAt: 'desc' },
+        }),
+      ]);
+      return [...teacherLinks.map(mapTeacherLink), ...strip(students)];
     }
 
-    if (currentUser.role === 'TEACHER' && currentUser.schoolId) {
-      // Teachers only see pending students of their own school.
+    if (currentUser.role === 'TEACHER') {
+      // Teachers only see pending students of schools where they are approved.
+      const approvedSchoolIds = await this.getApprovedSchoolIds(currentUser.id);
+      if (approvedSchoolIds.length === 0) return [];
       const users = await this.prisma.user.findMany({
         where: {
           role: 'STUDENT' as any,
           roleStatus: { in: ['PENDENTE', 'REPROVADO'] },
-          schoolId: currentUser.schoolId,
+          schoolId: { in: approvedSchoolIds },
         },
         include: { school: true },
         orderBy: { createdAt: 'desc' },
@@ -263,23 +354,46 @@ export class UsersService {
     return [];
   }
 
+  // Approve/reject a single teacher <-> school link, then recompute the
+  // teacher's global role/status. ADMIN acts on any link; SCHOOL_MANAGER only on
+  // links of their own school.
+  private async setTeacherLinkStatus(linkId: string, status: 'APROVADO' | 'REPROVADO', currentUser: any) {
+    const link = await this.prisma.teacherSchool.findUnique({ where: { id: linkId } });
+    if (!link) throw new NotFoundException('Vínculo não encontrado.');
+
+    if (currentUser.role !== 'ADMIN') {
+      if (currentUser.role !== 'SCHOOL_MANAGER' || link.schoolId !== currentUser.schoolId) {
+        throw new ForbiddenException('Você não tem permissão para gerenciar este vínculo.');
+      }
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.teacherSchool.update({ where: { id: linkId }, data: { status } });
+      await this.checkTeacherPermissions(link.teacherId, tx);
+    });
+
+    return { success: true, teacherSchoolId: linkId, status };
+  }
+
+  approveTeacherLink(linkId: string, currentUser: any) {
+    return this.setTeacherLinkStatus(linkId, 'APROVADO', currentUser);
+  }
+
+  rejectTeacherLink(linkId: string, currentUser: any) {
+    return this.setTeacherLinkStatus(linkId, 'REPROVADO', currentUser);
+  }
+
   async approveUser(userId: string, currentUser?: any) {
     const target = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!target) throw new NotFoundException('Usuário não encontrado.');
 
-    if (currentUser) this.assertCanManage(currentUser, target);
+    if (currentUser) await this.assertCanManage(currentUser, target);
 
-    // A pending teacher is stored with role USER while awaiting approval;
-    // approving promotes them to TEACHER. Students keep their STUDENT role and
-    // school managers keep their role.
-    const data: any = { roleStatus: 'APROVADO' };
-    if (target.role === 'USER' && target.schoolId) {
-      data.role = 'TEACHER';
-    }
-
+    // Students keep their STUDENT role and school managers keep their role.
+    // Teacher approval is handled per-link via approveTeacherLink.
     const user = await this.prisma.user.update({
       where: { id: userId },
-      data,
+      data: { roleStatus: 'APROVADO' },
     });
     return { success: true, user: { id: user.id, roleStatus: user.roleStatus, role: user.role } };
   }
@@ -288,7 +402,7 @@ export class UsersService {
     const target = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!target) throw new NotFoundException('Usuário não encontrado.');
 
-    if (currentUser) this.assertCanManage(currentUser, target);
+    if (currentUser) await this.assertCanManage(currentUser, target);
 
     const user = await this.prisma.user.update({
       where: { id: userId },
@@ -303,18 +417,66 @@ export class UsersService {
 
     // Same scoping as approve/reject: teachers unlink only their students,
     // managers unlink non-managers of their school, admins unlink anyone.
-    this.assertCanManage(currentUser, userToUnlink);
+    await this.assertCanManage(currentUser, userToUnlink);
 
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
-      data: { 
-        schoolId: null, 
-        role: 'USER' as any, 
-        roleStatus: 'APROVADO' 
+      data: {
+        schoolId: null,
+        role: 'USER' as any,
+        roleStatus: 'APROVADO'
       }
     });
 
     return { success: true, user: { id: updatedUser.id, role: updatedUser.role } };
+  }
+
+  // --- Teacher self-service: managing their own school links ---
+
+  async getMySchools(userId: string) {
+    return this.prisma.teacherSchool.findMany({
+      where: { teacherId: userId },
+      select: {
+        id: true,
+        status: true,
+        schoolId: true,
+        school: { select: { id: true, name: true, city: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async addMySchool(userId: string, schoolId: string) {
+    if (!schoolId) throw new BadRequestException('Escola é obrigatória.');
+
+    const school = await this.prisma.school.findUnique({ where: { id: schoolId } });
+    if (!school) throw new NotFoundException('Escola não encontrada.');
+
+    const existing = await this.prisma.teacherSchool.findUnique({
+      where: { teacherId_schoolId: { teacherId: userId, schoolId } },
+    });
+    if (existing) throw new ConflictException('Você já está vinculado a esta escola.');
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.teacherSchool.create({ data: { teacherId: userId, schoolId, status: 'PENDENTE' } });
+      await this.checkTeacherPermissions(userId, tx);
+    });
+
+    return this.getMySchools(userId);
+  }
+
+  async removeMySchool(userId: string, schoolId: string) {
+    const link = await this.prisma.teacherSchool.findUnique({
+      where: { teacherId_schoolId: { teacherId: userId, schoolId } },
+    });
+    if (!link) throw new NotFoundException('Vínculo não encontrado.');
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.teacherSchool.delete({ where: { id: link.id } });
+      await this.checkTeacherPermissions(userId, tx);
+    });
+
+    return this.getMySchools(userId);
   }
 
   async findAllForAdmin(params: { page: number; limit: number; search?: string; role?: string }) {
@@ -444,6 +606,54 @@ export class UsersService {
         suspended: suspendedUsers,
         pending: pendingUsers,
       }
+    };
+  }
+
+  // Students of every school where the teacher is approved (multi-school).
+  async findStudentsForTeacher(params: { page: number; limit: number; search?: string; status?: string; teacherId: string }) {
+    const { page, limit, search, status, teacherId } = params;
+    const skip = (page - 1) * limit;
+
+    const approvedSchoolIds = await this.getApprovedSchoolIds(teacherId);
+    if (approvedSchoolIds.length === 0) {
+      return {
+        data: [],
+        meta: { totalCount: 0, totalPages: 0, currentPage: page, limit },
+        stats: { total: 0, active: 0, suspended: 0, pending: 0 },
+      };
+    }
+
+    const where: any = { role: 'STUDENT', schoolId: { in: approvedSchoolIds } };
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+    if (status) where.status = status === 'true';
+
+    const statWhere = { role: 'STUDENT' as any, schoolId: { in: approvedSchoolIds } };
+
+    const [users, total, totalUsers, activeUsers, suspendedUsers, pendingUsers] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: { school: { select: { name: true } } },
+      }),
+      this.prisma.user.count({ where }),
+      this.prisma.user.count({ where: statWhere }),
+      this.prisma.user.count({ where: { ...statWhere, status: true } }),
+      this.prisma.user.count({ where: { ...statWhere, status: false } }),
+      this.prisma.user.count({ where: { ...statWhere, roleStatus: 'PENDENTE' } }),
+    ]);
+
+    return {
+      data: users.map(({ password, ...rest }) => rest),
+      meta: { totalCount: total, totalPages: Math.ceil(total / limit), currentPage: page, limit },
+      stats: { total: totalUsers, active: activeUsers, suspended: suspendedUsers, pending: pendingUsers },
     };
   }
 

@@ -3,7 +3,8 @@
 import { useEffect, useState, useRef, use } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Camera, User, Mail, Phone, Calendar, School, Save, Edit2, Loader2, Image as ImageIcon, Lock } from 'lucide-react';
+import Link from 'next/link';
+import { Camera, User, Mail, Phone, Calendar, School, Save, Edit2, Loader2, Image as ImageIcon, Lock, GraduationCap } from 'lucide-react';
 import { getImageUrl } from '../../../lib/image-url';
 import FeedPostCard, { FeedPost } from '../../../components/feed/FeedPostCard';
 
@@ -37,6 +38,9 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
   const [schoolId, setSchoolId] = useState('');
   const [schoolType, setSchoolType] = useState('');
   const [schools, setSchools] = useState<any[]>([]);
+  // Teacher <-> school links (N:N), each with its own approval status.
+  const [teacherLinks, setTeacherLinks] = useState<any[]>([]);
+  const [linkBusy, setLinkBusy] = useState(false);
   const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
@@ -136,8 +140,57 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       setPhone(data.phone || '');
       setSchoolId(data.schoolId || '');
       setSchoolType(data.school?.type || '');
+      setTeacherLinks(data.teacherSchools || []);
       setPreviewImage(data.profileImage ? getImageUrl(data.profileImage) : null);
       setProfileImageFile(null);
+    }
+  };
+
+  // Whether this profile's school link should be managed as a teacher N:N list
+  // (approved teacher, or a pending teacher stored as USER with existing links).
+  const isTeacherManaged =
+    profileData?.role === 'TEACHER' || (profileData?.role === 'USER' && (profileData?.teacherSchools?.length || 0) > 0);
+
+  const addSchoolLink = async (newSchoolId: string) => {
+    if (!newSchoolId || linkBusy) return;
+    setLinkBusy(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/users/me/schools`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${user.accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ schoolId: newSchoolId }),
+      });
+      if (!res.ok) {
+        const e = await res.json();
+        throw new Error(e.message || 'Falha ao vincular escola.');
+      }
+      setTeacherLinks(await res.json());
+    } catch (err: any) {
+      setError(err.message || 'Falha ao vincular escola.');
+    } finally {
+      setLinkBusy(false);
+    }
+  };
+
+  const removeSchoolLink = async (targetSchoolId: string) => {
+    if (linkBusy) return;
+    setLinkBusy(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/users/me/schools/${targetSchoolId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${user.accessToken}` },
+      });
+      if (!res.ok) {
+        const e = await res.json();
+        throw new Error(e.message || 'Falha ao remover vínculo.');
+      }
+      setTeacherLinks(await res.json());
+    } catch (err: any) {
+      setError(err.message || 'Falha ao remover vínculo.');
+    } finally {
+      setLinkBusy(false);
     }
   };
 
@@ -237,7 +290,9 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       const formData = new FormData();
       formData.append('name', name);
       formData.append('phone', phone);
-      if (schoolId !== undefined) {
+      // Teacher school links are managed live via /users/me/schools, so we must
+      // not send schoolId here (it would trip the legacy single-school logic).
+      if (!isTeacherManaged && schoolId !== undefined) {
         formData.append('schoolId', schoolId);
       }
       if (profileData.role === 'SCHOOL_MANAGER' && schoolType) {
@@ -484,15 +539,26 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
               </div>
             </div>
 
-            {canEdit && !isEditing && (
-              <div className="mt-6 md:mt-0 md:pb-2 w-full md:w-auto">
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors shadow-sm"
-                >
-                  <Edit2 className="w-4 h-4" />
-                  Editar Perfil
-                </button>
+            {!isEditing && (canEdit || (isOwner && profileData.role === 'TEACHER' && profileData.roleStatus === 'APROVADO')) && (
+              <div className="mt-6 md:mt-0 md:pb-2 w-full md:w-auto flex flex-col sm:flex-row gap-2">
+                {isOwner && profileData.role === 'TEACHER' && profileData.roleStatus === 'APROVADO' && (
+                  <Link
+                    href="/professor/dashboard"
+                    className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-forest text-white font-semibold rounded-xl hover:bg-forest/90 transition-colors shadow-sm"
+                  >
+                    <GraduationCap className="w-4 h-4" />
+                    Gerenciar Alunos
+                  </Link>
+                )}
+                {canEdit && (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors shadow-sm"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                    Editar Perfil
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -581,7 +647,68 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                 </div>
               )}
 
-              {profileData.role !== 'SCHOOL_MANAGER' && profileData.role !== 'ADMIN' && (
+              {/* Teacher: multi-school link manager (N:N) */}
+              {isTeacherManaged && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Escolas Vinculadas</label>
+
+                  {teacherLinks.length > 0 ? (
+                    <ul className="space-y-2 mb-3">
+                      {teacherLinks.map((link) => (
+                        <li key={link.id} className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-gray-200 bg-white">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <School className="w-4 h-4 text-forest shrink-0" />
+                            <span className="text-sm font-medium text-gray-800 truncate">{link.school?.name || 'Escola'}</span>
+                            {link.status === 'APROVADO' ? (
+                              <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0">Aprovado</span>
+                            ) : link.status === 'REPROVADO' ? (
+                              <span className="text-[11px] font-semibold text-red-700 bg-red-50 px-2 py-0.5 rounded-full shrink-0">Recusado</span>
+                            ) : (
+                              <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full shrink-0">Aguardando aprovação</span>
+                            )}
+                          </div>
+                          {isOwner && (
+                            <button
+                              type="button"
+                              onClick={() => removeSchoolLink(link.schoolId)}
+                              disabled={linkBusy}
+                              className="text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors disabled:opacity-50 shrink-0"
+                            >
+                              Remover
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-gray-400 mb-3">Nenhuma escola vinculada.</p>
+                  )}
+
+                  {isOwner && (
+                    <>
+                      <select
+                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm disabled:opacity-50"
+                        value=""
+                        disabled={linkBusy}
+                        onChange={(e) => { addSchoolLink(e.target.value); e.target.value = ''; }}
+                      >
+                        <option value="">+ Adicionar escola</option>
+                        {schools.filter(s => !teacherLinks.some(l => l.schoolId === s.id)).map(s => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                      {teacherLinks.filter(l => l.status === 'APROVADO').length <= 1 && (
+                        <p className="text-xs text-amber-600 mt-2 bg-amber-50 p-2 rounded-lg border border-amber-100">
+                          ⚠️ Ao remover seu último vínculo aprovado, seus acessos de professor serão revogados e seu perfil voltará ao status <b>Pendente</b>.
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Student: single school */}
+              {!isTeacherManaged && profileData.role !== 'SCHOOL_MANAGER' && profileData.role !== 'ADMIN' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Escola Vinculada</label>
                   <select
@@ -594,11 +721,6 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </select>
-                  {profileData.role === 'TEACHER' && schoolId !== profileData.schoolId && (
-                    <p className="text-xs text-amber-600 mt-2 bg-amber-50 p-2 rounded-lg border border-amber-100">
-                      ⚠️ Ao alterar {isOwner ? 'sua' : 'a'} escola, {isOwner ? 'seus' : 'os'} acessos de professor serão revogados e {isOwner ? 'seu' : 'o'} perfil entrará em status <b>Pendente</b> até que o novo gestor escolar {isOwner ? 'o' : ''} aprove.
-                    </p>
-                  )}
                 </div>
               )}
 

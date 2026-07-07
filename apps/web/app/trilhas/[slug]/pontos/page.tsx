@@ -470,6 +470,7 @@ export default function PontosPage() {
               rows={4}
               value={formData.fullDescription}
               onChange={(e) => setFormData({ ...formData, fullDescription: e.target.value })}
+              placeholder="Descreva o ponto em detalhes: o que é, o que se observa no local, história e contexto. Ex.: “Este mirante revela o manguezal, um ecossistema de transição entre a terra e o mar, onde...”"
               className="w-full px-3 py-2 rounded-lg border border-border-custom bg-background text-sm focus:outline-none focus:ring-2 focus:ring-secondary resize-none"
             />
           </div>
@@ -483,6 +484,7 @@ export default function PontosPage() {
               rows={3}
               value={formData.environmentalImportance}
               onChange={(e) => setFormData({ ...formData, environmentalImportance: e.target.value })}
+              placeholder="Explique por que este ponto é importante para o meio ambiente: espécies que abriga, serviços ecológicos e seu papel no ecossistema. Ex.: “O manguezal serve de berçário para peixes e protege a costa da erosão...”"
               className="w-full px-3 py-2 rounded-lg border border-border-custom bg-background text-sm focus:outline-none focus:ring-2 focus:ring-secondary resize-none"
             />
           </div>
@@ -497,6 +499,7 @@ export default function PontosPage() {
                 rows={3}
                 value={formData.curiosities}
                 onChange={(e) => setFormData({ ...formData, curiosities: e.target.value })}
+                placeholder="Compartilhe fatos curiosos e interessantes sobre o local. Ex.: “Você sabia que as raízes do mangue filtram o sal da água do mar?”"
                 className="w-full px-3 py-2 rounded-lg border border-border-custom bg-background text-sm focus:outline-none focus:ring-2 focus:ring-secondary resize-none"
               />
             </div>
@@ -509,6 +512,7 @@ export default function PontosPage() {
                 rows={3}
                 value={formData.preservationCare}
                 onChange={(e) => setFormData({ ...formData, preservationCare: e.target.value })}
+                placeholder="Oriente como visitar e preservar o local: o que fazer e o que evitar. Ex.: “Não deixe lixo, evite pisar na vegetação e não retire plantas ou animais...”"
                 className="w-full px-3 py-2 rounded-lg border border-border-custom bg-background text-sm focus:outline-none focus:ring-2 focus:ring-secondary resize-none"
               />
             </div>

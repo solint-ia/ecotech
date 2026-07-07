@@ -168,7 +168,24 @@ export class AuthService {
       ? registerDto.role
       : 'STUDENT';
 
-    if ((requestedRole === 'STUDENT' || requestedRole === 'TEACHER') && !schoolId) {
+    // A teacher can link to several schools (N:N). Normalize the incoming ids
+    // (schoolIds may arrive as a single string or an array via multipart) and
+    // use the first as the representative User.schoolId.
+    let teacherSchoolIds: string[] = [];
+    if (requestedRole === 'TEACHER') {
+      const raw = registerDto.schoolIds ?? (registerDto.schoolId ? [registerDto.schoolId] : []);
+      teacherSchoolIds = [...new Set((Array.isArray(raw) ? raw : [raw]).filter(Boolean))];
+      if (teacherSchoolIds.length === 0) {
+        throw new BadRequestException('Selecione pelo menos uma escola para vincular seu cadastro.');
+      }
+      const found = await this.prisma.school.count({ where: { id: { in: teacherSchoolIds } } });
+      if (found !== teacherSchoolIds.length) {
+        throw new BadRequestException('Uma ou mais escolas selecionadas não foram encontradas.');
+      }
+      schoolId = teacherSchoolIds[0];
+    }
+
+    if (requestedRole === 'STUDENT' && !schoolId) {
       throw new BadRequestException('Selecione uma escola para vincular seu cadastro.');
     }
 
@@ -180,18 +197,29 @@ export class AuthService {
     // As per requirement: someone registering as a teacher stays as a user until approved
     const assignedRole = requestedRole === 'TEACHER' ? 'USER' : requestedRole;
 
-    const user = await this.prisma.user.create({
-      data: {
-        name: registerDto.name,
-        email: registerDto.email,
-        phone: registerDto.phone,
-        password: hashedPassword,
-        role: assignedRole as any,
-        roleStatus: roleStatus,
-        schoolId: schoolId || null,
-        profileImage: publicUrl || null,
-        emailVerified: new Date(), // verified right away
-      },
+    const user = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          name: registerDto.name,
+          email: registerDto.email,
+          phone: registerDto.phone,
+          birthDate: registerDto.birthDate ? new Date(registerDto.birthDate) : null,
+          password: hashedPassword,
+          role: assignedRole as any,
+          roleStatus: roleStatus,
+          schoolId: schoolId || null,
+          profileImage: publicUrl || null,
+          emailVerified: new Date(), // verified right away
+        },
+      });
+
+      if (requestedRole === 'TEACHER') {
+        await tx.teacherSchool.createMany({
+          data: teacherSchoolIds.map((id) => ({ teacherId: created.id, schoolId: id, status: 'PENDENTE' as any })),
+        });
+      }
+
+      return created;
     });
 
     await this.prisma.verificationToken.deleteMany({

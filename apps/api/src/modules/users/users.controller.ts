@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Body, UseGuards, UseInterceptors, UploadedFile, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, UseGuards, UseInterceptors, UploadedFile, Param, Query } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
@@ -66,15 +66,52 @@ export class UsersController {
     @Query('search') search?: string,
     @Query('status') status?: string,
   ) {
-    if (!user.schoolId) throw new Error('Usuário não possui escola vinculada.');
-    return this.usersService.findAllForSchool({
+    return this.usersService.findStudentsForTeacher({
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 20,
       search,
-      role: 'STUDENT',
       status,
-      schoolId: user.schoolId,
+      teacherId: user.id,
     });
+  }
+
+  // --- Teacher self-service: manage own school links ---
+
+  @Get('me/schools')
+  @UseGuards(RolesGuard)
+  @Roles('TEACHER', 'USER')
+  getMySchools(@CurrentUser() user: any) {
+    return this.usersService.getMySchools(user.id);
+  }
+
+  @Post('me/schools')
+  @UseGuards(RolesGuard)
+  @Roles('TEACHER', 'USER')
+  addMySchool(@CurrentUser() user: any, @Body('schoolId') schoolId: string) {
+    return this.usersService.addMySchool(user.id, schoolId);
+  }
+
+  @Delete('me/schools/:schoolId')
+  @UseGuards(RolesGuard)
+  @Roles('TEACHER', 'USER')
+  removeMySchool(@CurrentUser() user: any, @Param('schoolId') schoolId: string) {
+    return this.usersService.removeMySchool(user.id, schoolId);
+  }
+
+  // --- Per-link teacher approval (ADMIN / SCHOOL_MANAGER) ---
+
+  @Patch('teacher-links/:linkId/approve')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SCHOOL_MANAGER')
+  approveTeacherLink(@Param('linkId') linkId: string, @CurrentUser() user: any) {
+    return this.usersService.approveTeacherLink(linkId, user);
+  }
+
+  @Patch('teacher-links/:linkId/reject')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SCHOOL_MANAGER')
+  rejectTeacherLink(@Param('linkId') linkId: string, @CurrentUser() user: any) {
+    return this.usersService.rejectTeacherLink(linkId, user);
   }
 
   @Patch(':id/toggle-status')

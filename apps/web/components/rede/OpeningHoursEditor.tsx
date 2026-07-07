@@ -73,7 +73,6 @@ export function OpeningHoursEditor({ value, onChange }: OpeningHoursEditorProps)
               {day.enabled && (
                 <div className="mt-3 space-y-2">
                   {day.shifts.map((shift, index) => {
-                    const invalid = Boolean(shift.open && shift.close && shift.close <= shift.open);
                     return (
                       <div key={index} className="flex items-center gap-2">
                         <input
@@ -81,9 +80,7 @@ export function OpeningHoursEditor({ value, onChange }: OpeningHoursEditorProps)
                           required
                           value={shift.open}
                           onChange={(e) => updateShift(key, index, 'open', e.target.value)}
-                          className={`flex-1 min-w-0 px-3 py-2 rounded-lg border bg-white text-sm focus:ring-2 focus:ring-secondary focus:outline-none ${
-                            invalid ? 'border-red-300' : 'border-border-custom'
-                          }`}
+                          className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-border-custom bg-white text-sm focus:ring-2 focus:ring-secondary focus:outline-none"
                         />
                         <span className="text-foreground/40 text-xs shrink-0">até</span>
                         <input
@@ -91,9 +88,7 @@ export function OpeningHoursEditor({ value, onChange }: OpeningHoursEditorProps)
                           required
                           value={shift.close}
                           onChange={(e) => updateShift(key, index, 'close', e.target.value)}
-                          className={`flex-1 min-w-0 px-3 py-2 rounded-lg border bg-white text-sm focus:ring-2 focus:ring-secondary focus:outline-none ${
-                            invalid ? 'border-red-300' : 'border-border-custom'
-                          }`}
+                          className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-border-custom bg-white text-sm focus:ring-2 focus:ring-secondary focus:outline-none"
                         />
                         {day.shifts.length > 1 && (
                           <button

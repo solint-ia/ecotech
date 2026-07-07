@@ -34,11 +34,14 @@ export function validateOpeningHours(schedule: DaySchedule[]): void {
     }
 
     for (const shift of day.shifts) {
-      if (shift.close <= shift.open) {
+      if (!shift.open || !shift.close) {
         throw new BadRequestException(
-          `Horário de fechamento deve ser depois do horário de abertura (${day.day}: ${shift.open}-${shift.close}).`,
+          `Informe o horário de abertura e fechamento (${day.day}).`,
         );
       }
+      // Overnight/cross-midnight shifts (e.g. 22:00–06:00, or "10h às 9h") are
+      // valid, so we intentionally do not require the close time to be after the
+      // open time.
     }
   }
 }

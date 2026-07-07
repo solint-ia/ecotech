@@ -80,7 +80,7 @@ export class FeedController {
         }))
       : [];
     const mediaType = files?.some(f => f.mimetype.startsWith('video/')) ? 'VIDEO' : 'IMAGE';
-    return this.feedService.createPost(req.user.id, createPostDto, imagesUrls, mediaType);
+    return this.feedService.createPost(req.user, createPostDto, imagesUrls, mediaType);
   }
 
   /** PATCH /feed/:id — Update a post (author or ADMIN) */

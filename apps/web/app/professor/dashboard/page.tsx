@@ -19,6 +19,7 @@ interface PendingUser {
   role: string;
   roleStatus: string;
   createdAt: string;
+  school?: { name: string } | null;
 }
 
 interface LinkedStudent {
@@ -28,6 +29,7 @@ interface LinkedStudent {
   profileImage?: string | null;
   status: boolean;
   createdAt: string;
+  school?: { name: string } | null;
 }
 
 export default function ProfessorDashboardPage() {
@@ -133,7 +135,7 @@ export default function ProfessorDashboardPage() {
           Painel do Professor
         </h1>
         <p className="text-foreground/70 text-sm mt-1">
-          Gerencie as requisições e os estudantes vinculados à sua escola.
+          Gerencie as requisições e os estudantes vinculados às suas escolas.
         </p>
       </div>
 
@@ -178,6 +180,7 @@ export default function ProfessorDashboardPage() {
                     <div className="text-xs text-gray-500 flex flex-wrap gap-x-3 gap-y-1 mt-1">
                       <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {u.email}</span>
                       {u.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {u.phone}</span>}
+                      {u.school?.name && <span className="flex items-center gap-1"><GraduationCap className="w-3 h-3" /> {u.school.name}</span>}
                       <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(u.createdAt).toLocaleDateString('pt-BR')}</span>
                     </div>
                   </div>
@@ -211,6 +214,7 @@ export default function ProfessorDashboardPage() {
               <thead className="bg-gray-50/80 border-b border-gray-100 text-gray-500 font-medium">
                 <tr>
                   <th className="px-6 py-4">Estudante</th>
+                  <th className="px-6 py-4">Escola</th>
                   <th className="px-6 py-4">Cadastro</th>
                   <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4 text-right">Ações</th>
@@ -218,7 +222,7 @@ export default function ProfessorDashboardPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {students.length === 0 ? (
-                  <tr><td colSpan={4} className="px-6 py-12 text-center text-gray-400">Nenhum aluno vinculado.</td></tr>
+                  <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400">Nenhum aluno vinculado.</td></tr>
                 ) : (
                   students.map(s => (
                     <tr key={s.id} className="hover:bg-emerald-50/30 transition-colors">
@@ -235,6 +239,7 @@ export default function ProfessorDashboardPage() {
                           </div>
                         </div>
                       </td>
+                      <td className="px-6 py-4 text-gray-500">{s.school?.name || '—'}</td>
                       <td className="px-6 py-4 text-gray-500">{new Date(s.createdAt).toLocaleDateString('pt-BR')}</td>
                       <td className="px-6 py-4">
                         {s.status ? (

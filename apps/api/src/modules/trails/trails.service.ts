@@ -254,9 +254,16 @@ export class TrailsService {
     const limit = Math.min(50, query.limit || 12);
     const skip = (page - 1) * limit;
 
+    // Only surface saved trails that are actually live: published (status) and
+    // approved. Drafts / pending / rejected trails must not appear here.
+    const savedWhere = {
+      userId,
+      trail: { status: true, approvalStatus: ApprovalStatus.APROVADO },
+    };
+
     const [saved, total] = await this.prisma.$transaction([
       this.prisma.savedTrail.findMany({
-        where: { userId },
+        where: savedWhere,
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
@@ -282,7 +289,7 @@ export class TrailsService {
           },
         },
       }),
-      this.prisma.savedTrail.count({ where: { userId } }),
+      this.prisma.savedTrail.count({ where: savedWhere }),
     ]);
 
     const mappedData = saved.map(({ trail }) => {
@@ -357,7 +364,8 @@ export class TrailsService {
     const limit = Math.min(50, query.limit || 20);
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    // Drafts (creator hasn't submitted for publication) never reach the queue.
+    const where: any = { isDraft: false };
     if (query.status && query.status !== 'ALL' && Object.values(ApprovalStatus).includes(query.status as ApprovalStatus)) {
       where.approvalStatus = query.status as ApprovalStatus;
     }
@@ -424,11 +432,28 @@ export class TrailsService {
       dto.schoolId = requestingUser.schoolId;
     }
 
+    // A teacher can only create trails for a school where they are approved.
+    if (requestingUser.role === 'TEACHER') {
+      if (!dto.schoolId) {
+        throw new BadRequestException('Selecione uma das suas escolas para criar a trilha.');
+      }
+      const link = await this.prisma.teacherSchool.findFirst({
+        where: { teacherId: requestingUser.id, schoolId: dto.schoolId, status: 'APROVADO' },
+      });
+      if (!link) {
+        throw new ForbiddenException('Você só pode criar trilhas para escolas onde é professor aprovado.');
+      }
+    }
+
     // Admin trails are published directly; schools/teachers go to pending admin
-    // approval (kept unpublished until approved).
+    // approval (kept unpublished until approved). When the creator leaves
+    // "Publicar" unchecked the trail is a draft and stays out of the approval
+    // queue until it is later submitted for publication.
     const isAdmin = requestingUser.role === 'ADMIN';
+    const wantsToPublish = dto.status ?? false;
+    const isDraft = !wantsToPublish;
     const approvalStatus = isAdmin ? ApprovalStatus.APROVADO : ApprovalStatus.PENDENTE;
-    const publishStatus = isAdmin ? (dto.status ?? false) : false;
+    const publishStatus = isAdmin ? wantsToPublish : false;
 
     // Validate that the school exists if provided
     if (dto.schoolId) {
@@ -464,6 +489,7 @@ export class TrailsService {
         wikilocUrl: dto.wikilocUrl,
         safetyWarnings: dto.safetyWarnings,
         status: publishStatus,
+        isDraft,
         approvalStatus,
       },
       include: { school: { select: { id: true, name: true } } },
@@ -503,6 +529,9 @@ export class TrailsService {
         ...(dto.wikilocUrl !== undefined && { wikilocUrl: dto.wikilocUrl }),
         ...(dto.safetyWarnings !== undefined && { safetyWarnings: dto.safetyWarnings }),
         ...(dto.status !== undefined && { status: dto.status }),
+        // Submitting for publication takes the trail out of draft state so it
+        // enters the admin approval queue.
+        ...(dto.status === true && { isDraft: false }),
         ...(dto.schoolId !== undefined && requestingUser.role === 'ADMIN' && { schoolId: dto.schoolId || null }),
       },
     });

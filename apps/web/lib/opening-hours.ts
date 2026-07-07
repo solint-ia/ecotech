@@ -75,9 +75,8 @@ export function validateSchedule(schedule: OpeningHours): string | null {
       if (!shift.open || !shift.close) {
         return `Preencha os horários de ${dayLabel(day.day)}.`;
       }
-      if (shift.close <= shift.open) {
-        return `O horário de fechamento deve ser depois da abertura em ${dayLabel(day.day)} (${shift.open}–${shift.close}).`;
-      }
+      // Overnight/cross-midnight shifts (e.g. "10h às 9h", 22:00–06:00) are
+      // allowed, so we do not require the close time to be after the open time.
     }
   }
 

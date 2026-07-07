@@ -210,16 +210,21 @@ export default function EditarTrilhaPage() {
 
         {/* Descrição curta */}
         <div>
-          <label htmlFor="trail-short-desc" className="block text-sm font-medium mb-1.5 text-foreground">
-            Descrição curta
-          </label>
+          <div className="flex justify-between items-center mb-1.5">
+            <label htmlFor="trail-short-desc" className="block text-sm font-medium text-foreground">
+              Descrição curta
+            </label>
+            <span className={`text-xs font-mono ${80 - shortDescription.length < 15 ? 'text-red-500' : 'text-foreground/50'}`}>
+              {80 - shortDescription.length} restantes
+            </span>
+          </div>
           <input
             id="trail-short-desc"
             type="text"
             value={shortDescription}
             onChange={(e) => setShortDescription(e.target.value)}
-            maxLength={200}
-            placeholder="Resumo para o card da trilha"
+            maxLength={80}
+            placeholder="Resumo curto para o card da trilha"
             className="w-full px-4 py-2.5 rounded-xl border border-border-custom bg-background focus:outline-none focus:ring-2 focus:ring-secondary text-sm transition-all"
           />
         </div>

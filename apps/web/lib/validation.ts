@@ -101,3 +101,32 @@ export const formatCNPJ = (val: string): string => {
   if (clean.length <= 12) return `${clean.substring(0, 2)}.${clean.substring(2, 5)}.${clean.substring(5, 8)}/${clean.substring(8)}`;
   return `${clean.substring(0, 2)}.${clean.substring(2, 5)}.${clean.substring(5, 8)}/${clean.substring(8, 12)}-${clean.substring(12)}`;
 };
+
+// Birth date: "DD/MM/AAAA" mask + helpers.
+export const formatDateBR = (val: string): string => {
+  const clean = val.replace(/\D/g, '').substring(0, 8);
+  if (clean.length <= 2) return clean;
+  if (clean.length <= 4) return `${clean.substring(0, 2)}/${clean.substring(2)}`;
+  return `${clean.substring(0, 2)}/${clean.substring(2, 4)}/${clean.substring(4)}`;
+};
+
+export const validateBirthDate = (val: string): boolean => {
+  const m = val.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return false;
+  const day = parseInt(m[1], 10);
+  const month = parseInt(m[2], 10);
+  const year = parseInt(m[3], 10);
+  const date = new Date(year, month - 1, day);
+  // Reject impossible calendar dates (e.g. 31/02), the future and absurd years.
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return false;
+  if (date > new Date()) return false;
+  if (year < 1900) return false;
+  return true;
+};
+
+// "DD/MM/AAAA" -> "YYYY-MM-DD" (ISO) for the API. Empty string if incomplete.
+export const birthDateToISO = (val: string): string => {
+  const m = val.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return '';
+  return `${m[3]}-${m[2]}-${m[1]}`;
+};

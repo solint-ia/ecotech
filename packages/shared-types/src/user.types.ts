@@ -1,4 +1,4 @@
-export type Role = 'ADMIN' | 'SCHOOL_MANAGER' | 'TEACHER' | 'STUDENT';
+export type Role = 'ADMIN' | 'SCHOOL_MANAGER' | 'TEACHER' | 'STUDENT' | 'USER';
 
 export interface UserDTO {
   id: string;

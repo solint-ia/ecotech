@@ -24,12 +24,18 @@ interface PendingUser {
   role: string;
   roleStatus: string;
   createdAt: string;
+  // Present when this pending item is a teacher <-> school link (N:N). Approval
+  // then targets the link, not the user.
+  teacherSchoolId?: string;
   school?: {
     name: string;
     cnpj?: string;
     cpfManager?: string;
   };
 }
+
+// Stable identity for a pending item: a teacher link (per school) or a user.
+const itemKey = (u: PendingUser) => u.teacherSchoolId || u.id;
 
 export default function AprovacoesPage() {
   const { data: session, status } = useSession();
@@ -69,17 +75,24 @@ export default function AprovacoesPage() {
     }
   };
 
-  const handleApprove = async (userId: string) => {
-    setActionLoading(userId);
+  // Teacher links are approved/rejected per school; every other pending item is
+  // a plain user.
+  const endpointFor = (u: PendingUser, action: 'approve' | 'reject') =>
+    u.teacherSchoolId
+      ? `${API_URL}/users/teacher-links/${u.teacherSchoolId}/${action}`
+      : `${API_URL}/users/${u.id}/${action}`;
+
+  const handleApprove = async (u: PendingUser) => {
+    const key = itemKey(u);
+    setActionLoading(key);
     try {
-      const res = await fetch(`${API_URL}/users/${userId}/approve`, {
+      const res = await fetch(endpointFor(u, 'approve'), {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${user.accessToken}` },
       });
       if (!res.ok) throw new Error('Erro ao aprovar');
-      
-      // Update local state to reflect approval
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, roleStatus: 'APROVADO' } : u));
+
+      setUsers(prev => prev.map(item => itemKey(item) === key ? { ...item, roleStatus: 'APROVADO' } : item));
     } catch (err) {
       console.error(err);
       alert('Falha ao aprovar.');
@@ -88,19 +101,19 @@ export default function AprovacoesPage() {
     }
   };
 
-  const handleReject = async (userId: string) => {
+  const handleReject = async (u: PendingUser) => {
     if (!confirm('Tem certeza que deseja reprovar esta solicitação? O usuário ficará registrado como estudante comum.')) return;
-    
-    setActionLoading(userId);
+
+    const key = itemKey(u);
+    setActionLoading(key);
     try {
-      const res = await fetch(`${API_URL}/users/${userId}/reject`, {
+      const res = await fetch(endpointFor(u, 'reject'), {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${user.accessToken}` },
       });
       if (!res.ok) throw new Error('Erro ao recusar');
-      
-      // Update local state to reflect rejection
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, roleStatus: 'REPROVADO' } : u));
+
+      setUsers(prev => prev.map(item => itemKey(item) === key ? { ...item, roleStatus: 'REPROVADO' } : item));
     } catch (err) {
       console.error(err);
       alert('Falha ao recusar.');
@@ -191,7 +204,7 @@ export default function AprovacoesPage() {
             </div>
           ) : (
             filteredUsers.map(u => (
-              <div key={`mobile-${u.id}`} className="flex flex-col gap-3 bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+              <div key={`mobile-${itemKey(u)}`} className="flex flex-col gap-3 bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                 
                 {/* Header do Card */}
                 <div className="flex items-start justify-between gap-2">
@@ -243,20 +256,20 @@ export default function AprovacoesPage() {
                     <div className="flex gap-2 w-full">
                       {u.roleStatus === 'PENDENTE' && (
                         <button
-                          onClick={() => handleReject(u.id)}
-                          disabled={actionLoading === u.id}
+                          onClick={() => handleReject(u)}
+                          disabled={actionLoading === itemKey(u)}
                           className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 text-sm font-semibold rounded-xl transition-colors focus:outline-none"
                         >
-                          {actionLoading === u.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                          {actionLoading === itemKey(u) ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                           Recusar
                         </button>
                       )}
                       <button
-                        onClick={() => handleApprove(u.id)}
-                        disabled={actionLoading === u.id}
+                        onClick={() => handleApprove(u)}
+                        disabled={actionLoading === itemKey(u)}
                         className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm focus:outline-none"
                       >
-                        {actionLoading === u.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                        {actionLoading === itemKey(u) ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                         Aprovar
                       </button>
                     </div>
@@ -290,7 +303,7 @@ export default function AprovacoesPage() {
                 </tr>
               ) : (
                 filteredUsers.map(u => (
-                  <tr key={`desktop-${u.id}`} className="hover:bg-gray-50 transition-colors">
+                  <tr key={`desktop-${itemKey(u)}`} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0">
@@ -353,21 +366,21 @@ export default function AprovacoesPage() {
                         <div className="flex items-center justify-end gap-2">
                           {u.roleStatus === 'PENDENTE' && (
                             <button
-                              onClick={() => handleReject(u.id)}
-                              disabled={actionLoading === u.id}
+                              onClick={() => handleReject(u)}
+                              disabled={actionLoading === itemKey(u)}
                               className="flex items-center gap-1 px-3 py-1.5 text-red-600 hover:bg-red-50 text-sm font-medium rounded-lg transition-colors focus:outline-none"
                               title="Reprovar Solicitação"
                             >
-                              {actionLoading === u.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                              {actionLoading === itemKey(u) ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                               Recusar
                             </button>
                           )}
                           <button
-                            onClick={() => handleApprove(u.id)}
-                            disabled={actionLoading === u.id}
+                            onClick={() => handleApprove(u)}
+                            disabled={actionLoading === itemKey(u)}
                             className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm focus:outline-none"
                           >
-                            {actionLoading === u.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                            {actionLoading === itemKey(u) ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                             Aprovar
                           </button>
                         </div>

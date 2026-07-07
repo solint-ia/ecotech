@@ -26,9 +26,10 @@ export default function CreatePostForm({
   userRole,
   onCreated,
 }: CreatePostFormProps) {
-  // Only USER and ADMIN can pick a school for the post; every other role
-  // (SCHOOL_MANAGER, TEACHER, STUDENT) is tied to their own school already.
-  const lockedToOwnSchool = userRole !== 'USER' && userRole !== 'ADMIN';
+  // SCHOOL_MANAGER and STUDENT are tied to their own school. USER/ADMIN pick from
+  // every school; a TEACHER picks among their approved schools (N:N).
+  const isTeacher = userRole === 'TEACHER';
+  const lockedToOwnSchool = userRole === 'SCHOOL_MANAGER' || userRole === 'STUDENT';
   const [description, setDescription] = useState('');
   const [schoolId, setSchoolId] = useState(userSchoolId || '');
   const [trailId, setTrailId] = useState('');
@@ -36,6 +37,7 @@ export default function CreatePostForm({
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [schools, setSchools] = useState<School[]>([]);
+  const [teacherSchools, setTeacherSchools] = useState<School[]>([]);
   const [trails, setTrails] = useState<Trail[]>([]);
   const [expanded, setExpanded] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
@@ -62,7 +64,20 @@ export default function CreatePostForm({
         setTrails(list);
       })
       .catch(() => {});
-  }, []);
+
+    // A teacher may only tag one of their approved schools.
+    if (isTeacher && accessToken) {
+      fetch(`${API_URL}/users/me/schools`, { headers: { Authorization: `Bearer ${accessToken}` } })
+        .then((r) => r.json())
+        .then((links) => {
+          const approved = (Array.isArray(links) ? links : [])
+            .filter((l: any) => l.status === 'APROVADO')
+            .map((l: any) => ({ id: l.schoolId, name: l.school?.name || 'Escola' }));
+          setTeacherSchools(approved);
+        })
+        .catch(() => {});
+    }
+  }, [isTeacher, accessToken]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -238,8 +253,8 @@ export default function CreatePostForm({
                   onChange={(e) => setSchoolId(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl border border-black/5 bg-white focus:ring-1 focus:ring-forest focus:border-forest focus:outline-none text-sm text-foreground/60 transition-all shadow-sm appearance-none pr-10"
                 >
-                  <option value="">Escola do autor (opcional)</option>
-                  {schools.map((s) => (
+                  <option value="">{isTeacher ? 'Sem escola (opcional)' : 'Escola do autor (opcional)'}</option>
+                  {(isTeacher ? teacherSchools : schools).map((s) => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>

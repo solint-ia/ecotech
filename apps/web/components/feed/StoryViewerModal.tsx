@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { X, ChevronLeft, ChevronRight, MoreHorizontal, Trash2, Link, Cloud, MapPin, Send, Pencil } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, MoreHorizontal, Trash2, Link, Cloud, MapPin, Send, Pencil, Lock } from 'lucide-react';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
+import AlertModal, { CONTRIBUTION_RESTRICTED } from './AlertModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -45,6 +46,11 @@ export default function StoryViewerModal({ stories, initialIndex, onClose, curre
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [showRestrictionAlert, setShowRestrictionAlert] = useState(false);
+
+  // Unapproved members (role USER, incl. pending) can't comment — intercept
+  // client-side so they get a friendly notice instead of a 403.
+  const isRestrictedMember = !!accessToken && currentUserRole === 'USER';
 
   const currentStory = stories[currentIndex];
 
@@ -69,6 +75,7 @@ export default function StoryViewerModal({ stories, initialIndex, onClose, curre
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim() || !accessToken || isSubmittingComment) return;
+    if (isRestrictedMember) { setShowRestrictionAlert(true); return; }
     setIsSubmittingComment(true);
     try {
       const res = await fetch(`${API_URL}/stories/${currentStory.id}/comments`, {
@@ -433,22 +440,31 @@ export default function StoryViewerModal({ stories, initialIndex, onClose, curre
             </div>
 
             <div className="p-4 border-t border-white/10 pb-4">
-              <form onSubmit={handleCommentSubmit} className="flex items-center w-full gap-2">
-                <input 
-                  type="text"
-                  placeholder="Responder ao story..."
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  className="flex-1 bg-white/10 border border-white/20 rounded-full px-4 py-2.5 text-sm text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-white/40"
-                />
-                <button 
-                  type="submit"
-                  disabled={isSubmittingComment || !newComment.trim()}
-                  className="p-2.5 rounded-full bg-sage text-forest hover:bg-sage/90 shrink-0 disabled:opacity-50"
-                >
-                  <Send className="w-5 h-5" />
-                </button>
-              </form>
+              {isRestrictedMember ? (
+                <div className="flex items-start gap-2.5 text-xs text-amber-100 bg-amber-500/15 border border-amber-400/30 rounded-xl px-3.5 py-3">
+                  <Lock className="w-4 h-4 shrink-0 mt-0.5 text-amber-300" />
+                  <span className="leading-relaxed">
+                    Seu cadastro ainda não foi aprovado, por isso você não pode curtir ou comentar. Assim que for aprovado, poderá interagir.
+                  </span>
+                </div>
+              ) : (
+                <form onSubmit={handleCommentSubmit} className="flex items-center w-full gap-2">
+                  <input
+                    type="text"
+                    placeholder="Responder ao story..."
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    className="flex-1 bg-white/10 border border-white/20 rounded-full px-4 py-2.5 text-sm text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-white/40"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isSubmittingComment || !newComment.trim()}
+                    className="p-2.5 rounded-full bg-sage text-forest hover:bg-sage/90 shrink-0 disabled:opacity-50"
+                  >
+                    <Send className="w-5 h-5" />
+                  </button>
+                </form>
+              )}
             </div>
           </div>
         )}
@@ -502,6 +518,14 @@ export default function StoryViewerModal({ stories, initialIndex, onClose, curre
             loading={isDeleting}
             onClose={() => setIsDeleteModalOpen(false)}
             onConfirm={handleDelete}
+          />
+        )}
+
+        {showRestrictionAlert && (
+          <AlertModal
+            title={CONTRIBUTION_RESTRICTED.title}
+            message={CONTRIBUTION_RESTRICTED.message}
+            onClose={() => setShowRestrictionAlert(false)}
           />
         )}
       </div>

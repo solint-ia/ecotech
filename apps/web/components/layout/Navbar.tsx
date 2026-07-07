@@ -76,9 +76,9 @@ export default function Navbar() {
 
           {/* Centro: Navegação Principal (Apenas Desktop) */}
           <nav className="hidden md:flex items-center gap-1 justify-center flex-1">
-            {['ADMIN', 'SCHOOL_MANAGER', 'TEACHER'].includes(user?.role) && (
+            {['ADMIN', 'SCHOOL_MANAGER'].includes(user?.role) && (
               <Link
-                href={user.role === 'ADMIN' ? '/admin/dashboard' : user.role === 'TEACHER' ? '/professor/dashboard' : '/escola/dashboard'}
+                href={user.role === 'ADMIN' ? '/admin/dashboard' : '/escola/dashboard'}
                 className={`px-4 py-2 text-sm transition-all rounded-full ${pathname?.includes('dashboard')
                   ? 'text-white font-semibold bg-white/10'
                   : 'text-white/60 hover:text-white hover:bg-white/5 font-medium'
@@ -193,9 +193,9 @@ export default function Navbar() {
       {/* Mobile Navigation (Bottom Navigation Bar) */}
       <nav id="mobile-navbar" className="fixed bottom-0 left-0 right-0 z-40 border-t border-border-custom bg-white md:hidden">
         <div className="flex h-16 items-center justify-around px-2">
-          {['ADMIN', 'SCHOOL_MANAGER', 'TEACHER'].includes(user?.role) && (
+          {['ADMIN', 'SCHOOL_MANAGER'].includes(user?.role) && (
             <Link
-              href={user.role === 'ADMIN' ? '/admin/dashboard' : user.role === 'TEACHER' ? '/professor/dashboard' : '/escola/dashboard'}
+              href={user.role === 'ADMIN' ? '/admin/dashboard' : '/escola/dashboard'}
               className={`flex flex-col items-center justify-center gap-1 w-12 h-12 rounded-full transition-colors ${pathname?.includes('dashboard') ? 'text-primary' : 'text-gray-500 hover:text-secondary'
                 }`}
             >

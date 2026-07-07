@@ -8,6 +8,17 @@ interface AlertModalProps {
   onClose: () => void;
 }
 
+/**
+ * Shared copy for the "you can't interact yet" alert shown to unapproved members
+ * (role USER — which also covers pending students/teachers whose session role is
+ * downgraded). Mirrors the backend ApprovedContributorGuard on feed/stories.
+ */
+export const CONTRIBUTION_RESTRICTED = {
+  title: 'Interação indisponível',
+  message:
+    'Curtir e comentar estão disponíveis apenas para estudantes, professores e escolas com cadastro aprovado. Se você já se cadastrou vinculado a uma escola, aguarde a aprovação do responsável para participar.',
+} as const;
+
 export default function AlertModal({ title, message, onClose }: AlertModalProps) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">

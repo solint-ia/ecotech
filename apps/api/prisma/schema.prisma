@@ -78,6 +78,7 @@ model User {
   name            String
   email           String           @unique
   phone           String?
+  birthDate       DateTime?
   password        String
   role            Role             @default(USER)
   roleStatus      ApprovalStatus   @default(APROVADO)
@@ -98,6 +99,20 @@ model User {
   stories         Story[]
   storyComments   StoryComment[]
   libraryContents LibraryContent[]
+  teacherSchools  TeacherSchool[]
+}
+
+model TeacherSchool {
+  id        String         @id @default(uuid())
+  teacherId String
+  schoolId  String
+  status    ApprovalStatus @default(PENDENTE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  teacher   User           @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  school    School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, schoolId])
 }
 
 model VerificationToken {
@@ -135,6 +150,7 @@ model School {
   feedPosts       FeedPost[]
   stories         Story[]
   libraryContents LibraryContent[]
+  teacherSchools  TeacherSchool[]
 }
 
 model SchoolFollower {
@@ -165,6 +181,9 @@ model Trail {
   wikilocUrl       String?
   safetyWarnings   String?
   status           Boolean            @default(false)
+  // A draft (creator left "Publicar" unchecked) stays out of the admin approval
+  // queue until it is submitted for publication.
+  isDraft          Boolean            @default(false)
   approvalStatus   ApprovalStatus     @default(PENDENTE)
   viewsCount       Int                @default(0)
   likesCount       Int                @default(0)
