@@ -96,7 +96,7 @@ export function AuthFooter() {
       <div className="w-full bg-[#0B5D3B] py-6 px-6 relative overflow-hidden">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-center gap-4 text-center">
           <p className="text-white/80 text-xs font-medium tracking-wide">
-            Desenvolvido com tecnologia, propósito e compromisso com a educação ambiental por Solint-ia.
+            Desenvolvido com tecnologia, propósito e compromisso com a educação ambiental por Zenco.
           </p>
           <div className="flex items-center gap-1.5 text-[#4F8A4C] bg-white/10 px-3 py-1.5 rounded-full">
             <Cpu className="w-3.5 h-3.5" />
