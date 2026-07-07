@@ -14,6 +14,7 @@ export interface Trail {
   duration: string | null;
   difficulty: string;
   school?: { id: string; name: string };
+  createdBy?: { id: string; name: string };
   likesCount: number;
   _count: { educationalPoints?: number; points?: number; likes?: number };
   viewsCount: number;

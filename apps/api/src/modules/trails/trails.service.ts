@@ -112,6 +112,7 @@ export class TrailsService {
       where: { slug },
       include: {
         school: { select: { id: true, name: true, city: true } },
+        createdBy: { select: { id: true, name: true } },
         biodiversity: true,
         photos: { orderBy: { createdAt: 'desc' } },
         points: {
@@ -148,8 +149,8 @@ export class TrailsService {
     };
   }
 
-  async findDrafts(schoolId: string | null) {
-    const where: any = { isDraft: true, schoolId };
+  async findDrafts(userId: string) {
+    const where: any = { isDraft: true, createdById: userId };
 
     const data = await this.prisma.trail.findMany({
       where,
@@ -198,8 +199,8 @@ export class TrailsService {
     };
   }
 
-  async findMyTrails(schoolId: string | null) {
-    const where: any = { schoolId };
+  async findMyTrails(userId: string) {
+    const where: any = { createdById: userId };
 
     const data = await this.prisma.trail.findMany({
       where,
@@ -339,6 +340,7 @@ export class TrailsService {
           status: true,
           approvalStatus: true,
           school: { select: { id: true, name: true } },
+          createdBy: { select: { id: true, name: true } },
           createdAt: true,
         },
       }),
@@ -388,6 +390,7 @@ export class TrailsService {
           approvalStatus: true,
           createdAt: true,
           school: { select: { id: true, name: true } },
+          createdBy: { select: { id: true, name: true } },
         },
       }),
       this.prisma.trail.count({ where }),
@@ -480,6 +483,7 @@ export class TrailsService {
         shortDescription: dto.shortDescription ?? '',
         fullDescription: dto.fullDescription ?? '',
         schoolId: dto.schoolId || null,
+        createdById: requestingUser.id,
         biome: dto.biome ?? '',
         distanceKm: dto.distanceKm ?? 0,
         duration: dto.duration ?? '',

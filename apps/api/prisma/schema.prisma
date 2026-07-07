@@ -100,6 +100,7 @@ model User {
   storyComments   StoryComment[]
   libraryContents LibraryContent[]
   teacherSchools  TeacherSchool[]
+  trailsCreated   Trail[]          @relation("trailsCreated")
 }
 
 model TeacherSchool {
@@ -167,6 +168,7 @@ model SchoolFollower {
 model Trail {
   id               String             @id @default(uuid())
   schoolId         String?
+  createdById      String?
   title            String
   slug             String             @unique
   shortDescription String
@@ -190,6 +192,7 @@ model Trail {
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
   school           School?            @relation(fields: [schoolId], references: [id])
+  createdBy        User?              @relation("trailsCreated", fields: [createdById], references: [id])
   photos           TrailPhoto[]
   likes            TrailLike[]
   savedBy          SavedTrail[]
