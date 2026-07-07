@@ -56,6 +56,27 @@ export class UsersController {
     });
   }
 
+  @Get('teacher/students')
+  @UseGuards(RolesGuard)
+  @Roles('TEACHER')
+  findStudentsForTeacher(
+    @CurrentUser() user: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+  ) {
+    if (!user.schoolId) throw new Error('Usuário não possui escola vinculada.');
+    return this.usersService.findAllForSchool({
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 20,
+      search,
+      role: 'STUDENT',
+      status,
+      schoolId: user.schoolId,
+    });
+  }
+
   @Patch(':id/toggle-status')
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
@@ -75,21 +96,21 @@ export class UsersController {
 
   @Patch(':id/approve')
   @UseGuards(RolesGuard)
-  @Roles('ADMIN', 'SCHOOL_MANAGER')
+  @Roles('ADMIN', 'SCHOOL_MANAGER', 'TEACHER')
   approveUser(@Param('id') id: string, @CurrentUser() user: any) {
     return this.usersService.approveUser(id, user);
   }
 
   @Patch(':id/reject')
   @UseGuards(RolesGuard)
-  @Roles('ADMIN', 'SCHOOL_MANAGER')
+  @Roles('ADMIN', 'SCHOOL_MANAGER', 'TEACHER')
   rejectUser(@Param('id') id: string, @CurrentUser() user: any) {
     return this.usersService.rejectUser(id, user);
   }
 
   @Patch(':id/unlink')
   @UseGuards(RolesGuard)
-  @Roles('ADMIN', 'SCHOOL_MANAGER')
+  @Roles('ADMIN', 'SCHOOL_MANAGER', 'TEACHER')
   unlinkUser(@Param('id') id: string, @CurrentUser() user: any) {
     return this.usersService.unlinkUser(id, user);
   }

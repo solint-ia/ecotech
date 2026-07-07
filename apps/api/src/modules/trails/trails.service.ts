@@ -10,6 +10,7 @@ import type { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTrailDto } from './dto/create-trail.dto';
 import { UpdateTrailDto } from './dto/update-trail.dto';
+import { ApprovalStatus } from '@prisma/client';
 
 function slugify(text: string): string {
   return text
@@ -42,7 +43,7 @@ export class TrailsService {
     const limit = Math.min(50, query.limit || 12);
     const skip = (page - 1) * limit;
 
-    const where: any = { status: true };
+    const where: any = { status: true, approvalStatus: ApprovalStatus.APROVADO };
 
     if (query.state) where.state = query.state;
     if (query.city) where.city = { contains: query.city, mode: 'insensitive' };
@@ -167,6 +168,7 @@ export class TrailsService {
         duration: true,
         difficulty: true,
         status: true,
+        approvalStatus: true,
         school: { select: { id: true, name: true } },
         _count: { select: { likes: true, points: true } },
         viewsCount: true,
@@ -216,6 +218,7 @@ export class TrailsService {
         duration: true,
         difficulty: true,
         status: true,
+        approvalStatus: true,
         school: { select: { id: true, name: true } },
         _count: { select: { likes: true, points: true } },
         viewsCount: true,
@@ -328,6 +331,7 @@ export class TrailsService {
           biome: true,
           difficulty: true,
           status: true,
+          approvalStatus: true,
           school: { select: { id: true, name: true } },
           createdAt: true,
         },
@@ -335,15 +339,80 @@ export class TrailsService {
       this.prisma.trail.count({ where }),
     ]);
 
-    return { 
-      data, 
-      meta: { 
-        totalCount: total, 
+    return {
+      data,
+      meta: {
+        totalCount: total,
         totalPages: Math.ceil(total / limit),
         currentPage: page,
-        limit 
-      } 
+        limit
+      }
     };
+  }
+
+  /** Admin-only: trails for moderation. Returns all by default; can be filtered
+   * by approval status (PENDENTE / APROVADO / REPROVADO). */
+  async getSubmissions(query: { page?: number; limit?: number; status?: string }) {
+    const page = Math.max(1, query.page || 1);
+    const limit = Math.min(50, query.limit || 20);
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (query.status && query.status !== 'ALL' && Object.values(ApprovalStatus).includes(query.status as ApprovalStatus)) {
+      where.approvalStatus = query.status as ApprovalStatus;
+    }
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.trail.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          state: true,
+          city: true,
+          biome: true,
+          difficulty: true,
+          coverImage: true,
+          status: true,
+          approvalStatus: true,
+          createdAt: true,
+          school: { select: { id: true, name: true } },
+        },
+      }),
+      this.prisma.trail.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        totalCount: total,
+        totalPages: Math.ceil(total / limit),
+        currentPage: page,
+        limit,
+      },
+    };
+  }
+
+  /** Admin-only: approve or reject a trail. Approving also publishes it. */
+  async updateApprovalStatus(id: string, status: ApprovalStatus) {
+    const trail = await this.prisma.trail.findUnique({ where: { id } });
+    if (!trail) throw new NotFoundException('Trilha não encontrada.');
+
+    const updated = await this.prisma.trail.update({
+      where: { id },
+      data: {
+        approvalStatus: status,
+        // Publish on approval; unpublish on rejection.
+        status: status === ApprovalStatus.APROVADO,
+      },
+    });
+
+    await this.cacheManager.clear();
+    return { success: true, trail: { id: updated.id, approvalStatus: updated.approvalStatus, status: updated.status } };
   }
 
   async create(dto: CreateTrailDto, requestingUser: { id: string; role: string; schoolId?: string }) {
@@ -353,8 +422,13 @@ export class TrailsService {
         throw new ForbiddenException('Você precisa estar vinculado a uma escola para criar trilhas.');
       }
       dto.schoolId = requestingUser.schoolId;
-      dto.status = true; // Automatically make it public
     }
+
+    // Admin trails are published directly; schools/teachers go to pending admin
+    // approval (kept unpublished until approved).
+    const isAdmin = requestingUser.role === 'ADMIN';
+    const approvalStatus = isAdmin ? ApprovalStatus.APROVADO : ApprovalStatus.PENDENTE;
+    const publishStatus = isAdmin ? (dto.status ?? false) : false;
 
     // Validate that the school exists if provided
     if (dto.schoolId) {
@@ -389,7 +463,8 @@ export class TrailsService {
         coverImage: dto.coverImage ?? '',
         wikilocUrl: dto.wikilocUrl,
         safetyWarnings: dto.safetyWarnings,
-        status: dto.status ?? false,
+        status: publishStatus,
+        approvalStatus,
       },
       include: { school: { select: { id: true, name: true } } },
     });

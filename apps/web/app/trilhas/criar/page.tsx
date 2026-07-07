@@ -8,6 +8,7 @@ import { ArrowLeft, Save, ChevronDown } from 'lucide-react';
 import { StateCitySelect } from '../../../components/shared/StateCitySelect';
 import SafetyTipsField from '../../../components/trilhas/SafetyTipsField';
 import { DEFAULT_SAFETY_TIPS, safetyTipsToString } from '../../../lib/trail-safety-tips';
+import { durationToTimeInput, timeInputToDuration } from '../../../lib/trail-duration';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -99,7 +100,13 @@ export default function CriarTrilhaPage() {
       }
 
       const trail = await res.json();
-      router.push(`/trilhas/${trail.slug}`);
+      // Admin trails go live immediately; school/teacher trails are pending admin
+      // approval, so send the author to their trails list where the status shows.
+      if (user?.role === 'ADMIN') {
+        router.push(`/trilhas/${trail.slug}`);
+      } else {
+        router.push('/trilhas?tab=minhas-trilhas');
+      }
     } catch (err: any) {
       setError(err.message || 'Erro inesperado.');
     } finally {
@@ -257,10 +264,9 @@ export default function CriarTrilhaPage() {
             </label>
             <input
               id="trail-duration"
-              type="text"
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              placeholder="2h30"
+              type="time"
+              value={durationToTimeInput(duration)}
+              onChange={(e) => setDuration(timeInputToDuration(e.target.value))}
               className="w-full px-4 py-2.5 rounded-xl border border-border-custom bg-background focus:outline-none focus:ring-2 focus:ring-secondary text-sm transition-all"
             />
           </div>

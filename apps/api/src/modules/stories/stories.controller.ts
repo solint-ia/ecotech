@@ -16,13 +16,12 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
-import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { ApprovedContributorGuard } from '../../common/guards/approved-contributor.guard';
 import { StoriesService } from './stories.service';
 import { CreateStoryDto } from './dto/create-story.dto';
 import { SupabaseService } from '../supabase/supabase.service';
-
-const storage = memoryStorage();
+import { assertValidMediaFiles, processImageBuffer, mediaMulterOptions } from '../../common/media/media.util';
 
 @Controller('stories')
 export class StoriesController {
@@ -31,11 +30,11 @@ export class StoriesController {
     private readonly supabaseService: SupabaseService,
   ) {}
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ApprovedContributorGuard)
   @Post()
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @HttpCode(HttpStatus.CREATED)
-  @UseInterceptors(FileInterceptor('image', { storage }))
+  @UseInterceptors(FileInterceptor('image', mediaMulterOptions))
   async create(
     @Request() req: any,
     @Body() createStoryDto: CreateStoryDto,
@@ -44,7 +43,9 @@ export class StoriesController {
     if (!file) {
       throw new BadRequestException('A imagem ou vídeo do story é obrigatório.');
     }
-    const mediaUrl = await this.supabaseService.uploadFile(file, 'stories');
+    assertValidMediaFiles([file]);
+    const processed = await processImageBuffer(file);
+    const mediaUrl = await this.supabaseService.uploadBuffer(processed.buffer, processed.mimetype, processed.originalname, 'stories');
     const mediaType = file.mimetype.startsWith('video/') ? 'VIDEO' : 'IMAGE';
     
     return this.storiesService.createStory(req.user.id, createStoryDto, mediaUrl, mediaType);
@@ -63,7 +64,7 @@ export class StoriesController {
     await this.storiesService.deleteStory(id, req.user.id, req.user.role);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ApprovedContributorGuard)
   @Patch(':id')
   async updateStory(
     @Param('id') id: string,
@@ -73,7 +74,7 @@ export class StoriesController {
     return this.storiesService.updateStory(id, req.user.id, req.user.role, updateDto.caption, updateDto.location);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ApprovedContributorGuard)
   @Post(':id/comments')
   async addComment(
     @Param('id') id: string,

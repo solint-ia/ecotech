@@ -145,6 +145,7 @@ export class AuthService {
       const school = await this.prisma.school.create({
         data: {
           name: registerDto.schoolName,
+          type: registerDto.schoolType || null,
           state: registerDto.state,
           city: registerDto.city,
           location: registerDto.location,
@@ -171,7 +172,10 @@ export class AuthService {
       throw new BadRequestException('Selecione uma escola para vincular seu cadastro.');
     }
 
-    const roleStatus = (requestedRole === 'SCHOOL_MANAGER' || requestedRole === 'TEACHER') ? 'PENDENTE' : 'APROVADO';
+    // Every school-linked signup (student, teacher and school manager) starts as
+    // PENDENTE and must be approved before gaining posting access. Students are
+    // approved by a teacher/manager/admin of the same school.
+    const roleStatus = 'PENDENTE';
 
     // As per requirement: someone registering as a teacher stays as a user until approved
     const assignedRole = requestedRole === 'TEACHER' ? 'USER' : requestedRole;

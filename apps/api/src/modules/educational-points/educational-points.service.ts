@@ -13,7 +13,9 @@ import { UpdateEducationalPointDto } from './dto/update-educational-point.dto';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as QRCode from 'qrcode';
+import sharp = require('sharp');
 import PDFDocument from 'pdfkit';
+import { ECOTECH_LOGO_BASE64 } from './ecotech-logo';
 
 // Brand colors
 const COLOR_LIGHT_GREEN = '#4C8B5E';
@@ -79,17 +81,69 @@ async function generateQrCode(
 ): Promise<{ textContent: string; buffer: Buffer }> {
   const textContent = buildQrText(point);
 
-  const buffer = await QRCode.toBuffer(textContent, {
-    errorCorrectionLevel: 'M',
-    // Higher resolution + a wider quiet zone (margin) and pure black on white
-    // give the best contrast/sharpness, which iPhone cameras need to read the
-    // (fairly dense) offline payload reliably.
-    width: 600,
+  const qrWidth = 600;
+  const baseQr = await QRCode.toBuffer(textContent, {
+    // 'H' (30% recovery) keeps the code scannable with the centered logo
+    // occluding part of it. margin: 4 is the ISO-standard quiet zone — the
+    // robust minimum that scanners rely on — with pure black on white for the
+    // best contrast/sharpness on the dense payload.
+    errorCorrectionLevel: 'H',
+    width: qrWidth,
     margin: 4,
     color: { dark: '#000000', light: '#FFFFFF' },
   });
 
+  const buffer = await overlayLogo(baseQr, qrWidth);
   return { textContent, buffer };
+}
+
+/**
+ * Composites the EcoTech logo onto the center of the QR code so it stays
+ * scannable. The logo's own transparent border is trimmed first (so the mark
+ * fills the space instead of floating in whitespace), sized to ~30% of the QR
+ * width, and placed on a tight white rounded plate. The occluded area stays
+ * well under the 'H' error-correction budget (~30%). Falls back to the plain QR
+ * if compositing fails for any reason.
+ */
+async function overlayLogo(qrBuffer: Buffer, qrWidth: number): Promise<Buffer> {
+  try {
+    const logoBuffer = Buffer.from(ECOTECH_LOGO_BASE64, 'base64');
+
+    // Trim the logo's transparent margin, then scale the actual mark to ~30% of
+    // the QR width so it reads as a prominent centered badge.
+    const logoTargetW = Math.round(qrWidth * 0.3);
+    const logo = await sharp(logoBuffer)
+      .trim()
+      .resize({ width: logoTargetW, withoutEnlargement: true })
+      .toBuffer();
+    const logoMeta = await sharp(logo).metadata();
+    const logoW = logoMeta.width ?? logoTargetW;
+    const logoH = logoMeta.height ?? logoTargetW;
+
+    // Tight white plate (small padding) with rounded corners for a clean badge.
+    const pad = Math.round(qrWidth * 0.015);
+    const plateW = logoW + pad * 2;
+    const plateH = logoH + pad * 2;
+    const radius = Math.round(Math.min(plateW, plateH) * 0.18);
+
+    const plateBg = Buffer.from(
+      `<svg width="${plateW}" height="${plateH}" xmlns="http://www.w3.org/2000/svg">` +
+        `<rect x="0" y="0" width="${plateW}" height="${plateH}" rx="${radius}" ry="${radius}" fill="#FFFFFF"/>` +
+        `</svg>`,
+    );
+
+    const plate = await sharp(plateBg)
+      .composite([{ input: logo, gravity: 'center' }])
+      .png()
+      .toBuffer();
+
+    return await sharp(qrBuffer)
+      .composite([{ input: plate, gravity: 'center' }])
+      .png()
+      .toBuffer();
+  } catch {
+    return qrBuffer;
+  }
 }
 
 function cleanPdfText(text: string | null | undefined): string {

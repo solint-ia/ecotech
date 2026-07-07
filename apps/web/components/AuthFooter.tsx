@@ -1,4 +1,10 @@
-import { Instagram, Mail, MessageCircle, ChevronRight, Leaf, Cpu, Linkedin, Phone } from 'lucide-react';
+import { Instagram, Mail, Youtube, Leaf, Cpu } from 'lucide-react';
+
+const SOCIAL_LINKS = [
+  { Icon: Instagram, href: 'https://www.instagram.com/projeto_ecotech/', label: 'Instagram' },
+  { Icon: Youtube, href: 'https://www.youtube.com/@Projeto_Ecotech', label: 'YouTube' },
+  { Icon: Mail, href: 'mailto:projetoecotech31@gmail.com', label: 'E-mail' },
+];
 
 export function AuthFooter() {
   return (
@@ -14,12 +20,12 @@ export function AuthFooter() {
       />
 
       <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 pb-16 relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-12 xl:gap-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-12">
 
-          {/* SECTION 1 — BRAND */}
-          <div className="space-y-5 lg:col-span-1 pr-4">
+          {/* COLUMN 1 — BRAND */}
+          <div className="space-y-5">
             <div className="flex items-center gap-3">
-              <img src="/EcoTechLogo.png" alt="Ecotech" className="w-25 h-25 object-contain" />
+              <img src="/EcoTechLogo.png" alt="Ecotech" className="w-14 h-14 object-contain" />
               <span className="font-bold text-[#0B5D3B] text-xl tracking-tight">Ecotech</span>
             </div>
             <h3 className="text-[#4F8A4C] font-semibold text-sm tracking-wide">
@@ -30,54 +36,56 @@ export function AuthFooter() {
             </p>
           </div>
 
-          {/* SECTIONS 2 & 3 — MOBILE TWO-COLUMN WRAPPER */}
-          <div className="grid grid-cols-2 gap-4 lg:gap-12 xl:gap-16 lg:col-span-2 items-start w-full">
-
-            {/* SECTION 2 — NAVEGAÇÃO */}
-            <div className="space-y-5 w-full">
-              <h4 className="text-[#0B5D3B] font-bold text-xs uppercase tracking-widest mb-6">Navegação</h4>
-              <ul className="space-y-3">
-                {['Feed', 'Trilhas', 'Escolas', 'Biblioteca', 'Rede'].map((link) => (
-                  <li key={link}>
-                    <a href="#" className="group flex items-center gap-2 text-sm text-primary/70 hover:text-[#4F8A4C] transition-all duration-300">
-                      <Leaf className="w-3 h-3 text-[#0B5D3B]/60 group-hover:text-[#4F8A4C] transition-colors shrink-0" />
-                      <span className="group-hover:translate-x-1 transition-transform duration-300 truncate">{link}</span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* SECTION 3 — CONTATO */}
-            <div className="space-y-5 w-full">
-              <h4 className="text-[#0B5D3B] font-bold text-xs uppercase tracking-widest mb-6">Contato</h4>
-              <div className="space-y-3">
-                {[
-                  { icon: Mail, text: 'contato@cliente.com.br' },
-                  { icon: Phone, text: '(00) 00000-0000' }
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-2 py-2 transition-all duration-300 group cursor-pointer overflow-hidden">
-                    <item.icon className="w-4 h-4 text-[#0B5D3B] group-hover:text-[#4F8A4C] transition-colors shrink-0" />
-                    <span className="text-xs sm:text-sm font-medium text-[#0B5D3B]/80 group-hover:text-[#0B5D3B] transition-colors truncate">{item.text}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
+          {/* COLUMN 2 — NAVEGAÇÃO */}
+          <div className="space-y-5">
+            <h4 className="text-[#0B5D3B] font-bold text-xs uppercase tracking-widest">Navegação</h4>
+            <ul className="space-y-3">
+              {['Feed', 'Trilhas', 'Escolas', 'Biblioteca', 'Rede'].map((link) => (
+                <li key={link}>
+                  <a href="#" className="group flex items-center gap-2 text-sm text-primary/70 hover:text-[#4F8A4C] transition-all duration-300">
+                    <Leaf className="w-3 h-3 text-[#0B5D3B]/60 group-hover:text-[#4F8A4C] transition-colors shrink-0" />
+                    <span className="group-hover:translate-x-1 transition-transform duration-300 truncate">{link}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
 
-          {/* SECTION 4 — CONECTE-SE */}
-          <div className="space-y-5 col-span-1 md:col-span-2 lg:col-span-1 w-full">
-            <h4 className="text-[#0B5D3B] font-bold text-xs uppercase tracking-widest mb-6">Rede</h4>
-            <p className="text-primary/60 text-sm leading-relaxed mb-6">
-              Acompanhe nossas iniciativas e faça parte da transformação ambiental.
+          {/* COLUMN 3 — CONECTE-SE (Contato + Redes) */}
+          <div className="space-y-5">
+            <h4 className="text-[#0B5D3B] font-bold text-xs uppercase tracking-widest">Conecte-se</h4>
+            <p className="text-primary/60 text-sm leading-relaxed">
+              Acompanhe nossas iniciativas e fale com o projeto.
             </p>
-            <div className="flex items-center gap-4">
-              {[Instagram, Linkedin, MessageCircle].map((Icon, i) => (
-                <button key={i} className="w-12 h-12 rounded-full border-2 border-[#0B5D3B]/20 flex items-center justify-center text-[#0B5D3B] hover:border-[#0B5D3B] hover:bg-[#0B5D3B] hover:text-white hover:scale-105 hover:shadow-[0_0_15px_rgba(79,138,76,0.3)] transition-all duration-300">
+            <a
+              href="mailto:projetoecotech31@gmail.com"
+              className="inline-flex items-center gap-2 group cursor-pointer max-w-full"
+            >
+              <Mail className="w-4 h-4 text-[#0B5D3B] group-hover:text-[#4F8A4C] transition-colors shrink-0" />
+              <span className="text-sm font-medium text-[#0B5D3B]/80 group-hover:text-[#0B5D3B] transition-colors truncate">projetoecotech31@gmail.com</span>
+            </a>
+            <div className="flex items-center gap-3 pt-1">
+              {SOCIAL_LINKS.map(({ Icon, href, label }) => (
+                <a
+                  key={label}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={label}
+                  title={label}
+                  className="w-11 h-11 rounded-full border-2 border-[#0B5D3B]/20 flex items-center justify-center text-[#0B5D3B] hover:border-[#0B5D3B] hover:bg-[#0B5D3B] hover:text-white hover:scale-105 hover:shadow-[0_0_15px_rgba(79,138,76,0.3)] transition-all duration-300"
+                >
                   <Icon className="w-5 h-5" />
-                </button>
+                </a>
               ))}
+            </div>
+          </div>
+
+          {/* COLUMN 4 — APOIO INSTITUCIONAL */}
+          <div className="space-y-5">
+            <h4 className="text-[#0B5D3B] font-bold text-xs uppercase tracking-widest">Apoio Institucional</h4>
+            <div className="inline-flex items-center justify-center p-5 bg-white rounded-2xl border border-[#0B5D3B]/10 shadow-sm">
+              <img src="/fapitec-logo.png" alt="FAPITEC" className="h-16 sm:h-20 w-auto object-contain" />
             </div>
           </div>
 

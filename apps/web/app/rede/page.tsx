@@ -93,7 +93,7 @@ export default function RedePage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/40" />
             <input
               type="text"
-              placeholder="Buscar parceiro..."
+              placeholder="Buscar por nome..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-3 rounded-xl border border-border-custom bg-white focus:ring-2 focus:ring-secondary focus:outline-none shadow-sm h-[50px]"

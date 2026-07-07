@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, OnModuleInit, Inject } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
@@ -17,9 +17,10 @@ import { MailModule } from './modules/mail/mail.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 
-import { CacheModule } from '@nestjs/cache-manager';
+import { CacheModule, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { BullModule } from '@nestjs/bullmq';
 import * as redisStore from 'cache-manager-redis-store';
+import type { Cache } from 'cache-manager';
 
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SupabaseModule } from './modules/supabase/supabase.module';
@@ -39,15 +40,25 @@ import { RedisThrottlerStorageService } from './common/throttler/redis-throttler
       useFactory: async (configService: ConfigService) => {
         const redisUrl = configService.get<string>('REDIS_URL');
         if (redisUrl) {
+          // Only enable TLS for rediss:// URLs. Render internal Redis uses
+          // redis:// without TLS, so forcing TLS there breaks the connection.
+          const useTls = redisUrl.startsWith('rediss://');
           return {
             store: redisStore,
             url: redisUrl,
+            socket: {
+              ...(useTls ? { tls: true } : {}),
+              keepAlive: 10000,
+            },
           };
         }
         return {
           store: redisStore,
           host: configService.get('REDIS_HOST') || 'localhost',
           port: parseInt(configService.get('REDIS_PORT') || '6379', 10),
+          socket: {
+            keepAlive: 10000,
+          },
         };
       },
       inject: [ConfigService],
@@ -57,9 +68,12 @@ import { RedisThrottlerStorageService } from './common/throttler/redis-throttler
       useFactory: async (configService: ConfigService) => {
         const redisUrl = configService.get<string>('REDIS_URL');
         if (redisUrl) {
+          const useTls = redisUrl.startsWith('rediss://');
           return {
             connection: {
               url: redisUrl,
+              ...(useTls ? { tls: {} } : {}),
+              keepAlive: 10000,
             },
           };
         }
@@ -67,6 +81,7 @@ import { RedisThrottlerStorageService } from './common/throttler/redis-throttler
           connection: {
             host: configService.get('REDIS_HOST') || 'localhost',
             port: parseInt(configService.get('REDIS_PORT') || '6379', 10),
+            keepAlive: 10000,
           },
         };
       },
@@ -115,5 +130,32 @@ import { RedisThrottlerStorageService } from './common/throttler/redis-throttler
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements OnModuleInit {
+  constructor(@Inject(CACHE_MANAGER) private readonly cacheManager: Cache) {}
+
+  onModuleInit() {
+    try {
+      const cache = this.cacheManager as any;
+      if (cache && cache.stores && Array.isArray(cache.stores)) {
+        for (const keyv of cache.stores) {
+          if (keyv && keyv.store) {
+            const innerStore = keyv.store;
+            const client =
+              innerStore.client ||
+              innerStore.redis ||
+              (typeof innerStore.getClient === 'function' ? innerStore.getClient() : null) ||
+              innerStore;
+            if (client && typeof client.on === 'function') {
+              client.on('error', (err: any) => {
+                console.warn('CacheManager: Redis connection error:', err.message);
+              });
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Could not register CacheManager error listener:', err);
+    }
+  }
+}
 

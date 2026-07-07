@@ -4,6 +4,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
+import { MulterExceptionFilter } from './common/filters/multer-exception.filter';
 
 import { ConfigService } from '@nestjs/config';
 
@@ -28,6 +29,8 @@ async function bootstrap() {
     forbidNonWhitelisted: true,
     transform: true,
   }));
+
+  app.useGlobalFilters(new MulterExceptionFilter());
 
   const port = configService.get('PORT') || 3333;
   await app.listen(port);

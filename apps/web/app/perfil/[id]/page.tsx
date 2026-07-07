@@ -24,7 +24,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingPosts, setLoadingPosts] = useState(true);
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -35,10 +35,11 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [schoolId, setSchoolId] = useState('');
+  const [schoolType, setSchoolType] = useState('');
   const [schools, setSchools] = useState<any[]>([]);
   const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  
+
   // Email Update Flow States
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -134,6 +135,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       setEmail(data.email || '');
       setPhone(data.phone || '');
       setSchoolId(data.schoolId || '');
+      setSchoolType(data.school?.type || '');
       setPreviewImage(data.profileImage ? getImageUrl(data.profileImage) : null);
       setProfileImageFile(null);
     }
@@ -238,6 +240,9 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       if (schoolId !== undefined) {
         formData.append('schoolId', schoolId);
       }
+      if (profileData.role === 'SCHOOL_MANAGER' && schoolType) {
+        formData.append('schoolType', schoolType);
+      }
       if (profileImageFile) {
         formData.append('profileImage', profileImageFile);
       }
@@ -315,7 +320,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
     e.preventDefault();
     setError('');
     setSaving(true);
-    
+
     try {
       const res = await fetch(`${API_URL}/auth/request-email-update`, {
         method: 'POST',
@@ -327,7 +332,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       });
 
       const data = await res.json();
-      
+
       if (!res.ok) {
         throw new Error(data.message || 'Erro ao solicitar alteração de e-mail.');
       }
@@ -345,7 +350,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
     e.preventDefault();
     setError('');
     setSaving(true);
-    
+
     try {
       const res = await fetch(`${API_URL}/auth/verify-email-update`, {
         method: 'POST',
@@ -357,7 +362,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       });
 
       const data = await res.json();
-      
+
       if (!res.ok) {
         throw new Error(data.message || 'Código inválido ou expirado.');
       }
@@ -366,7 +371,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       await update({
         email: pendingEmail
       });
-      
+
       setProfileData({ ...profileData, email: pendingEmail });
       setShowOtpPrompt(false);
       setIsEditing(false);
@@ -428,10 +433,10 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
             </svg>
           </div>
         </div>
-        
+
         <div className="relative px-6 sm:px-10 pb-8">
           <div className="flex flex-col md:flex-row justify-between items-center md:items-end -mt-16 md:-mt-20 relative z-10">
-            
+
             <div className="flex flex-col md:flex-row items-center md:items-end gap-4 md:gap-6 w-full md:w-auto text-center md:text-left">
               <div className="relative group shrink-0">
                 <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-white bg-beige flex items-center justify-center overflow-hidden shadow-md">
@@ -441,7 +446,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                     <User className="w-16 h-16 text-primary/30" />
                   )}
                 </div>
-                
+
                 {isEditing && canEdit && (
                   <button
                     type="button"
@@ -460,13 +465,13 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                   onChange={handleFileChange}
                 />
               </div>
-              
+
               <div className="flex flex-col items-center md:items-start md:pb-2">
                 <h1 className="text-3xl font-bold text-slate-900 mb-2">{profileData.name}</h1>
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
                   <span className="bg-forest/10 text-forest border border-forest/20 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
-                    {profileData.roleStatus === 'PENDENTE' 
-                      ? 'Aprovação Pendente' 
+                    {profileData.roleStatus === 'PENDENTE'
+                      ? 'Aprovação Pendente'
                       : roleLabels[profileData.role] || profileData.role}
                   </span>
                   {profileData.roleStatus !== 'PENDENTE' && profileData.school && (
@@ -507,13 +512,13 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
 
       {/* Grid Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Left Column - Info */}
         <div className="lg:col-span-1">
           {isEditing && canEdit ? (
             <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
               <h2 className="text-xl font-bold text-slate-900 mb-4">Editar Informações</h2>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo</label>
                 <input
@@ -552,12 +557,29 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                     setPhone(e.target.value);
                     if (fieldErrors.phone) setFieldErrors((prev) => ({ ...prev, phone: undefined }));
                   }}
-                  placeholder="(00) 00000-0000"
+                  placeholder="(79) 9 0000-0000"
                 />
                 {fieldErrors.phone && (
                   <p className="text-xs text-red-600 mt-1.5">{fieldErrors.phone}</p>
                 )}
               </div>
+
+              {profileData.role === 'SCHOOL_MANAGER' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Escola</label>
+                  <select
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
+                    value={schoolType}
+                    onChange={(e) => setSchoolType(e.target.value)}
+                  >
+                    <option value="">Selecione o tipo</option>
+                    <option value="PRIVADA">Privada</option>
+                    <option value="MUNICIPAL">Municipal</option>
+                    <option value="ESTADUAL">Estadual</option>
+                    <option value="FEDERAL">Federal</option>
+                  </select>
+                </div>
+              )}
 
               {profileData.role !== 'SCHOOL_MANAGER' && profileData.role !== 'ADMIN' && (
                 <div>
@@ -697,7 +719,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
           ) : (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-6 sticky top-24">
               <h2 className="text-lg font-bold text-slate-900 border-b border-gray-100 pb-3">Sobre</h2>
-              
+
               <div className="space-y-4">
                 <div>
                   <div className="flex items-center gap-2 text-gray-500 mb-1">
@@ -716,7 +738,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                     <p className="font-medium text-slate-800">{profileData.phone}</p>
                   </div>
                 )}
-                
+
                 <div>
                   <div className="flex items-center gap-2 text-gray-500 mb-1">
                     <Calendar className="w-4 h-4" />
@@ -763,8 +785,8 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
               </div>
               <h3 className="text-lg font-bold text-slate-900 mb-2">Nenhuma publicação encontrada</h3>
               <p className="text-gray-500 max-w-sm mx-auto">
-                {isOwner 
-                  ? "Você ainda não fez nenhuma postagem. Compartilhe sua primeira aventura na trilha!" 
+                {isOwner
+                  ? "Você ainda não fez nenhuma postagem. Compartilhe sua primeira aventura na trilha!"
                   : "Este usuário ainda não compartilhou nenhuma aventura."}
               </p>
             </div>

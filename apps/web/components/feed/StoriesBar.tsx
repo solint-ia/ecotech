@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import CreateStoryModal from './CreateStoryModal';
 import StoryViewerModal, { Story } from './StoryViewerModal';
+import AlertModal from './AlertModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -21,7 +22,17 @@ export default function StoriesBar({ accessToken, currentUser }: StoriesBarProps
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [showBlockedModal, setShowBlockedModal] = useState(false);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+
+  // Users without an approved membership (role USER — which also covers pending
+  // students/teachers whose session role is downgraded) cannot publish stories.
+  const canPublish = currentUser.role !== 'USER';
+
+  const handleAddStory = () => {
+    if (canPublish) setIsCreateOpen(true);
+    else setShowBlockedModal(true);
+  };
 
   const fetchStories = async () => {
     if (!accessToken) {
@@ -72,8 +83,8 @@ export default function StoriesBar({ accessToken, currentUser }: StoriesBarProps
 
         {/* Add Story Button */}
         <div className="flex flex-col items-center gap-2 snap-start flex-shrink-0">
-          <button 
-            onClick={() => setIsCreateOpen(true)}
+          <button
+            onClick={handleAddStory}
             className="relative w-16 h-16 rounded-full border-2 border-border-custom bg-beige/30 p-0.5 overflow-hidden group hover:border-forest transition-colors shadow-sm"
           >
             {currentUser.profileImage ? (
@@ -134,8 +145,16 @@ export default function StoriesBar({ accessToken, currentUser }: StoriesBarProps
         ))}
       </div>
 
+      {showBlockedModal && (
+        <AlertModal
+          title="Publicação indisponível"
+          message="Seu vínculo com a escola ainda está em análise. Você poderá publicar stories assim que for aprovado pela instituição."
+          onClose={() => setShowBlockedModal(false)}
+        />
+      )}
+
       {isCreateOpen && (
-        <CreateStoryModal 
+        <CreateStoryModal
           accessToken={accessToken} 
           onClose={() => setIsCreateOpen(false)}
           onCreated={() => {

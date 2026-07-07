@@ -187,12 +187,12 @@ export default function AdminDashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <MetricCard title="Usuários" value={metrics.totalUsers} icon={Users} main link="/admin/usuarios" linkText="Gerenciar" />
         <MetricCard title="Escolas" value={metrics.totalSchools} icon={School} main link="/escolas" linkText="Gerenciar" />
-        <MetricCard title="Trilhas" value={metrics.totalTrails} icon={Compass} main link="/trilhas" linkText="Gerenciar" />
+        <MetricCard title="Trilhas" value={metrics.totalTrails} icon={Compass} main link="/admin/trilhas" linkText="Aprovar" />
         <MetricCard title="Estudantes" value={metrics.totalStudents} icon={Users} />
         <MetricCard title="Professores" value={metrics.totalTeachers} icon={Users} />
         <MetricCard title="Pontos Educ." value={metrics.totalPoints} icon={MapPin} />
         <MetricCard title="Publicações" value={metrics.totalPosts} icon={MessageSquare} />
-        <MetricCard title="Biblioteca" value={metrics.totalLibrary} icon={Library} />
+        <MetricCard title="Biblioteca" value={metrics.totalLibrary} icon={Library} link="/admin/biblioteca" linkText="Aprovar" />
       </div>
 
       {/* Main Content Grid */}

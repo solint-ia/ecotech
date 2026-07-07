@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Store, ArrowLeft, Edit2, Trash2, CheckCircle2, XCircle, Search } from 'lucide-react';
 import { Partner } from '../../../components/rede/PartnerCard';
@@ -17,7 +17,6 @@ function GerenciarParceirosPageContent() {
   const isAdmin = user?.role === 'ADMIN';
   const router = useRouter();
   const searchParams = useSearchParams();
-  const pathname = usePathname();
 
   const page = parseInt(searchParams.get('page') || '1', 10);
 
@@ -25,8 +24,9 @@ function GerenciarParceirosPageContent() {
   const [meta, setMeta] = useState({ totalPages: 1, currentPage: 1 });
   const [loading, setLoading] = useState(true);
   
-  // Initialize search from URL if present
+  // Live search by name (debounced) — no need to press Enter.
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
+  const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
   const [error, setError] = useState('');
   const [partnerToDelete, setPartnerToDelete] = useState<{ id: string, name: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -43,7 +43,7 @@ function GerenciarParceirosPageContent() {
     if (!isAdmin) return;
     setLoading(true);
     try {
-      const searchParam = searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : '';
+      const searchParam = debouncedQuery ? `&search=${encodeURIComponent(debouncedQuery)}` : '';
       const res = await fetch(`${API_URL}/partners?includeInactive=true&page=${page}&limit=20${searchParam}`);
       if (!res.ok) throw new Error('Falha ao carregar parceiros.');
       const json = await res.json();
@@ -54,7 +54,13 @@ function GerenciarParceirosPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, page, searchQuery]);
+  }, [isAdmin, page, debouncedQuery]);
+
+  // Debounce the typed query so we don't fetch on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(searchQuery.trim()), 350);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -86,7 +92,9 @@ function GerenciarParceirosPageContent() {
     }
   };
 
-  if (status === 'loading' || loading) {
+  // Only block the whole page on the initial auth check — never on data fetches,
+  // otherwise the search input unmounts on every keystroke and loses focus.
+  if (status === 'loading') {
     return (
       <div className="max-w-6xl mx-auto py-12 text-center text-foreground/60">
         <div className="animate-pulse flex flex-col items-center">
@@ -98,19 +106,6 @@ function GerenciarParceirosPageContent() {
   }
 
   if (!isAdmin) return null;
-
-  // We no longer filter locally, the backend handles it.
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('page', '1');
-    if (searchQuery) {
-      params.set('search', searchQuery);
-    } else {
-      params.delete('search');
-    }
-    router.push(`${pathname}?${params.toString()}`);
-  };
 
   return (
     <div className="max-w-6xl mx-auto pb-12">
@@ -140,16 +135,16 @@ function GerenciarParceirosPageContent() {
       )}
 
       {/* Search Bar */}
-      <form onSubmit={handleSearchSubmit} className="relative mb-6">
+      <div className="relative mb-6">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/40" />
         <input
           type="text"
-          placeholder="Buscar por nome, categoria ou cidade... (Pressione Enter)"
+          placeholder="Buscar por nome..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full pl-12 pr-4 py-3 rounded-2xl border border-border-custom bg-white focus:ring-2 focus:ring-secondary focus:outline-none shadow-sm"
         />
-      </form>
+      </div>
 
       <div className="md:bg-white md:rounded-2xl md:border border-border-custom overflow-hidden md:shadow-sm">
         <div className="overflow-x-auto md:overflow-visible">
@@ -164,7 +159,13 @@ function GerenciarParceirosPageContent() {
               </tr>
             </thead>
             <tbody className="block md:table-row-group divide-y-0 md:divide-y divide-border-custom px-4 md:px-0 space-y-4 md:space-y-0">
-              {partners.length === 0 ? (
+              {loading ? (
+                <tr className="block md:table-row">
+                  <td colSpan={5} className="block md:table-cell px-6 py-8 text-center text-foreground/50">
+                    Carregando parceiros...
+                  </td>
+                </tr>
+              ) : partners.length === 0 ? (
                 <tr className="block md:table-row">
                   <td colSpan={5} className="block md:table-cell px-6 py-8 text-center text-foreground/50">
                     Nenhum parceiro encontrado.

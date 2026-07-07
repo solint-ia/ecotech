@@ -154,6 +154,20 @@ export default function CreatePostForm({
     }
   };
 
+  // Users without an approved membership (role USER — which also covers pending
+  // students/teachers whose session role is downgraded) cannot publish. The API
+  // enforces this too; this is the matching UX gate.
+  if (userRole === 'USER') {
+    return (
+      <div className="bg-white rounded-2xl border border-border-custom shadow-sm p-4 flex items-center gap-3 text-sm text-foreground/70">
+        <Loader2 className="w-5 h-5 text-forest shrink-0" />
+        <span>
+          Seu vínculo com a escola ainda está em análise. Você poderá publicar e interagir no feed assim que for aprovado.
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-2xl border border-border-custom shadow-sm overflow-hidden transition-all duration-300">
       {/* Collapsed trigger */}

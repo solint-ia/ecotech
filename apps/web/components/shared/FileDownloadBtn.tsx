@@ -33,8 +33,6 @@ export default function FileDownloadBtn({
     <a
       href={downloadUrl}
       download={fileName}
-      target="_blank"
-      rel="noopener noreferrer"
       className={className}
     >
       <Download className={iconClassName} />

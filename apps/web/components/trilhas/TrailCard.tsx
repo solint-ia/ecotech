@@ -18,6 +18,7 @@ export interface Trail {
   _count: { educationalPoints?: number; points?: number; likes?: number };
   viewsCount: number;
   status?: boolean;
+  approvalStatus?: 'PENDENTE' | 'APROVADO' | 'REPROVADO';
 }
 
 const DIFFICULTY_LABELS: Record<string, { label: string; color: string }> = {
@@ -58,11 +59,19 @@ export default function TrailCard({ trail }: TrailCardProps) {
         >
           {difficulty.label}
         </span>
-        {trail.status === false && (
+        {trail.approvalStatus === 'PENDENTE' ? (
+          <span className="absolute top-3 right-3 bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-md shadow-sm">
+            EM ANÁLISE
+          </span>
+        ) : trail.approvalStatus === 'REPROVADO' ? (
+          <span className="absolute top-3 right-3 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-md shadow-sm">
+            REPROVADO
+          </span>
+        ) : trail.status === false ? (
           <span className="absolute top-3 right-3 bg-yellow-500 text-white text-xs font-bold px-2 py-0.5 rounded-md shadow-sm">
             RASCUNHO
           </span>
-        )}
+        ) : null}
       </div>
 
       {/* Card Content */}

@@ -152,8 +152,14 @@ export default function ShareModal({ isOpen, onClose, trail, url }: ShareModalPr
           </div>
         ) : (
           <div className="p-8 flex flex-col items-center justify-center">
-            <div className="bg-white p-4 rounded-xl mb-6">
-              <QRCode value={url} size={200} />
+            <div className="bg-white p-4 rounded-xl mb-6 relative">
+              {/* Level H keeps the code scannable with the centered logo overlay. */}
+              <QRCode value={url} size={200} level="H" />
+              <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <span className="bg-white p-1 rounded-md shadow-sm">
+                  <img src="/EcoTechLogo.png" alt="EcoTech" className="w-10 h-auto object-contain" />
+                </span>
+              </span>
             </div>
             <p className="text-sm text-white/70 mb-6 text-center">
               Aponte a câmera do seu celular para o código acima.

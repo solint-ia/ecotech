@@ -34,6 +34,8 @@ export default function LoginPage() {
         router.push('/admin/dashboard');
       } else if (user?.role === 'SCHOOL_MANAGER') {
         router.push('/escola/dashboard');
+      } else if (user?.role === 'TEACHER') {
+        router.push('/professor/dashboard');
       } else {
         router.push('/trilhas');
       }
@@ -54,6 +56,7 @@ export default function LoginPage() {
 
   // School Manager specific fields
   const [schoolName, setSchoolName] = useState('');
+  const [schoolType, setSchoolType] = useState(''); // PRIVADA | MUNICIPAL | ESTADUAL | FEDERAL
   const [location, setLocation] = useState(''); // Endereço
   const [cnpj, setCnpj] = useState('');
   const [cpfManager, setCpfManager] = useState('');
@@ -213,8 +216,14 @@ export default function LoginPage() {
         }
 
         // Redirect based on role
-        if (loginData.user && ['ADMIN', 'SCHOOL_MANAGER'].includes(loginData.user.role)) {
-          router.push(loginData.user.role === 'ADMIN' ? '/admin/dashboard' : '/escola/dashboard');
+        if (loginData.user && ['ADMIN', 'SCHOOL_MANAGER', 'TEACHER'].includes(loginData.user.role)) {
+          router.push(
+            loginData.user.role === 'ADMIN'
+              ? '/admin/dashboard'
+              : loginData.user.role === 'TEACHER'
+                ? '/professor/dashboard'
+                : '/escola/dashboard',
+          );
         } else {
           router.push('/trilhas');
         }
@@ -271,6 +280,7 @@ export default function LoginPage() {
 
       if (role === 'SCHOOL_MANAGER') {
         formData.append('schoolName', schoolName);
+        if (schoolType) formData.append('schoolType', schoolType);
         formData.append('state', stateUF);
         formData.append('city', city);
         formData.append('location', location);
@@ -310,8 +320,14 @@ export default function LoginPage() {
 
       setShowActivationModal(false);
 
-      if (data.user && ['ADMIN', 'SCHOOL_MANAGER'].includes(data.user.role)) {
-        router.push(data.user.role === 'ADMIN' ? '/admin/dashboard' : '/escola/dashboard');
+      if (data.user && ['ADMIN', 'SCHOOL_MANAGER', 'TEACHER'].includes(data.user.role)) {
+        router.push(
+          data.user.role === 'ADMIN'
+            ? '/admin/dashboard'
+            : data.user.role === 'TEACHER'
+              ? '/professor/dashboard'
+              : '/escola/dashboard',
+        );
       } else {
         router.push('/trilhas');
       }
@@ -523,6 +539,20 @@ export default function LoginPage() {
                           {errors.schoolName}
                         </p>
                       )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-primary/80 mb-1.5">Tipo de Escola</label>
+                      <select
+                        value={schoolType}
+                        onChange={(e) => setSchoolType(e.target.value)}
+                        className="w-full px-4 py-3.5 rounded-xl border bg-transparent text-primary focus:outline-none focus:ring-1 transition-all border-primary/30 focus:border-primary focus:ring-primary"
+                      >
+                        <option value="">Selecione o tipo</option>
+                        <option value="PRIVADA">Privada</option>
+                        <option value="MUNICIPAL">Municipal</option>
+                        <option value="ESTADUAL">Estadual</option>
+                        <option value="FEDERAL">Federal</option>
+                      </select>
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-primary/80 mb-1.5">CNPJ</label>

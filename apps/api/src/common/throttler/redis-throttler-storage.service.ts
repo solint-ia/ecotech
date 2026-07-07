@@ -10,12 +10,26 @@ export class RedisThrottlerStorageService implements ThrottlerStorage, OnModuleD
 
   constructor(configService: ConfigService) {
     const redisUrl = configService.get<string>('REDIS_URL');
-    this.redis = redisUrl
-      ? new Redis(redisUrl)
-      : new Redis({
-          host: configService.get('REDIS_HOST') || 'localhost',
-          port: parseInt(configService.get('REDIS_PORT') || '6379', 10),
-        });
+    if (redisUrl) {
+      // Only use TLS for rediss:// URLs (e.g. Render external). Render internal
+      // Redis uses redis:// without TLS, so forcing TLS there breaks the connection.
+      const useTls = redisUrl.startsWith('rediss://');
+      this.redis = new Redis(redisUrl, {
+        keepAlive: 10000,
+        ...(useTls ? { tls: {} } : {}),
+      });
+    } else {
+      this.redis = new Redis({
+        host: configService.get('REDIS_HOST') || 'localhost',
+        port: parseInt(configService.get('REDIS_PORT') || '6379', 10),
+        keepAlive: 10000,
+      });
+    }
+
+    // Register error handler to prevent Unhandled error event (ECONNRESET) logs
+    this.redis.on('error', (error) => {
+      console.warn('RedisThrottlerStorage: Redis connection error:', error.message);
+    });
   }
 
   async increment(

@@ -61,10 +61,12 @@ export class LibraryController {
   getSubmissions(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('status') status?: string,
   ) {
     return this.libraryService.getSubmissions({
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 20,
+      status,
     });
   }
 

@@ -104,12 +104,9 @@ export class LibraryService {
   }
 
   async create(dto: CreateLibraryContentDto, user: { id: string; role: string; schoolId?: string }) {
-    // Admin directly publishes. Others send to pending.
-    // Commented out approval flow:
-    // const approvalStatus = user.role === 'ADMIN' ? ApprovalStatus.APROVADO : ApprovalStatus.PENDENTE;
-    // const publishedAt = user.role === 'ADMIN' ? new Date() : null;
-    const approvalStatus = ApprovalStatus.APROVADO;
-    const publishedAt = new Date();
+    // Admin publishes directly; schools/teachers go to pending admin approval.
+    const approvalStatus = user.role === 'ADMIN' ? ApprovalStatus.APROVADO : ApprovalStatus.PENDENTE;
+    const publishedAt = user.role === 'ADMIN' ? new Date() : null;
 
     return this.prisma.libraryContent.create({
       data: {
@@ -201,13 +198,19 @@ export class LibraryService {
     });
   }
 
-  async getSubmissions(query: { page?: number; limit?: number }) {
+  async getSubmissions(query: { page?: number; limit?: number; status?: string }) {
     const page = Math.max(1, query.page || 1);
     const limit = Math.min(50, query.limit || 20);
     const skip = (page - 1) * limit;
 
+    const where: any = {};
+    if (query.status && query.status !== 'ALL' && Object.values(ApprovalStatus).includes(query.status as ApprovalStatus)) {
+      where.approvalStatus = query.status as ApprovalStatus;
+    }
+
     const [data, total] = await this.prisma.$transaction([
       this.prisma.libraryContent.findMany({
+        where,
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
@@ -216,7 +219,7 @@ export class LibraryService {
           school: { select: { id: true, name: true } },
         }
       }),
-      this.prisma.libraryContent.count(),
+      this.prisma.libraryContent.count({ where }),
     ]);
 
     return {

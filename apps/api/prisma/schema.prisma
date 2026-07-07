@@ -60,6 +60,13 @@ enum ApprovalStatus {
   REPROVADO
 }
 
+enum SchoolType {
+  PRIVADA
+  MUNICIPAL
+  ESTADUAL
+  FEDERAL
+}
+
 enum VerificationType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
@@ -107,6 +114,7 @@ model VerificationToken {
 model School {
   id              String           @id @default(uuid())
   name            String
+  type            SchoolType?
   state           String?
   city            String
   location        String
@@ -157,6 +165,7 @@ model Trail {
   wikilocUrl       String?
   safetyWarnings   String?
   status           Boolean            @default(false)
+  approvalStatus   ApprovalStatus     @default(PENDENTE)
   viewsCount       Int                @default(0)
   likesCount       Int                @default(0)
   createdAt        DateTime           @default(now())

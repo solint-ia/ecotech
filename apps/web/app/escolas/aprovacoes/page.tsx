@@ -8,6 +8,14 @@ import Link from 'next/link';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
+// A pending teacher is stored with role USER while awaiting approval, so both
+// USER and TEACHER map to the "Professor" bucket; STUDENT is its own bucket.
+function getRoleMeta(role: string): { label: string; className: string } {
+  if (role === 'SCHOOL_MANAGER') return { label: 'Gestor Escolar', className: 'bg-amber-100 text-amber-800' };
+  if (role === 'STUDENT') return { label: 'Estudante', className: 'bg-emerald-100 text-emerald-800' };
+  return { label: 'Professor', className: 'bg-blue-100 text-blue-800' };
+}
+
 interface PendingUser {
   id: string;
   name: string;
@@ -31,14 +39,14 @@ export default function AprovacoesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'ALL' | 'SCHOOL_MANAGER' | 'TEACHER'>('ALL');
+  const [filter, setFilter] = useState<'ALL' | 'SCHOOL_MANAGER' | 'TEACHER' | 'STUDENT'>('ALL');
 
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login');
     }
     if (status === 'authenticated') {
-      if (user?.role !== 'ADMIN' && user?.role !== 'SCHOOL_MANAGER') {
+      if (!['ADMIN', 'SCHOOL_MANAGER', 'TEACHER'].includes(user?.role)) {
         router.push('/escolas');
       } else {
         fetchPendingUsers();
@@ -110,13 +118,15 @@ export default function AprovacoesPage() {
   }
 
   const isAdmin = user?.role === 'ADMIN';
+  const isTeacher = user?.role === 'TEACHER';
 
   // Pending teachers are stored with role USER while awaiting approval, so the
-  // "Professores" bucket is everyone that isn't a school registration.
+  // "Professores" bucket is USER/TEACHER; STUDENT and SCHOOL_MANAGER are their own.
   const filteredUsers = users.filter((u) => {
     if (!isAdmin || filter === 'ALL') return true;
     if (filter === 'SCHOOL_MANAGER') return u.role === 'SCHOOL_MANAGER';
-    return u.role !== 'SCHOOL_MANAGER';
+    if (filter === 'STUDENT') return u.role === 'STUDENT';
+    return u.role === 'TEACHER' || u.role === 'USER';
   });
 
   return (
@@ -133,8 +143,10 @@ export default function AprovacoesPage() {
           </h1>
           <p className="text-sm text-foreground/70 mt-1">
             {isAdmin
-              ? 'Aprove ou recuse os cadastros de Escolas Parceiras e de Professores.'
-              : 'Aprove ou recuse os cadastros de Professores da sua Escola.'}
+              ? 'Aprove ou recuse os cadastros de Escolas Parceiras, Professores e Estudantes.'
+              : isTeacher
+              ? 'Aprove ou recuse os estudantes da sua Escola.'
+              : 'Aprove ou recuse os cadastros de Professores e Estudantes da sua Escola.'}
           </p>
         </div>
 
@@ -144,6 +156,7 @@ export default function AprovacoesPage() {
               { key: 'ALL', label: 'Todos' },
               { key: 'SCHOOL_MANAGER', label: 'Escolas' },
               { key: 'TEACHER', label: 'Professores' },
+              { key: 'STUDENT', label: 'Estudantes' },
             ] as const).map((opt) => (
               <button
                 key={opt.key}
@@ -189,15 +202,15 @@ export default function AprovacoesPage() {
                     <div>
                       <div className="font-semibold text-gray-900">{u.name}</div>
                       <div className="flex items-center gap-1 mt-1">
-                        {u.role === 'SCHOOL_MANAGER' ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-amber-100 text-amber-800">
-                            <School className="w-3 h-3" /> Gestor Escolar
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-blue-100 text-blue-800">
-                            <User className="w-3 h-3" /> Professor
-                          </span>
-                        )}
+                        {(() => {
+                          const m = getRoleMeta(u.role);
+                          const Icon = u.role === 'SCHOOL_MANAGER' ? School : User;
+                          return (
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium ${m.className}`}>
+                              <Icon className="w-3 h-3" /> {m.label}
+                            </span>
+                          );
+                        })()}
                         {u.roleStatus === 'PENDENTE' ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-yellow-100 text-yellow-800">Pendente</span>
                         ) : u.roleStatus === 'APROVADO' ? (
@@ -300,15 +313,15 @@ export default function AprovacoesPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col items-start gap-2">
-                        {u.role === 'SCHOOL_MANAGER' ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-amber-100 text-amber-800">
-                            <School className="w-3 h-3" /> Gestor Escolar
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
-                            <User className="w-3 h-3" /> Professor
-                          </span>
-                        )}
+                        {(() => {
+                          const m = getRoleMeta(u.role);
+                          const Icon = u.role === 'SCHOOL_MANAGER' ? School : User;
+                          return (
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium ${m.className}`}>
+                              <Icon className="w-3 h-3" /> {m.label}
+                            </span>
+                          );
+                        })()}
                         {u.school && (
                           <span className="text-xs text-gray-500">({u.school.name})</span>
                         )}

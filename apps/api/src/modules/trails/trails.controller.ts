@@ -26,6 +26,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { SupabaseService } from '../supabase/supabase.service';
+import { ApprovalStatus } from '@prisma/client';
 
 const storage = memoryStorage();
 
@@ -117,6 +118,22 @@ export class TrailsController {
     });
   }
 
+  /** GET /trails/admin/submissions - Trails awaiting moderation (ADMIN) */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Get('admin/submissions')
+  getSubmissions(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.trailsService.getSubmissions({
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 20,
+      status,
+    });
+  }
+
   /** GET /trails/:slug - Public details of a published trail */
   @Get(':slug')
   findOne(@Param('slug') slug: string) {
@@ -165,6 +182,20 @@ export class TrailsController {
       role: user.role,
       schoolId: user.schoolId,
     });
+  }
+
+  /** PATCH /trails/:id/approval - Approve or reject a trail (ADMIN) */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Patch(':id/approval')
+  updateApproval(
+    @Param('id') id: string,
+    @Body('status') status: ApprovalStatus,
+  ) {
+    if (!Object.values(ApprovalStatus).includes(status)) {
+      throw new BadRequestException('Status inválido.');
+    }
+    return this.trailsService.updateApprovalStatus(id, status);
   }
 
   /** DELETE /trails/:id - Delete trail (ADMIN or owning SCHOOL_MANAGER) */

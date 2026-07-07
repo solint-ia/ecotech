@@ -2,28 +2,30 @@
 
 import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { CheckCircle2, XCircle, Clock, BookOpen, ExternalLink, ArrowLeft, Trash2 } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, Compass, ExternalLink, ArrowLeft, Trash2 } from 'lucide-react';
 import { getImageUrl } from '../../../lib/image-url';
-import ConfirmDeleteModal from '../../../components/feed/ConfirmDeleteModal';
 import { Pagination } from '../../../components/shared/Pagination';
+import ConfirmDeleteModal from '../../../components/feed/ConfirmDeleteModal';
 import ApprovalStatusFilter from '../../../components/shared/ApprovalStatusFilter';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-interface Submission {
+interface TrailSubmission {
   id: string;
   title: string;
-  contentType: string;
+  slug: string;
+  city: string;
+  state?: string | null;
+  biome: string;
   approvalStatus: 'PENDENTE' | 'APROVADO' | 'REPROVADO';
   createdAt: string;
   coverImage: string;
-  user: { id: string; name: string };
   school?: { id: string; name: string } | null;
 }
 
-function AdminBibliotecaPageContent() {
+function AdminTrilhasPageContent() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const user = session?.user as any;
@@ -32,17 +34,17 @@ function AdminBibliotecaPageContent() {
   const page = parseInt(searchParams.get('page') || '1', 10);
   const statusFilter = searchParams.get('status') || 'ALL';
 
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [submissions, setSubmissions] = useState<TrailSubmission[]>([]);
   const [meta, setMeta] = useState({ totalPages: 1, currentPage: 1 });
   const [loading, setLoading] = useState(true);
-  const [deletingMaterialId, setDeletingMaterialId] = useState<string | null>(null);
+  const [deletingTrailId, setDeletingTrailId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchSubmissions = useCallback(async () => {
     if (!user?.accessToken) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/library/admin/submissions?limit=20&page=${page}&status=${statusFilter}`, {
+      const res = await fetch(`${API_URL}/trails/admin/submissions?limit=20&page=${page}&status=${statusFilter}`, {
         headers: { Authorization: `Bearer ${user.accessToken}` }
       });
       if (!res.ok) throw new Error();
@@ -50,7 +52,7 @@ function AdminBibliotecaPageContent() {
       setSubmissions(json.data);
       setMeta(json.meta);
     } catch {
-      console.error('Failed to load submissions');
+      console.error('Failed to load trail submissions');
     } finally {
       setLoading(false);
     }
@@ -61,12 +63,31 @@ function AdminBibliotecaPageContent() {
     params.set('page', '1');
     if (value === 'ALL') params.delete('status');
     else params.set('status', value);
-    router.push(`/admin/biblioteca?${params.toString()}`);
+    router.push(`/admin/trilhas?${params.toString()}`);
+  };
+
+  const handleDelete = async () => {
+    if (!deletingTrailId || !user?.accessToken) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`${API_URL}/trails/${deletingTrailId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${user.accessToken}` }
+      });
+      if (!res.ok) throw new Error('Falha ao excluir trilha');
+      setSubmissions(prev => prev.filter(s => s.id !== deletingTrailId));
+      setDeletingTrailId(null);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao excluir a trilha.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   useEffect(() => {
     if (status === 'unauthenticated' || (status === 'authenticated' && user?.role !== 'ADMIN')) {
-      router.push('/biblioteca');
+      router.push('/trilhas');
     }
     if (status === 'authenticated' && user?.role === 'ADMIN') {
       fetchSubmissions();
@@ -75,7 +96,7 @@ function AdminBibliotecaPageContent() {
 
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {
-      const res = await fetch(`${API_URL}/library/${id}/status`, {
+      const res = await fetch(`${API_URL}/trails/${id}/approval`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -89,26 +110,7 @@ function AdminBibliotecaPageContent() {
         );
       }
     } catch {
-      console.error('Failed to change status');
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!deletingMaterialId || !user?.accessToken) return;
-    setIsDeleting(true);
-    try {
-      const res = await fetch(`${API_URL}/library/${deletingMaterialId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${user.accessToken}` }
-      });
-      if (!res.ok) throw new Error('Falha ao excluir material');
-      setSubmissions(prev => prev.filter(s => s.id !== deletingMaterialId));
-      setDeletingMaterialId(null);
-    } catch (err) {
-      console.error(err);
-      alert('Erro ao excluir o material.');
-    } finally {
-      setIsDeleting(false);
+      console.error('Failed to change trail status');
     }
   };
 
@@ -117,20 +119,20 @@ function AdminBibliotecaPageContent() {
   return (
     <div className="max-w-5xl mx-auto pb-12">
       <Link
-        href="/biblioteca"
+        href="/trilhas"
         className="inline-flex items-center gap-1.5 text-sm text-primary/70 hover:text-primary transition-colors mb-4 font-medium"
       >
         <ArrowLeft className="w-4 h-4" />
-        Voltar para Biblioteca
+        Voltar para Trilhas
       </Link>
-      
-      <div className="mb-8">
+
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-primary flex items-center gap-2 mb-2">
-          <BookOpen className="w-6 h-6 text-secondary" />
-          Gerenciamento da Biblioteca
+          <Compass className="w-6 h-6 text-secondary" />
+          Gerenciamento de Trilhas
         </h1>
         <p className="text-foreground/70 text-sm">
-          Gerencie, reprove ou exclua os conteúdos publicados na biblioteca da plataforma.
+          Aprove, reprove ou exclua as trilhas enviadas por escolas e professores. Apenas trilhas aprovadas ficam públicas.
         </p>
       </div>
 
@@ -143,15 +145,15 @@ function AdminBibliotecaPageContent() {
           <div className="p-8 text-center text-foreground/50">Carregando submissões...</div>
         ) : submissions.length === 0 ? (
           <div className="p-12 text-center text-foreground/50">
-            Nenhuma submissão encontrada.
+            Nenhuma trilha encontrada para este filtro.
           </div>
         ) : (
           <div className="overflow-x-auto md:overflow-visible">
             <table className="w-full text-left md:border-collapse block md:table">
               <thead className="hidden md:table-header-group">
                 <tr className="bg-beige border-b border-border-custom text-sm font-semibold text-primary">
-                  <th className="p-4">Material</th>
-                  <th className="p-4">Enviado por</th>
+                  <th className="p-4">Trilha</th>
+                  <th className="p-4">Escola</th>
                   <th className="p-4">Data</th>
                   <th className="p-4">Status</th>
                   <th className="p-4 text-right">Ações</th>
@@ -161,27 +163,22 @@ function AdminBibliotecaPageContent() {
                 {submissions.map((sub) => (
                   <tr key={sub.id} className="block md:table-row bg-white border border-border-custom md:border-b md:border-border-custom/50 rounded-2xl md:rounded-none shadow-sm md:shadow-none hover:bg-beige/30 transition-colors">
                     <td className="flex flex-col sm:flex-row sm:items-center justify-between md:table-cell p-5 md:p-4 border-b border-border-custom/50 md:border-0 gap-2 sm:gap-0">
-                      <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Material</span>
+                      <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Trilha</span>
                       <div className="flex items-center gap-3">
-                        <img 
-                          src={getImageUrl(sub.coverImage)} 
-                          alt="" 
+                        <img
+                          src={getImageUrl(sub.coverImage)}
+                          alt=""
                           className="w-12 h-12 rounded-lg object-cover border border-border-custom"
                         />
                         <div>
                           <p className="font-semibold text-primary text-sm line-clamp-1">{sub.title}</p>
-                          <span className="text-xs font-medium text-secondary">{sub.contentType}</span>
+                          <span className="text-xs font-medium text-secondary">{sub.city}{sub.state ? `/${sub.state}` : ''} · {sub.biome}</span>
                         </div>
                       </div>
                     </td>
                     <td className="flex flex-col sm:flex-row sm:items-center justify-between md:table-cell p-5 md:p-4 border-b border-border-custom/50 md:border-0 gap-1 sm:gap-0">
-                      <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Enviado por</span>
-                      <div className="text-right md:text-left">
-                        <p className="text-sm font-medium text-foreground/80">{sub.user.name}</p>
-                        {sub.school && (
-                          <p className="text-xs text-foreground/50">{sub.school.name}</p>
-                        )}
-                      </div>
+                      <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Escola</span>
+                      <p className="text-sm font-medium text-foreground/80 text-right md:text-left">{sub.school?.name || '—'}</p>
                     </td>
                     <td className="flex flex-col sm:flex-row sm:items-center justify-between md:table-cell p-5 md:p-4 text-sm text-foreground/70 border-b border-border-custom/50 md:border-0 gap-1 sm:gap-0">
                       <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Data</span>
@@ -211,7 +208,7 @@ function AdminBibliotecaPageContent() {
                       <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Ações</span>
                       <div className="flex items-center justify-end gap-2">
                         <Link
-                          href={`/biblioteca/${sub.id}`}
+                          href={`/trilhas/${sub.slug}`}
                           target="_blank"
                           className="p-2 text-foreground/50 hover:text-primary transition-colors rounded-lg hover:bg-beige border border-border-custom md:border-transparent bg-white md:bg-transparent shadow-sm md:shadow-none"
                           title="Visualizar"
@@ -237,7 +234,7 @@ function AdminBibliotecaPageContent() {
                           </button>
                         )}
                         <button
-                          onClick={() => setDeletingMaterialId(sub.id)}
+                          onClick={() => setDeletingTrailId(sub.id)}
                           className="p-2 text-foreground/50 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50 border border-border-custom md:border-transparent bg-white md:bg-transparent shadow-sm md:shadow-none"
                           title="Excluir Permanentemente"
                         >
@@ -255,12 +252,12 @@ function AdminBibliotecaPageContent() {
 
       <Pagination currentPage={meta.currentPage} totalPages={meta.totalPages} />
 
-      {deletingMaterialId && (
+      {deletingTrailId && (
         <ConfirmDeleteModal
-          title="Excluir Material"
-          description="Tem certeza que deseja excluir este material permanentemente? Esta ação removerá os arquivos e não poderá ser desfeita."
+          title="Excluir Trilha"
+          description="Tem certeza que deseja excluir esta trilha permanentemente? Esta ação removerá a trilha e não poderá ser desfeita."
           loading={isDeleting}
-          onClose={() => setDeletingMaterialId(null)}
+          onClose={() => setDeletingTrailId(null)}
           onConfirm={handleDelete}
         />
       )}
@@ -268,10 +265,10 @@ function AdminBibliotecaPageContent() {
   );
 }
 
-export default function AdminBibliotecaPage() {
+export default function AdminTrilhasPage() {
   return (
     <Suspense fallback={<div className="p-12 text-center text-foreground/50">Carregando listagem...</div>}>
-      <AdminBibliotecaPageContent />
+      <AdminTrilhasPageContent />
     </Suspense>
   );
 }

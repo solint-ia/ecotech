@@ -30,11 +30,8 @@ export class PartnersService {
     };
 
     if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { category: { contains: search, mode: 'insensitive' } },
-        { city: { contains: search, mode: 'insensitive' } },
-      ];
+      // Search by partner name only.
+      where.name = { contains: search, mode: 'insensitive' };
     }
 
     const totalCount = await this.prisma.partner.count({ where });
