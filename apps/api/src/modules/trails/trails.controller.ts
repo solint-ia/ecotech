@@ -72,7 +72,7 @@ export class TrailsController {
     if (user.role !== 'ADMIN' && !user.schoolId) {
       throw new BadRequestException('Usuário não possui uma escola associada.');
     }
-    const schoolId = user.role === 'ADMIN' ? undefined : user.schoolId;
+    const schoolId = user.role === 'ADMIN' ? null : user.schoolId;
     return this.trailsService.findDrafts(schoolId);
   }
 

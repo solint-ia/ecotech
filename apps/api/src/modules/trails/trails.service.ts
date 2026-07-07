@@ -148,9 +148,8 @@ export class TrailsService {
     };
   }
 
-  async findDrafts(schoolId?: string) {
-    const where: any = { status: false };
-    if (schoolId) where.schoolId = schoolId;
+  async findDrafts(schoolId: string | null) {
+    const where: any = { isDraft: true, schoolId };
 
     const data = await this.prisma.trail.findMany({
       where,
