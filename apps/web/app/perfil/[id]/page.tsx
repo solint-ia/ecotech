@@ -35,6 +35,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [birthDate, setBirthDate] = useState('');
   const [schoolId, setSchoolId] = useState('');
   const [schoolType, setSchoolType] = useState('');
   const [schools, setSchools] = useState<any[]>([]);
@@ -138,6 +139,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       setName(data.name || '');
       setEmail(data.email || '');
       setPhone(data.phone || '');
+      setBirthDate(data.birthDate ? data.birthDate.split('T')[0] : '');
       setSchoolId(data.schoolId || '');
       setSchoolType(data.school?.type || '');
       setTeacherLinks(data.teacherSchools || []);
@@ -290,6 +292,9 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       const formData = new FormData();
       formData.append('name', name);
       formData.append('phone', phone);
+      if (birthDate) {
+        formData.append('birthDate', birthDate);
+      }
       // Teacher school links are managed live via /users/me/schools, so we must
       // not send schoolId here (it would trip the legacy single-school logic).
       if (!isTeacherManaged && schoolId !== undefined) {
@@ -630,6 +635,16 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                 )}
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
+                <input
+                  type="date"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  value={birthDate}
+                  onChange={(e) => setBirthDate(e.target.value)}
+                />
+              </div>
+
               {profileData.role === 'SCHOOL_MANAGER' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Escola</label>
@@ -858,6 +873,27 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                       <span className="text-xs font-medium uppercase tracking-wider">Telefone</span>
                     </div>
                     <p className="font-medium text-slate-800">{profileData.phone}</p>
+                  </div>
+                )}
+
+                {profileData.birthDate && (
+                  <div>
+                    <div className="flex items-center gap-2 text-gray-500 mb-1">
+                      <Calendar className="w-4 h-4" />
+                      <span className="text-xs font-medium uppercase tracking-wider">Idade</span>
+                    </div>
+                    <p className="font-medium text-slate-800">
+                      {(() => {
+                        const today = new Date();
+                        const birth = new Date(profileData.birthDate);
+                        let age = today.getFullYear() - birth.getFullYear();
+                        const m = today.getMonth() - birth.getMonth();
+                        if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+                          age--;
+                        }
+                        return age;
+                      })()} anos
+                    </p>
                   </div>
                 )}
 

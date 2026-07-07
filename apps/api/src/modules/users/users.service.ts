@@ -76,6 +76,7 @@ export class UsersService {
 
       const userUpdateData: any = {};
       if (data.phone) userUpdateData.phone = data.phone;
+      if (data.birthDate) userUpdateData.birthDate = new Date(data.birthDate);
       
       if (Object.keys(userUpdateData).length > 0) {
         await this.prisma.user.update({
@@ -87,6 +88,7 @@ export class UsersService {
       const updateData: any = {};
       if (data.name) updateData.name = data.name;
       if (data.phone) updateData.phone = data.phone;
+      if (data.birthDate) updateData.birthDate = new Date(data.birthDate);
       if (publicUrl) updateData.profileImage = publicUrl;
   
       if (data.schoolId !== undefined && data.schoolId !== currentUser.schoolId) {
@@ -163,6 +165,7 @@ export class UsersService {
       const userUpdateData: any = {};
       if (data.phone) userUpdateData.phone = data.phone;
       if (data.email) userUpdateData.email = data.email;
+      if (data.birthDate) userUpdateData.birthDate = new Date(data.birthDate);
       if (hashedPassword) userUpdateData.password = hashedPassword;
 
       if (Object.keys(userUpdateData).length > 0) {
@@ -176,6 +179,7 @@ export class UsersService {
       if (data.name) updateData.name = data.name;
       if (data.phone) updateData.phone = data.phone;
       if (data.email) updateData.email = data.email;
+      if (data.birthDate) updateData.birthDate = new Date(data.birthDate);
       if (publicUrl) updateData.profileImage = publicUrl;
       if (hashedPassword) updateData.password = hashedPassword;
 
