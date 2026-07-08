@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Camera, User, Mail, Phone, Calendar, School, Save, Edit2, Loader2, Image as ImageIcon, Lock, GraduationCap } from 'lucide-react';
 import { getImageUrl } from '../../../lib/image-url';
+import { validatePhone, validateFullName, formatPhone } from '../../../lib/validation';
 import FeedPostCard, { FeedPost } from '../../../components/feed/FeedPostCard';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -25,6 +26,9 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingPosts, setLoadingPosts] = useState(true);
+  const [loadingMorePosts, setLoadingMorePosts] = useState(false);
+  const [hasMorePosts, setHasMorePosts] = useState(false);
+  const [nextPostsCursor, setNextPostsCursor] = useState<string | null>(null);
 
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -63,8 +67,8 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
   const [adminNewPassword, setAdminNewPassword] = useState('');
   const [adminConfirmPassword, setAdminConfirmPassword] = useState('');
 
-  // Inline per-field validation errors (e.g. duplicate phone/email)
-  const [fieldErrors, setFieldErrors] = useState<{ phone?: string; email?: string }>({});
+  // Inline per-field validation errors (format + duplicate phone/email/name)
+  const [fieldErrors, setFieldErrors] = useState<{ phone?: string; email?: string; name?: string }>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -116,21 +120,25 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
     }
   };
 
-  const fetchPosts = async () => {
+  const fetchPosts = async (cursor?: string | null) => {
+    const isLoadingMore = !!cursor;
     try {
-      setLoadingPosts(true);
-      let url = `${API_URL}/feed?userId=${profileId}`;
+      isLoadingMore ? setLoadingMorePosts(true) : setLoadingPosts(true);
+      let url = `${API_URL}/feed?userId=${profileId}&take=10`;
       if (user?.id) url += `&currentUserId=${user.id}`;
+      if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${user.accessToken}` }
       });
       if (!res.ok) throw new Error('Falha ao carregar posts');
       const data = await res.json();
-      setPosts(data.data || []);
+      setPosts((prev) => (isLoadingMore ? [...prev, ...(data.data || [])] : (data.data || [])));
+      setHasMorePosts(!!data.meta?.hasMore);
+      setNextPostsCursor(data.meta?.nextCursor ?? null);
     } catch (err) {
       console.error('Erro ao carregar posts:', err);
     } finally {
-      setLoadingPosts(false);
+      isLoadingMore ? setLoadingMorePosts(false) : setLoadingPosts(false);
     }
   };
 
@@ -138,7 +146,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
     if (data) {
       setName(data.name || '');
       setEmail(data.email || '');
-      setPhone(data.phone || '');
+      setPhone(data.phone ? formatPhone(data.phone) : '');
       setBirthDate(data.birthDate ? data.birthDate.split('T')[0] : '');
       setSchoolId(data.schoolId || '');
       setSchoolType(data.school?.type || '');
@@ -267,6 +275,26 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canEdit) return;
+
+    // Client-side field validation (format) before hitting the API. Uniqueness
+    // (phone/email already registered) is enforced by the backend and surfaced
+    // inline in the catch block below.
+    const validationErrors: { phone?: string; email?: string; name?: string } = {};
+    if (!validateFullName(name)) {
+      validationErrors.name = 'Informe o nome completo (nome e sobrenome).';
+    }
+    if (phone.trim() && !validatePhone(phone)) {
+      validationErrors.phone = 'Telefone inválido. Use o formato (DDD) 9 0000-0000.';
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      validationErrors.email = 'E-mail inválido.';
+    }
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      setError('Corrija os campos destacados antes de salvar.');
+      return;
+    }
+
     setSaving(true);
     setError('');
     setSuccess('');
@@ -595,10 +623,16 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                 <input
                   type="text"
                   required
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className={`w-full px-4 py-2.5 rounded-xl border focus:outline-none focus:ring-2 ${fieldErrors.name ? 'border-red-500 focus:ring-red-500/40' : 'border-gray-200 focus:ring-primary/50'}`}
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: undefined }));
+                  }}
                 />
+                {fieldErrors.name && (
+                  <p className="text-xs text-red-600 mt-1.5">{fieldErrors.name}</p>
+                )}
               </div>
 
               <div>
@@ -625,7 +659,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                   className={`w-full px-4 py-2.5 rounded-xl border focus:outline-none focus:ring-2 ${fieldErrors.phone ? 'border-red-500 focus:ring-red-500/40' : 'border-gray-200 focus:ring-primary/50'}`}
                   value={phone}
                   onChange={(e) => {
-                    setPhone(e.target.value);
+                    setPhone(formatPhone(e.target.value));
                     if (fieldErrors.phone) setFieldErrors((prev) => ({ ...prev, phone: undefined }));
                   }}
                   placeholder="(79) 9 0000-0000"
@@ -935,6 +969,21 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                   onDelete={handleDeletePost}
                 />
               ))}
+
+              {hasMorePosts && (
+                <div className="flex justify-center pt-2">
+                  <button
+                    onClick={() => fetchPosts(nextPostsCursor)}
+                    disabled={loadingMorePosts}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-200 text-primary rounded-xl text-sm font-semibold hover:bg-gray-50 transition-all shadow-sm disabled:opacity-50"
+                  >
+                    {loadingMorePosts ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : null}
+                    {loadingMorePosts ? 'Carregando...' : 'Ver mais publicações'}
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="bg-gray-50 rounded-2xl py-16 px-6 text-center border border-gray-100 flex flex-col items-center">

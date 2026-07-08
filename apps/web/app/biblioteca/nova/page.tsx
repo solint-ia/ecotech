@@ -54,6 +54,16 @@ export default function NovaBibliotecaPage() {
     e.preventDefault();
     setError('');
 
+    if (!title.trim()) {
+      setError('O título do material é obrigatório.');
+      return;
+    }
+
+    if (!description.trim()) {
+      setError('A descrição do material é obrigatória.');
+      return;
+    }
+
     if (!coverImage) {
       setError('A imagem de capa é obrigatória.');
       return;

@@ -23,6 +23,7 @@ interface TrailSubmission {
   createdAt: string;
   coverImage: string;
   school?: { id: string; name: string } | null;
+  createdBy?: { id: string; name: string } | null;
 }
 
 function AdminTrilhasPageContent() {
@@ -153,7 +154,7 @@ function AdminTrilhasPageContent() {
               <thead className="hidden md:table-header-group">
                 <tr className="bg-beige border-b border-border-custom text-sm font-semibold text-primary">
                   <th className="p-4">Trilha</th>
-                  <th className="p-4">Escola</th>
+                  <th className="p-4">Escola / Criador</th>
                   <th className="p-4">Data</th>
                   <th className="p-4">Status</th>
                   <th className="p-4 text-right">Ações</th>
@@ -177,8 +178,13 @@ function AdminTrilhasPageContent() {
                       </div>
                     </td>
                     <td className="flex flex-col sm:flex-row sm:items-center justify-between md:table-cell p-5 md:p-4 border-b border-border-custom/50 md:border-0 gap-1 sm:gap-0">
-                      <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Escola</span>
-                      <p className="text-sm font-medium text-foreground/80 text-right md:text-left">{sub.school?.name || '—'}</p>
+                      <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Escola / Criador</span>
+                      <div className="text-right md:text-left">
+                        <p className="text-sm font-medium text-foreground/80">{sub.school?.name || '—'}</p>
+                        <p className="text-xs text-foreground/50 mt-0.5">
+                          Criado por: {sub.createdBy?.name || '—'}
+                        </p>
+                      </div>
                     </td>
                     <td className="flex flex-col sm:flex-row sm:items-center justify-between md:table-cell p-5 md:p-4 text-sm text-foreground/70 border-b border-border-custom/50 md:border-0 gap-1 sm:gap-0">
                       <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Data</span>

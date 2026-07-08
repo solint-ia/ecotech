@@ -16,6 +16,14 @@ function getRoleMeta(role: string): { label: string; className: string } {
   return { label: 'Professor', className: 'bg-blue-100 text-blue-800' };
 }
 
+// Human-readable label for the school's administrative type (pública, privada...).
+const SCHOOL_TYPE_LABELS: Record<string, string> = {
+  PRIVADA: 'Privada',
+  MUNICIPAL: 'Pública Municipal',
+  ESTADUAL: 'Pública Estadual',
+  FEDERAL: 'Pública Federal',
+};
+
 interface PendingUser {
   id: string;
   name: string;
@@ -29,6 +37,7 @@ interface PendingUser {
   teacherSchoolId?: string;
   school?: {
     name: string;
+    type?: string;
     cnpj?: string;
     cpfManager?: string;
   };
@@ -241,6 +250,9 @@ export default function AprovacoesPage() {
                   <div className="flex items-center gap-2"><Mail className="w-3.5 h-3.5 text-gray-400" /> <span className="truncate">{u.email}</span></div>
                   {u.phone && <div className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-gray-400" /> {u.phone}</div>}
                   {u.school && <div className="flex items-center gap-2"><School className="w-3.5 h-3.5 text-gray-400" /> <span className="truncate">{u.school.name}</span></div>}
+                  {u.role === 'SCHOOL_MANAGER' && u.school?.type && (
+                    <div className="flex items-center gap-2"><Info className="w-3.5 h-3.5 text-gray-400" /> Tipo: {SCHOOL_TYPE_LABELS[u.school.type] || u.school.type}</div>
+                  )}
                   {u.role === 'SCHOOL_MANAGER' && u.school?.cnpj && (
                     <div className="flex items-center gap-2"><FileText className="w-3.5 h-3.5 text-gray-400" /> CNPJ: {u.school.cnpj}</div>
                   )}
@@ -337,6 +349,11 @@ export default function AprovacoesPage() {
                         })()}
                         {u.school && (
                           <span className="text-xs text-gray-500">({u.school.name})</span>
+                        )}
+                        {u.role === 'SCHOOL_MANAGER' && u.school?.type && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700">
+                            {SCHOOL_TYPE_LABELS[u.school.type] || u.school.type}
+                          </span>
                         )}
                       </div>
                     </td>

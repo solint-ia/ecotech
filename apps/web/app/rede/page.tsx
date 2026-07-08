@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { Store, MapPin, Search, Plus, SlidersHorizontal, X, ChevronDown } from 'lucide-react';
+import { Store, MapPin, Search, Plus, SlidersHorizontal, X, ChevronDown, Loader2 } from 'lucide-react';
 import { PartnerCard, Partner } from '../../components/rede/PartnerCard';
 import { StateCitySelect } from '@/components/shared/StateCitySelect';
 
@@ -25,35 +25,65 @@ export default function RedePage() {
 
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterState, setFilterState] = useState('');
   const [filterCity, setFilterCity] = useState('');
   const [showFiltersModal, setShowFiltersModal] = useState(false);
 
-  const fetchPartners = useCallback(async () => {
-    setLoading(true);
+  const LIMIT = 12;
+
+  // Debounce the search box so we don't hit the API on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 400);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  // Fetches a page of partners. `replace` starts a fresh list (filter change);
+  // otherwise the page is appended ("Ver mais"), just like the feed.
+  const fetchPartners = useCallback(async (page: number, replace: boolean) => {
+    if (replace) setLoading(true);
+    else setLoadingMore(true);
     try {
-      let url = `${API_URL}/partners?`;
       const params = new URLSearchParams();
+      params.append('page', String(page));
+      params.append('limit', String(LIMIT));
       if (selectedCategory !== 'Todos') params.append('category', selectedCategory);
       if (filterState) params.append('state', filterState);
       if (filterCity) params.append('city', filterCity);
+      if (debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
 
-      const res = await fetch(url + params.toString());
+      const res = await fetch(`${API_URL}/partners?${params.toString()}`);
       if (!res.ok) throw new Error('Falha ao carregar parceiros.');
       const data = await res.json();
-      setPartners(data.data || []);
+      setPartners((prev) => (replace ? (data.data || []) : [...prev, ...(data.data || [])]));
+      setCurrentPage(data.meta?.currentPage || page);
+      setTotalPages(data.meta?.totalPages || 1);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  }, [selectedCategory, filterState, filterCity]);
+  }, [selectedCategory, filterState, filterCity, debouncedSearch]);
 
+  // Reset to the first page whenever a filter or the search term changes.
   useEffect(() => {
-    fetchPartners();
+    fetchPartners(1, true);
   }, [fetchPartners]);
+
+  const hasMore = currentPage < totalPages;
+
+  // Instant client-side narrowing by name while the debounced server search
+  // catches up — gives immediate feedback as the user types. The server still
+  // searches the whole base (so matches on other pages are also found).
+  const visiblePartners = searchQuery.trim()
+    ? partners.filter((p) => p.name.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+    : partners;
 
   return (
     <div>
@@ -149,7 +179,7 @@ export default function RedePage() {
             </div>
           ))}
         </div>
-      ) : partners.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 ? (
+      ) : visiblePartners.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-xl border border-border-custom">
           <Store className="w-12 h-12 text-secondary/40 mb-4" />
           <p className="text-lg font-semibold text-primary">Nenhum parceiro encontrado</p>
@@ -158,11 +188,31 @@ export default function RedePage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {partners.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map((partner) => (
-            <PartnerCard key={partner.id} partner={partner} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {visiblePartners.map((partner) => (
+              <PartnerCard key={partner.id} partner={partner} />
+            ))}
+          </div>
+
+          {/* Load More */}
+          {hasMore && (
+            <div className="flex justify-center pt-8 pb-2">
+              <button
+                onClick={() => fetchPartners(currentPage + 1, false)}
+                disabled={loadingMore}
+                className="flex items-center gap-2 px-6 py-2.5 bg-white border border-border-custom text-primary rounded-xl text-sm font-semibold hover:bg-beige transition-all shadow-sm disabled:opacity-50"
+              >
+                {loadingMore ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+                {loadingMore ? 'Carregando...' : 'Ver mais parceiros'}
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/* Mobile Filters Modal */}

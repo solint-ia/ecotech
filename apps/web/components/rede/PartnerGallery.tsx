@@ -30,31 +30,26 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
   const user = session?.user as any;
   const canManage = user?.role === 'ADMIN';
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // Local state for photos — avoids dependence on server cache / router.refresh()
   const [photos, setPhotos] = useState<PartnerPhoto[]>(initialPhotos);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState('');
 
+  // Lightbox state
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [photoToDelete, setPhotoToDelete] = useState<string | null>(null);
+
+  // Sync if parent re-renders with new data (e.g. on navigation)
   useEffect(() => {
     setPhotos(initialPhotos);
   }, [initialPhotos]);
 
-  const handleScroll = (direction: 'left' | 'right') => {
-    if (scrollContainerRef.current) {
-      const scrollAmount = 320;
-      scrollContainerRef.current.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth',
-      });
-    }
-  };
-
+  // ---------- Upload ----------
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -82,13 +77,13 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
         );
 
         if (!res.ok) {
-          const errData = await res.json().catch(() => null);
-          console.error('Falha ao enviar imagem', file.name, errData);
+          console.error('Falha ao enviar imagem', file.name);
           failedFiles.push(file.name);
           continue;
         }
 
         const newPhoto: PartnerPhoto = await res.json();
+        // Instant UI update — add the new photo to local state
         setPhotos((prev) => [...prev, newPhoto]);
       }
 
@@ -106,21 +101,23 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
     }
   };
 
-  const handleDeleteClick = (photoId: string, e?: React.MouseEvent) => {
+  // ---------- Delete ----------
+  const confirmDelete = (photoId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setDeletingId(photoId);
+    setPhotoToDelete(photoId);
+    setIsDeleteModalOpen(true);
   };
 
-  const confirmDelete = async () => {
-    if (!deletingId) return;
+  const handleDelete = async () => {
+    if (!photoToDelete) return;
 
-    setIsUploading(true); // Reusing this for loading state in modal or can just use isUploading
-    setDeleteError('');
+    setIsDeleteModalOpen(false);
+    setDeletingId(photoToDelete);
     try {
       const token = user?.accessToken;
 
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/partners/photos/${deletingId}?partnerId=${partnerId}`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/partners/photos/${photoToDelete}?partnerId=${partnerId}`,
         {
           method: 'DELETE',
           headers: {
@@ -133,10 +130,12 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
         throw new Error('Falha ao excluir imagem');
       }
 
-      setPhotos((prev) => prev.filter((p) => p.id !== deletingId));
+      // Instant UI update — remove the photo from local state
+      setPhotos((prev) => prev.filter((p) => p.id !== photoToDelete));
 
+      // If lightbox is open and we deleted the current photo, adjust
       if (lightboxOpen) {
-        const newPhotos = photos.filter((p) => p.id !== deletingId);
+        const newPhotos = photos.filter((p) => p.id !== photoToDelete);
         if (newPhotos.length === 0) {
           setLightboxOpen(false);
         } else if (lightboxIndex >= newPhotos.length) {
@@ -145,13 +144,14 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
       }
     } catch (error) {
       console.error(error);
-      setDeleteError('Erro ao excluir imagem. Tente novamente.');
+      alert('Erro ao excluir imagem.');
     } finally {
-      setIsUploading(false);
       setDeletingId(null);
+      setPhotoToDelete(null);
     }
   };
 
+  // ---------- Lightbox navigation ----------
   const openLightbox = (index: number) => {
     setLightboxIndex(index);
     setLightboxOpen(true);
@@ -169,6 +169,7 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
     setLightboxIndex((prev) => (prev - 1 + photos.length) % photos.length);
   }, [photos.length]);
 
+  // Keyboard navigation for the lightbox
   useEffect(() => {
     if (!lightboxOpen) return;
 
@@ -186,20 +187,20 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
     };
   }, [lightboxOpen, closeLightbox, goToNext, goToPrev]);
 
+  // ---------- Render ----------
   if (!photos?.length && !canManage) {
     return null;
   }
 
   return (
     <>
-      <section className="bg-white rounded-2xl p-6 sm:p-8 border border-border-custom shadow-sm mt-8">
+      <div className="mt-12 space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-primary flex items-center gap-2">
-            <ImageIcon className="w-6 h-6 text-secondary" />
-            Galeria de Fotos
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            📷 Imagens do Parceiro
             {photos.length > 0 && (
-              <span className="text-sm font-normal text-slate-400 bg-slate-100 px-2.5 py-0.5 rounded-full ml-2">
+              <span className="text-sm font-normal text-slate-400 bg-slate-100 px-2.5 py-0.5 rounded-full">
                 {photos.length}
               </span>
             )}
@@ -230,76 +231,62 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
           )}
         </div>
 
-        {(uploadError || deleteError) && (
-          <div className="mb-6 p-3 bg-red-50 text-red-600 rounded-xl border border-red-100 text-sm">
-            {uploadError || deleteError}
+        {uploadError && (
+          <div className="p-3 bg-red-50 text-red-600 rounded-xl border border-red-100 text-sm">
+            {uploadError}
           </div>
         )}
 
-        {/* Carousel */}
+        {/* Gallery Grid */}
         {photos.length > 0 ? (
-          <div className="relative group">
-            {/* Left arrow */}
-            <button
-              onClick={() => handleScroll('left')}
-              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 bg-white/95 backdrop-blur p-2 rounded-full shadow-xl text-slate-700 hover:bg-white hover:scale-110 transition-all z-10 opacity-0 group-hover:opacity-100 hidden sm:flex items-center justify-center border border-border-custom"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {photos.map((photo, index) => (
+              <div
+                key={photo.id}
+                className="relative w-full aspect-square rounded-2xl overflow-hidden shadow-sm group/photo cursor-pointer hover:shadow-md transition-all duration-300"
+                onClick={() => openLightbox(index)}
+              >
+                <img
+                  src={getImageUrl(photo.image)}
+                  alt={`Imagem do parceiro ${index + 1}`}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover/photo:scale-110"
+                  loading="lazy"
+                />
 
-            {/* Scrollable track */}
-            <div
-              ref={scrollContainerRef}
-              className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 pt-2 px-1"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {photos.map((photo, index) => (
-                <div
-                  key={photo.id}
-                  className="relative flex-none w-64 sm:w-72 aspect-square sm:aspect-video rounded-xl overflow-hidden snap-center shadow-md group/photo cursor-pointer hover:shadow-lg transition-shadow border border-border-custom"
-                  onClick={() => openLightbox(index)}
-                >
-                  <img
-                    src={getImageUrl(photo.image)}
-                    alt={`Imagem do parceiro ${index + 1}`}
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover/photo:scale-105"
-                    loading="lazy"
-                  />
-
-                  <div className="absolute inset-0 bg-black/0 group-hover/photo:bg-black/20 transition-colors flex items-center justify-center">
-                    <ZoomIn className="w-8 h-8 text-white opacity-0 group-hover/photo:opacity-100 transition-opacity drop-shadow-lg" />
-                  </div>
-
-                  {canManage && (
-                    <button
-                      onClick={(e) => handleDeleteClick(photo.id, e)}
-                      className="absolute top-2 right-2 p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover/photo:opacity-100 transition-opacity duration-300 shadow-md"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+                {/* Hover overlay with zoom icon */}
+                <div className="absolute inset-0 bg-forest/0 group-hover/photo:bg-forest/20 transition-colors duration-300 flex items-center justify-center">
+                  <ZoomIn className="w-8 h-8 text-white opacity-0 group-hover/photo:opacity-100 transition-opacity duration-300 drop-shadow-md" />
                 </div>
-              ))}
-            </div>
 
-            {/* Right arrow */}
-            <button
-              onClick={() => handleScroll('right')}
-              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 bg-white/95 backdrop-blur p-2 rounded-full shadow-xl text-slate-700 hover:bg-white hover:scale-110 transition-all z-10 opacity-0 group-hover:opacity-100 hidden sm:flex items-center justify-center border border-border-custom"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
+                {/* Delete button */}
+                {canManage && (
+                  <button
+                    onClick={(e) => confirmDelete(photo.id, e)}
+                    disabled={deletingId === photo.id}
+                    className="absolute top-2.5 right-2.5 bg-red-600/90 hover:bg-red-700 text-white p-2 rounded-lg opacity-0 group-hover/photo:opacity-100 transition-all disabled:opacity-50 shadow-md hover:scale-110 active:scale-95"
+                    title="Excluir imagem"
+                  >
+                    {deletingId === photo.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
         ) : (
-          <div className="bg-slate-50 rounded-xl p-8 flex flex-col items-center justify-center text-center border-2 border-dashed border-slate-200">
-            <ImageIcon className="w-12 h-12 text-slate-300 mb-3" />
-            <h3 className="text-md font-medium text-slate-600">Nenhuma imagem</h3>
-            <p className="text-sm text-slate-500 max-w-sm mt-1">
+          /* Empty state */
+          <div className="bg-slate-50 rounded-xl p-10 flex flex-col items-center justify-center text-center border-2 border-dashed border-slate-200">
+            <ImageIcon className="w-14 h-14 text-slate-300 mb-4" />
+            <h3 className="text-lg font-medium text-slate-600">Nenhuma imagem</h3>
+            <p className="text-slate-500 max-w-sm mt-1">
               Este parceiro ainda não possui imagens na galeria.
             </p>
           </div>
         )}
-      </section>
+      </div>
 
       {/* ========== Lightbox Modal ========== */}
       {lightboxOpen && photos[lightboxIndex] && (
@@ -307,12 +294,15 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
           className="fixed inset-0 z-[9999] flex items-center justify-center"
           onClick={closeLightbox}
         >
+          {/* Backdrop */}
           <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" />
 
+          {/* Content container */}
           <div
             className="relative z-10 flex items-center justify-center w-full h-full p-4 sm:p-8"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Close button */}
             <button
               onClick={closeLightbox}
               className="absolute top-4 right-4 sm:top-6 sm:right-6 bg-white/10 hover:bg-white/25 text-white p-2.5 rounded-full transition-all z-20 backdrop-blur"
@@ -321,21 +311,29 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
               <X className="w-6 h-6" />
             </button>
 
+            {/* Counter badge */}
             <div className="absolute top-4 left-4 sm:top-6 sm:left-6 bg-white/10 backdrop-blur text-white text-sm font-medium px-3 py-1.5 rounded-full z-20">
               {lightboxIndex + 1} / {photos.length}
             </div>
 
+            {/* Delete in lightbox (for admins) */}
             {canManage && (
               <button
-                onClick={(e) => handleDeleteClick(photos[lightboxIndex].id, e)}
+                onClick={(e) => confirmDelete(photos[lightboxIndex].id, e)}
+                disabled={deletingId === photos[lightboxIndex].id}
                 className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 bg-red-600/80 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-all z-20 flex items-center gap-2 backdrop-blur disabled:opacity-50"
                 title="Excluir imagem"
               >
-                <Trash2 className="w-4 h-4" />
+                {deletingId === photos[lightboxIndex].id ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )}
                 Excluir
               </button>
             )}
 
+            {/* Previous button */}
             {photos.length > 1 && (
               <button
                 onClick={(e) => {
@@ -349,6 +347,7 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
               </button>
             )}
 
+            {/* Main image */}
             <img
               src={getImageUrl(photos[lightboxIndex].image)}
               alt={`Imagem do parceiro ${lightboxIndex + 1}`}
@@ -356,6 +355,7 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
               style={{ animation: 'fadeIn 0.2s ease-out' }}
             />
 
+            {/* Next button */}
             {photos.length > 1 && (
               <button
                 onClick={(e) => {
@@ -372,17 +372,7 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
         </div>
       )}
 
-      {/* Confirm Delete Modal */}
-      {deletingId && (
-        <ConfirmDeleteModal
-          title="Excluir Foto"
-          description="Tem certeza que deseja excluir esta foto da galeria? Esta ação não poderá ser desfeita."
-          loading={isUploading}
-          onClose={() => setDeletingId(null)}
-          onConfirm={confirmDelete}
-        />
-      )}
-
+      {/* Lightbox fade-in animation */}
       <style jsx global>{`
         @keyframes fadeIn {
           from {
@@ -395,6 +385,20 @@ export function PartnerGallery({ partnerId, photos: initialPhotos }: PartnerGall
           }
         }
       `}</style>
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <ConfirmDeleteModal
+          title="Excluir Foto"
+          description="Tem certeza que deseja excluir esta foto da galeria? Esta ação não poderá ser desfeita."
+          onConfirm={handleDelete}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setPhotoToDelete(null);
+          }}
+          loading={!!deletingId}
+        />
+      )}
     </>
   );
 }

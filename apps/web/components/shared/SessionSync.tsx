@@ -34,11 +34,23 @@ export default function SessionSync() {
       try {
         if (!user.accessToken) return;
 
-        const res = await fetch(`${API_URL}/users/me`, {
-          headers: {
-            Authorization: `Bearer ${user.accessToken}`
-          }
-        });
+        // Guard the request with a timeout so a slow/unreachable API never leaves
+        // the tab hanging on an open fetch (which looked like the page "loading"
+        // forever after coming back from inactivity).
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+
+        let res: Response;
+        try {
+          res = await fetch(`${API_URL}/users/me`, {
+            headers: {
+              Authorization: `Bearer ${user.accessToken}`
+            },
+            signal: controller.signal
+          });
+        } finally {
+          clearTimeout(timeout);
+        }
 
         if (res.ok) {
           const dbUser = await res.json();
@@ -47,7 +59,17 @@ export default function SessionSync() {
           const schoolMismatch = dbUser.schoolId !== user.schoolId;
 
           if (roleMismatch || statusMismatch || schoolMismatch) {
+            // Reload once per distinct DB state. Without this guard, if the
+            // session update didn't take effect immediately the mismatch would
+            // persist across the reload and re-trigger it — an endless reload
+            // loop that left tabs stuck loading.
+            const signature = `${dbUser.role}|${dbUser.roleStatus}|${dbUser.schoolId ?? ''}`;
+            if (sessionStorage.getItem('sessionSyncReloadSig') === signature) {
+              return;
+            }
+
             console.log('[SessionSync] Update detected. Refreshing session...');
+            sessionStorage.setItem('sessionSyncReloadSig', signature);
             await update({
               role: dbUser.role,
               roleStatus: dbUser.roleStatus,
@@ -57,10 +79,17 @@ export default function SessionSync() {
             setTimeout(() => {
               window.location.reload();
             }, 500);
+          } else {
+            // In sync — clear any stale reload guard so a future real change can
+            // reload again.
+            sessionStorage.removeItem('sessionSyncReloadSig');
           }
         }
       } catch (err) {
-        console.error('[SessionSync] Error verifying session:', err);
+        // AbortError (timeout) is expected under bad connectivity; don't spam.
+        if ((err as any)?.name !== 'AbortError') {
+          console.error('[SessionSync] Error verifying session:', err);
+        }
       }
     };
 
