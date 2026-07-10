@@ -3,10 +3,14 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateLibraryContentDto } from './dto/create-library-content.dto';
 import { UpdateLibraryContentDto } from './dto/update-library-content.dto';
 import { ApprovalStatus } from '@prisma/client';
+import { AnalyticsCacheService } from '../../common/cache/analytics-cache.service';
 
 @Injectable()
 export class LibraryService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private analyticsCache: AnalyticsCacheService,
+  ) {}
 
   async findAll(query: { type?: string; search?: string; schoolId?: string; page?: number; limit?: number }) {
     const page = Math.max(1, query.page || 1);
@@ -108,7 +112,7 @@ export class LibraryService {
     const approvalStatus = user.role === 'ADMIN' ? ApprovalStatus.APROVADO : ApprovalStatus.PENDENTE;
     const publishedAt = user.role === 'ADMIN' ? new Date() : null;
 
-    return this.prisma.libraryContent.create({
+    const created = await this.prisma.libraryContent.create({
       data: {
         title: dto.title,
         description: dto.description,
@@ -122,6 +126,9 @@ export class LibraryService {
         publishedAt,
       },
     });
+
+    await this.analyticsCache.invalidate({ schoolId: created.schoolId });
+    return created;
   }
 
   async update(id: string, dto: UpdateLibraryContentDto, user: { id: string; role: string; schoolId?: string }) {
@@ -186,16 +193,21 @@ export class LibraryService {
       });
       // Delete draft
       await this.prisma.libraryContent.delete({ where: { id } });
+      await this.analyticsCache.invalidate({ schoolId: content.schoolId });
       return { success: true, message: 'Edição aprovada e rascunho removido.', id: content.versionOfId };
     }
 
-    return this.prisma.libraryContent.update({
+    const updated = await this.prisma.libraryContent.update({
       where: { id },
       data: {
         approvalStatus: status,
         publishedAt: status === ApprovalStatus.APROVADO && !content.publishedAt ? new Date() : content.publishedAt,
       },
     });
+
+    // Moves both totalLibrary/pendingLibrary (admin) and the school's libraryStats.
+    await this.analyticsCache.invalidate({ schoolId: content.schoolId });
+    return updated;
   }
 
   async getSubmissions(query: { page?: number; limit?: number; status?: string }) {
@@ -244,7 +256,9 @@ export class LibraryService {
     // This will cascade or just delete the main record. Since we don't have cascade on versionOfId by default in prisma,
     // we should delete drafts first if there are any, or just let prisma fail if not setup. We can manually delete drafts:
     await this.prisma.libraryContent.deleteMany({ where: { versionOfId: id } });
-    
-    return this.prisma.libraryContent.delete({ where: { id } });
+
+    const deleted = await this.prisma.libraryContent.delete({ where: { id } });
+    await this.analyticsCache.invalidate({ schoolId: content.schoolId });
+    return deleted;
   }
 }

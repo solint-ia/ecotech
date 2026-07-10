@@ -14,7 +14,6 @@ import {
   UploadedFiles,
   BadRequestException,
 } from '@nestjs/common';
-import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { LibraryService } from './library.service';
@@ -36,8 +35,6 @@ export class LibraryController {
     private readonly supabaseService: SupabaseService,
   ) {}
 
-  // @UseInterceptors(CacheInterceptor)
-  // @CacheTTL(3600000)
   @Get()
   findAll(
     @Query('page') page?: string,
@@ -90,8 +87,6 @@ export class LibraryController {
 
   // Use Optional Guard so guests can view approved items, but authors/admins can view their pending items
   @UseGuards(OptionalJwtAuthGuard)
-  // @UseInterceptors(CacheInterceptor)
-  // @CacheTTL(3600000)
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() user: any) {
     return this.libraryService.findOne(id, user);

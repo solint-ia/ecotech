@@ -7,12 +7,14 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { SupabaseService } from '../supabase/supabase.service';
+import { AnalyticsCacheService } from '../../common/cache/analytics-cache.service';
 
 @Injectable()
 export class FeedService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly supabaseService: SupabaseService,
+    private readonly analyticsCache: AnalyticsCacheService,
   ) {}
 
   /**
@@ -37,7 +39,7 @@ export class FeedService {
       }
     }
 
-    return this.prisma.feedPost.create({
+    const post = await this.prisma.feedPost.create({
       data: {
         userId,
         title: createPostDto.title || '',
@@ -56,6 +58,9 @@ export class FeedService {
         images: { orderBy: { order: 'asc' } },
       },
     });
+
+    await this.analyticsCache.invalidate({ schoolId: post.schoolId });
+    return post;
   }
 
   /**
@@ -260,6 +265,8 @@ export class FeedService {
     await this.prisma.feedComment.deleteMany({ where: { postId } });
     await this.prisma.feedLike.deleteMany({ where: { postId } });
     await this.prisma.feedPost.delete({ where: { id: postId } });
+
+    await this.analyticsCache.invalidate({ schoolId: post.schoolId });
 
     return { deleted: true };
   }

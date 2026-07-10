@@ -4,21 +4,29 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePartnerDto } from './dto/create-partner.dto';
 import { UpdatePartnerDto } from './dto/update-partner.dto';
 import { validateOpeningHours } from './opening-hours.util';
+import { AnalyticsCacheService } from '../../common/cache/analytics-cache.service';
 
 @Injectable()
 export class PartnersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly analyticsCache: AnalyticsCacheService,
+  ) {}
 
   async create(createPartnerDto: CreatePartnerDto) {
     validateOpeningHours(createPartnerDto.openingHours);
 
-    return this.prisma.partner.create({
+    const partner = await this.prisma.partner.create({
       data: {
         ...createPartnerDto,
         coverImage: createPartnerDto.coverImage || '',
         openingHours: createPartnerDto.openingHours as unknown as Prisma.InputJsonValue,
       },
     });
+
+    // Only totalPartners on the admin dashboard depends on this.
+    await this.analyticsCache.invalidate();
+    return partner;
   }
 
   async findAll(category?: string, state?: string, city?: string, includeInactive?: boolean, page = 1, limit = 20, search?: string) {
@@ -93,9 +101,12 @@ export class PartnersService {
   async remove(id: string) {
     await this.findOne(id);
 
-    return this.prisma.partner.delete({
+    const deleted = await this.prisma.partner.delete({
       where: { id },
     });
+
+    await this.analyticsCache.invalidate();
+    return deleted;
   }
 
   async addPhoto(partnerId: string, imagePath: string) {

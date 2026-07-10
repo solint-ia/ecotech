@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AnalyticsCacheService } from '../../common/cache/analytics-cache.service';
 import * as bcrypt from 'bcrypt';
 
 // Prisma client or an interactive-transaction client — both expose the model
@@ -9,7 +10,10 @@ type Db = PrismaService | Prisma.TransactionClient;
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private analyticsCache: AnalyticsCacheService,
+  ) {}
 
   async getMe(userId: string) {
     const user = await this.prisma.user.findUnique({
@@ -120,6 +124,15 @@ export class UsersService {
       });
     }
 
+    // birthDate/school changes move the dashboard averages and head counts.
+    await this.analyticsCache.invalidate({
+      schoolId: currentUser.schoolId,
+      teacherIds: [userId],
+    });
+    if (data.schoolId && data.schoolId !== currentUser.schoolId) {
+      await this.analyticsCache.invalidate({ schoolId: data.schoolId });
+    }
+
     return this.getMe(userId);
   }
 
@@ -193,6 +206,14 @@ export class UsersService {
           data: updateData,
         });
       }
+    }
+
+    await this.analyticsCache.invalidate({
+      schoolId: targetUser.schoolId,
+      teacherIds: [targetUserId],
+    });
+    if (data.schoolId && data.schoolId !== targetUser.schoolId) {
+      await this.analyticsCache.invalidate({ schoolId: data.schoolId });
     }
 
     return this.getMe(targetUserId);
@@ -376,6 +397,11 @@ export class UsersService {
       await this.checkTeacherPermissions(link.teacherId, tx);
     });
 
+    await this.analyticsCache.invalidate({
+      schoolId: link.schoolId,
+      teacherIds: [link.teacherId],
+    });
+
     return { success: true, teacherSchoolId: linkId, status };
   }
 
@@ -399,6 +425,7 @@ export class UsersService {
       where: { id: userId },
       data: { roleStatus: 'APROVADO' },
     });
+    await this.analyticsCache.invalidate({ schoolId: target.schoolId, teacherIds: [userId] });
     return { success: true, user: { id: user.id, roleStatus: user.roleStatus, role: user.role } };
   }
 
@@ -412,6 +439,7 @@ export class UsersService {
       where: { id: userId },
       data: { roleStatus: 'REPROVADO' }
     });
+    await this.analyticsCache.invalidate({ schoolId: target.schoolId, teacherIds: [userId] });
     return { success: true, user: { id: user.id, roleStatus: user.roleStatus } };
   }
 
@@ -430,6 +458,13 @@ export class UsersService {
         role: 'USER' as any,
         roleStatus: 'APROVADO'
       }
+    });
+
+    // Invalidate against the school the user just left — after the write it is
+    // no longer reachable from the user row.
+    await this.analyticsCache.invalidate({
+      schoolId: userToUnlink.schoolId,
+      teacherIds: [userId],
     });
 
     return { success: true, user: { id: updatedUser.id, role: updatedUser.role } };
@@ -466,6 +501,8 @@ export class UsersService {
       await this.checkTeacherPermissions(userId, tx);
     });
 
+    await this.analyticsCache.invalidate({ schoolId, teacherIds: [userId] });
+
     return this.getMySchools(userId);
   }
 
@@ -479,6 +516,10 @@ export class UsersService {
       await tx.teacherSchool.delete({ where: { id: link.id } });
       await this.checkTeacherPermissions(userId, tx);
     });
+
+    // teacherIds is explicit here: the link is gone, so resolving teachers from
+    // schoolId would no longer include this one.
+    await this.analyticsCache.invalidate({ schoolId, teacherIds: [userId] });
 
     return this.getMySchools(userId);
   }
@@ -673,6 +714,8 @@ export class UsersService {
       where: { id },
       data: { status: !user.status },
     });
+
+    await this.analyticsCache.invalidate({ schoolId: user.schoolId, teacherIds: [id] });
 
     const { password, ...rest } = updatedUser;
     return rest;

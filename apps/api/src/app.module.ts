@@ -1,4 +1,4 @@
-import { Module, OnModuleInit, Inject } from '@nestjs/common';
+import { Module, OnModuleInit, Inject, Logger } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
@@ -19,14 +19,19 @@ import { join } from 'path';
 
 import { CacheModule, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { BullModule } from '@nestjs/bullmq';
-import * as redisStore from 'cache-manager-redis-store';
+import { createKeyv } from '@keyv/redis';
 import type { Cache } from 'cache-manager';
+import { AppCacheModule } from './common/cache/app-cache.module';
 
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SupabaseModule } from './modules/supabase/supabase.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { RedisThrottlerStorageService } from './common/throttler/redis-throttler-storage.service';
+
+/** Isolates cache keys from BullMQ / throttler keys on the shared Redis. */
+const CACHE_NAMESPACE = 'ecotech:cache';
+const DEFAULT_CACHE_TTL_MS = 5 * 60 * 1000;
 
 @Module({
   imports: [
@@ -38,28 +43,25 @@ import { RedisThrottlerStorageService } from './common/throttler/redis-throttler
       isGlobal: true,
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
-        const redisUrl = configService.get<string>('REDIS_URL');
-        if (redisUrl) {
-          // Only enable TLS for rediss:// URLs. Render internal Redis uses
-          // redis:// without TLS, so forcing TLS there breaks the connection.
-          const useTls = redisUrl.startsWith('rediss://');
-          return {
-            store: redisStore,
-            url: redisUrl,
-            socket: {
-              ...(useTls ? { tls: true } : {}),
-              keepAlive: 10000,
-            },
-          };
-        }
-        return {
-          store: redisStore,
-          host: configService.get('REDIS_HOST') || 'localhost',
-          port: parseInt(configService.get('REDIS_PORT') || '6379', 10),
-          socket: {
-            keepAlive: 10000,
-          },
-        };
+        const logger = new Logger('CacheModule');
+        // node-redis derives TLS from the rediss:// scheme, so no manual socket
+        // config is needed here.
+        const redisUrl =
+          configService.get<string>('REDIS_URL') ||
+          `redis://${configService.get('REDIS_HOST') || 'localhost'}:${configService.get('REDIS_PORT') || '6379'}`;
+
+        // The namespace keeps cache keys away from the BullMQ job keys and the
+        // throttler counters, which share this same Redis instance.
+        const keyv = createKeyv(redisUrl, { namespace: CACHE_NAMESPACE });
+
+        // Keyv is an EventEmitter: an unhandled 'error' would take the whole
+        // process down whenever Redis blips. Log and move on — CacheService
+        // already fails open on every read/write.
+        keyv.on('error', (err: unknown) =>
+          logger.warn(`Redis de cache indisponível: ${(err as Error)?.message ?? err}`),
+        );
+
+        return { stores: [keyv], ttl: DEFAULT_CACHE_TTL_MS };
       },
       inject: [ConfigService],
     }),
@@ -102,6 +104,7 @@ import { RedisThrottlerStorageService } from './common/throttler/redis-throttler
         storage: new RedisThrottlerStorageService(configService),
       }),
     }),
+    AppCacheModule,
     AuthModule,
     PrismaModule,
     SchoolsModule,
@@ -131,30 +134,27 @@ import { RedisThrottlerStorageService } from './common/throttler/redis-throttler
   ],
 })
 export class AppModule implements OnModuleInit {
+  private readonly logger = new Logger(AppModule.name);
+
   constructor(@Inject(CACHE_MANAGER) private readonly cacheManager: Cache) {}
 
+  /**
+   * Asserts the cache really landed on Redis. A mismatched adapter makes
+   * cache-manager silently fall back to an in-process Map, which looks fine in
+   * dev and quietly breaks cross-instance invalidation in production. That is
+   * exactly how this codebase shipped an inert "Redis" cache before — so we now
+   * say so out loud at boot instead of guessing.
+   */
   onModuleInit() {
-    try {
-      const cache = this.cacheManager as any;
-      if (cache && cache.stores && Array.isArray(cache.stores)) {
-        for (const keyv of cache.stores) {
-          if (keyv && keyv.store) {
-            const innerStore = keyv.store;
-            const client =
-              innerStore.client ||
-              innerStore.redis ||
-              (typeof innerStore.getClient === 'function' ? innerStore.getClient() : null) ||
-              innerStore;
-            if (client && typeof client.on === 'function') {
-              client.on('error', (err: any) => {
-                console.warn('CacheManager: Redis connection error:', err.message);
-              });
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('Could not register CacheManager error listener:', err);
+    const storeName = (this.cacheManager as any)?.stores?.[0]?.opts?.store?.constructor?.name;
+
+    if (storeName === 'KeyvRedis') {
+      this.logger.log('Cache conectado ao Redis (KeyvRedis).');
+    } else {
+      this.logger.error(
+        `Cache NÃO está no Redis (store="${storeName ?? 'desconhecido'}"). ` +
+          'A invalidação entre instâncias não vai funcionar. Verifique REDIS_URL.',
+      );
     }
   }
 }

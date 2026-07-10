@@ -7,6 +7,7 @@ import { RegisterDto } from './dto/register.dto';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { MailService } from '../mail/mail.service';
+import { AnalyticsCacheService } from '../../common/cache/analytics-cache.service';
 
 @Injectable()
 export class AuthService {
@@ -14,6 +15,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private mailService: MailService,
+    private analyticsCache: AnalyticsCacheService,
     @InjectQueue('mail-queue') private mailQueue: Queue,
   ) {}
 
@@ -225,6 +227,15 @@ export class AuthService {
     await this.prisma.verificationToken.deleteMany({
       where: { email: user.email, type: 'EMAIL_VERIFICATION' }
     });
+
+    // A signup adds head counts, a birth date (moving the averages) and, for a
+    // manager, a whole new school.
+    await this.analyticsCache.invalidate({ schoolId: user.schoolId });
+    for (const id of teacherSchoolIds) {
+      if (id !== user.schoolId) {
+        await this.analyticsCache.invalidate({ schoolId: id });
+      }
+    }
 
     const { password: _, ...result } = user;
     return result;

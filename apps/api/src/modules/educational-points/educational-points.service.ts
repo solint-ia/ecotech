@@ -24,6 +24,7 @@ const COLOR_BEIGE = '#F5EFE0';
 const UPLOADS_DIR = path.resolve(process.cwd(), 'uploads');
 
 import { SupabaseService } from '../supabase/supabase.service';
+import { AnalyticsCacheService } from '../../common/cache/analytics-cache.service';
 
 function getPdfStoragePath(slug: string): string {
   return `pdfs/ponto-${slug}.pdf`;
@@ -503,6 +504,7 @@ export class EducationalPointsService {
     private prisma: PrismaService,
     @InjectQueue('pdf-queue') private pdfQueue: Queue,
     private supabaseService: SupabaseService,
+    private analyticsCache: AnalyticsCacheService,
   ) { }
 
   async findBySlug(slug: string) {
@@ -614,6 +616,8 @@ export class EducationalPointsService {
       trailId: trail.id,
       skipPdfGeneration: dto.pdfMode === PdfModeEnum.UPLOAD,
     });
+
+    await this.analyticsCache.invalidate({ schoolId: trail.schoolId });
 
     return point;
   }
@@ -822,6 +826,8 @@ export class EducationalPointsService {
       await this.supabaseService.deleteFile(point.pdfUrl);
     }
 
-    return this.prisma.educationalPoint.delete({ where: { id } });
+    const deleted = await this.prisma.educationalPoint.delete({ where: { id } });
+    await this.analyticsCache.invalidate({ schoolId: point.trail.schoolId });
+    return deleted;
   }
 }

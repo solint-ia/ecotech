@@ -3,10 +3,8 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
-  Inject,
 } from '@nestjs/common';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import type { Cache } from 'cache-manager';
+import { AnalyticsCacheService } from '../../common/cache/analytics-cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTrailDto } from './dto/create-trail.dto';
 import { UpdateTrailDto } from './dto/update-trail.dto';
@@ -27,7 +25,7 @@ function slugify(text: string): string {
 export class TrailsService {
   constructor(
     private prisma: PrismaService,
-    @Inject(CACHE_MANAGER) private cacheManager: Cache
+    private analyticsCache: AnalyticsCacheService,
   ) {}
 
   async findAll(query: {
@@ -421,7 +419,7 @@ export class TrailsService {
       },
     });
 
-    await this.cacheManager.clear();
+    await this.analyticsCache.invalidate({ schoolId: updated.schoolId });
     return { success: true, trail: { id: updated.id, approvalStatus: updated.approvalStatus, status: updated.status } };
   }
 
@@ -498,7 +496,7 @@ export class TrailsService {
       include: { school: { select: { id: true, name: true } } },
     });
     
-    await this.cacheManager.clear();
+    await this.analyticsCache.invalidate({ schoolId: trail.schoolId });
     return trail;
   }
 
@@ -539,7 +537,11 @@ export class TrailsService {
       },
     });
 
-    await this.cacheManager.clear();
+    // An admin can move a trail between schools, so both dashboards go stale.
+    await this.analyticsCache.invalidate({ schoolId: trail.schoolId });
+    if (updatedTrail.schoolId !== trail.schoolId) {
+      await this.analyticsCache.invalidate({ schoolId: updatedTrail.schoolId });
+    }
     return updatedTrail;
   }
 
@@ -552,7 +554,7 @@ export class TrailsService {
     }
 
     await this.prisma.trail.delete({ where: { id } });
-    await this.cacheManager.clear();
+    await this.analyticsCache.invalidate({ schoolId: trail.schoolId });
   }
 
   async getBiomes(): Promise<string[]> {
