@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Loader2, CheckCircle, XCircle, ArrowLeft, School, User, Mail, Calendar, Phone, FileText, Fingerprint, Info } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, ArrowLeft, School, User, Mail, Calendar, Phone, FileText, Fingerprint, Info, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -15,6 +15,15 @@ function getRoleMeta(role: string): { label: string; className: string } {
   if (role === 'STUDENT') return { label: 'Estudante', className: 'bg-emerald-100 text-emerald-800' };
   return { label: 'Professor', className: 'bg-blue-100 text-blue-800' };
 }
+
+type ApprovalFilter = 'ALL' | 'SCHOOL_MANAGER' | 'TEACHER' | 'STUDENT';
+
+const FILTER_OPTIONS: { key: ApprovalFilter; label: string }[] = [
+  { key: 'ALL', label: 'Todos' },
+  { key: 'SCHOOL_MANAGER', label: 'Escolas' },
+  { key: 'TEACHER', label: 'Professores' },
+  { key: 'STUDENT', label: 'Estudantes' },
+];
 
 // Human-readable label for the school's administrative type (pública, privada...).
 const SCHOOL_TYPE_LABELS: Record<string, string> = {
@@ -54,7 +63,7 @@ export default function AprovacoesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'ALL' | 'SCHOOL_MANAGER' | 'TEACHER' | 'STUDENT'>('ALL');
+  const [filter, setFilter] = useState<ApprovalFilter>('ALL');
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -173,26 +182,41 @@ export default function AprovacoesPage() {
         </div>
 
         {isAdmin && (
-          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl self-start">
-            {([
-              { key: 'ALL', label: 'Todos' },
-              { key: 'SCHOOL_MANAGER', label: 'Escolas' },
-              { key: 'TEACHER', label: 'Professores' },
-              { key: 'STUDENT', label: 'Estudantes' },
-            ] as const).map((opt) => (
-              <button
-                key={opt.key}
-                onClick={() => setFilter(opt.key)}
-                className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
-                  filter === opt.key
-                    ? 'bg-white text-primary shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
+          <>
+            {/* Pills (desktop) */}
+            <div className="hidden md:flex items-center gap-1 bg-gray-100 p-1 rounded-xl self-start">
+              {FILTER_OPTIONS.map((opt) => (
+                <button
+                  key={opt.key}
+                  onClick={() => setFilter(opt.key)}
+                  className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                    filter === opt.key
+                      ? 'bg-white text-primary shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Dropdown (mobile) — the pill row overflowed horizontally on narrow screens */}
+            <div className="relative w-full md:hidden">
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value as ApprovalFilter)}
+                aria-label="Filtrar solicitações por tipo"
+                className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-border-custom bg-white text-sm font-semibold text-primary focus:outline-none focus:ring-2 focus:ring-secondary appearance-none shadow-sm"
               >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+                {FILTER_OPTIONS.map((opt) => (
+                  <option key={opt.key} value={opt.key}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary pointer-events-none" />
+            </div>
+          </>
         )}
       </div>
 
