@@ -26,4 +26,10 @@ export class AnalyticsController {
   getSchoolDashboard(@CurrentUser() user: any) {
     return this.analyticsService.getSchoolMetrics(user.schoolId);
   }
+
+  @Roles('TEACHER')
+  @Get('teacher')
+  getTeacherDashboard(@CurrentUser() user: any) {
+    return this.analyticsService.getTeacherMetrics(user.id);
+  }
 }

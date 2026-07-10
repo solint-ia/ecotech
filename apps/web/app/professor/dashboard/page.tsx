@@ -4,10 +4,11 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import {
-  Users, CheckCircle, XCircle, Clock, Loader2, Mail, Phone, Calendar, GraduationCap,
+  Users, CheckCircle, XCircle, Clock, Loader2, Mail, Phone, Calendar, GraduationCap, Cake,
 } from 'lucide-react';
 import { getImageUrl } from '../../../lib/image-url';
 import ConfirmModal from '../../../components/shared/ConfirmModal';
+import { InfoTooltip } from '../../../components/shared/InfoTooltip';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -43,19 +44,28 @@ export default function ProfessorDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [confirmData, setConfirmData] = useState<{ id: string; name: string } | null>(null);
+  const [ageMetrics, setAgeMetrics] = useState<{ avgStudentAge: number | null; avgTeacherAge: number | null }>({
+    avgStudentAge: null,
+    avgTeacherAge: null,
+  });
 
   const fetchData = useCallback(async () => {
     if (!user?.accessToken) return;
     setLoading(true);
     try {
-      const [pendingRes, studentsRes] = await Promise.all([
+      const [pendingRes, studentsRes, metricsRes] = await Promise.all([
         fetch(`${API_URL}/users/pending`, { headers: { Authorization: `Bearer ${user.accessToken}` } }),
         fetch(`${API_URL}/users/teacher/students?limit=100`, { headers: { Authorization: `Bearer ${user.accessToken}` } }),
+        fetch(`${API_URL}/analytics/teacher`, { headers: { Authorization: `Bearer ${user.accessToken}` } }),
       ]);
       if (pendingRes.ok) setPending((await pendingRes.json()).filter((u: PendingUser) => u.roleStatus === 'PENDENTE'));
       if (studentsRes.ok) {
         const json = await studentsRes.json();
         setStudents(json.data || []);
+      }
+      if (metricsRes.ok) {
+        const json = await metricsRes.json();
+        setAgeMetrics(json.metrics);
       }
     } catch (err) {
       console.error(err);
@@ -139,10 +149,26 @@ export default function ProfessorDashboardPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <StatCard title="Requisições Pendentes" value={pending.length} icon={Clock} color="yellow" />
         <StatCard title="Alunos Ativos" value={activeStudents} icon={CheckCircle} color="emerald" />
         <StatCard title="Total de Vínculos" value={students.length} icon={Users} color="blue" />
+        <StatCard
+          title="Idade Média Estudantes"
+          value={ageMetrics.avgStudentAge ?? '—'}
+          suffix="anos"
+          icon={Cake}
+          color="purple"
+          info="Média das idades dos estudantes das escolas em que você tem vínculo aprovado. Calculada pela data de nascimento e arredondada."
+        />
+        <StatCard
+          title="Idade Média Professores"
+          value={ageMetrics.avgTeacherAge ?? '—'}
+          suffix="anos"
+          icon={Cake}
+          color="rose"
+          info="Média das idades dos professores das escolas em que você tem vínculo aprovado. Calculada pela data de nascimento e arredondada."
+        />
       </div>
 
       <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl w-full md:w-fit">
@@ -281,20 +307,31 @@ export default function ProfessorDashboardPage() {
   );
 }
 
-function StatCard({ title, value, icon: Icon, color }: { title: string; value: number; icon: any; color: 'emerald' | 'blue' | 'yellow' }) {
+function StatCard({ title, value, icon: Icon, color, info, suffix }: { title: string; value: number | string; icon: any; color: 'emerald' | 'blue' | 'yellow' | 'purple' | 'rose'; info?: string; suffix?: string }) {
   const colorMap = {
     emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100',
     blue: 'bg-blue-50 text-blue-600 border-blue-100',
     yellow: 'bg-yellow-50 text-yellow-600 border-yellow-100',
+    purple: 'bg-purple-50 text-purple-600 border-purple-100',
+    rose: 'bg-rose-50 text-rose-600 border-rose-100',
   };
   return (
     <div className="bg-white rounded-2xl p-5 shadow-sm border border-border-custom flex items-center gap-4">
       <div className={`w-12 h-12 rounded-xl flex items-center justify-center border shrink-0 ${colorMap[color]}`}>
         <Icon className="w-6 h-6" />
       </div>
-      <div>
-        <p className="text-sm font-medium text-gray-500">{title}</p>
-        <p className="text-2xl font-bold text-gray-900">{value}</p>
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5">
+          <p className="text-sm font-medium text-gray-500">{title}</p>
+          {info && <InfoTooltip text={info} align="start" />}
+        </div>
+        <p className="text-2xl font-bold text-gray-900">
+          {value}
+          {/* Only a real measurement gets a unit — the "—" placeholder must not read "— anos". */}
+          {typeof value === 'number' && suffix && (
+            <span className="ml-1 text-sm font-semibold text-gray-400">{suffix}</span>
+          )}
+        </p>
       </div>
     </div>
   );

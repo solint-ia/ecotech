@@ -5,10 +5,11 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import {
   Users, School, Compass, MapPin, MessageSquare, Library, Clock, ArrowRight, LayoutDashboard,
-  CheckCircle2, XCircle, User as UserIcon
+  CheckCircle2, XCircle, User as UserIcon, Cake
 } from 'lucide-react';
 import Link from 'next/link';
 import { getImageUrl } from '../../../lib/image-url';
+import { InfoTooltip } from '../../../components/shared/InfoTooltip';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -152,6 +153,20 @@ export default function EscolaDashboardPage() {
         <MetricCard title="Professores" value={metrics.totalTeachers} icon={Users} main link="/escola/usuarios?role=TEACHER" linkText="Gerenciar" />
         <MetricCard title="Estudantes" value={metrics.totalStudents} icon={Users} main link="/escola/usuarios?role=STUDENT" linkText="Gerenciar" />
         <MetricCard title="Trilhas" value={metrics.totalTrails} icon={Compass} main link="/trilhas" linkText="Gerenciar Trilhas" />
+        <MetricCard
+          title="Idade Média Estudantes"
+          value={metrics.avgStudentAge ?? '—'}
+          suffix="anos"
+          icon={Cake}
+          info="Média das idades dos estudantes vinculados à sua escola. Calculada pela data de nascimento e arredondada."
+        />
+        <MetricCard
+          title="Idade Média Professores"
+          value={metrics.avgTeacherAge ?? '—'}
+          suffix="anos"
+          icon={Cake}
+          info="Média das idades dos professores vinculados à sua escola. Calculada pela data de nascimento e arredondada."
+        />
         <MetricCard title="Pontos Educ." value={metrics.totalPoints} icon={MapPin} />
         <MetricCard title="Publicações" value={metrics.totalPosts} icon={MessageSquare} />
         <MetricCard title="Biblioteca" value={metrics.totalLibrary} icon={Library} />
@@ -208,17 +223,26 @@ export default function EscolaDashboardPage() {
   );
 }
 
-function MetricCard({ title, value, icon: Icon, main, link, linkText }: { title: string, value: number, icon: any, main?: boolean, link?: string, linkText?: string }) {
+function MetricCard({ title, value, icon: Icon, main, link, linkText, info, suffix }: { title: string, value: number | string, icon: any, main?: boolean, link?: string, linkText?: string, info?: string, suffix?: string }) {
   return (
     <div className={`rounded-2xl p-4 shadow-sm flex flex-col justify-between transition-colors border ${main ? 'bg-forest border-forest text-white' : 'bg-white border-border-custom hover:border-forest/30'}`}>
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2 gap-2">
         <span className={`text-xs font-semibold tracking-wider ${main ? 'text-white/80' : 'text-foreground/50'} uppercase`}>{title}</span>
-        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${main ? 'bg-white/10 text-white' : 'bg-beige text-forest'}`}>
-          <Icon className="w-4 h-4" />
+        <div className="flex items-center gap-1.5 shrink-0">
+          {info && <InfoTooltip text={info} />}
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${main ? 'bg-white/10 text-white' : 'bg-beige text-forest'}`}>
+            <Icon className="w-4 h-4" />
+          </div>
         </div>
       </div>
       <div className="flex items-end justify-between mt-2">
-        <span className={`text-3xl font-bold ${main ? 'text-white' : 'text-emerald-950'}`}>{value}</span>
+        <span className={`text-3xl font-bold ${main ? 'text-white' : 'text-emerald-950'}`}>
+          {value}
+          {/* Only a real measurement gets a unit — the "—" placeholder must not read "— anos". */}
+          {typeof value === 'number' && suffix && (
+            <span className={`ml-1 text-base font-semibold ${main ? 'text-white/70' : 'text-foreground/50'}`}>{suffix}</span>
+          )}
+        </span>
         {link && linkText && (
           <Link href={link} className={`text-xs font-semibold hover:underline ${main ? 'text-white/90' : 'text-forest'}`}>
             {linkText}
