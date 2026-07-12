@@ -107,3 +107,6 @@ dist/
 
 # Uploads or temporary media folders
 uploads/
+SECURITY.md
+.gitignore
+CLAUDE.md
