@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { ArrowLeft, Save } from 'lucide-react';
 import { OpeningHours, createEmptySchedule, validateSchedule } from '../../../../lib/opening-hours';
 import { OpeningHoursEditor } from '../../../../components/rede/OpeningHoursEditor';
+import { canManagePartner, isApprovedContributor } from '../../../../lib/permissions';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -44,7 +45,7 @@ export default function EditarParceiroPage() {
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login');
-    } else if (status === 'authenticated' && user?.role !== 'ADMIN') {
+    } else if (status === 'authenticated' && !isApprovedContributor(user)) {
       router.push('/rede');
     }
   }, [status, user, router]);
@@ -52,12 +53,22 @@ export default function EditarParceiroPage() {
   useEffect(() => {
     async function fetchPartner() {
       try {
-        const res = await fetch(`${API_URL}/partners/${id}`);
+        const res = await fetch(`${API_URL}/partners/${id}`, {
+          headers: user?.accessToken ? { Authorization: `Bearer ${user.accessToken}` } : {},
+        });
         if (!res.ok) {
           router.push('/rede');
           return;
         }
         const data = await res.json();
+
+        // Ownership is enforced by the API on save; bounce early so nobody is
+        // handed a form they cannot submit.
+        if (!canManagePartner(user, data)) {
+          router.push(`/rede/${id}`);
+          return;
+        }
+
         setName(data.name);
         setCategory(data.category);
         setDescription(data.description);
@@ -81,7 +92,7 @@ export default function EditarParceiroPage() {
       }
     }
 
-    if (status === 'authenticated' && user?.role === 'ADMIN') {
+    if (status === 'authenticated' && isApprovedContributor(user)) {
       fetchPartner();
     }
   }, [id, status, user, router]);

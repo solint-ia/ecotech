@@ -14,6 +14,13 @@ const navItems = [
   { name: 'Rede', href: '/rede', icon: Share2 },
 ];
 
+/** Roles that own a dashboard. Students and plain users have none. */
+const DASHBOARD_BY_ROLE: Record<string, string> = {
+  ADMIN: '/admin/dashboard',
+  SCHOOL_MANAGER: '/escola/dashboard',
+  TEACHER: '/professor/dashboard',
+};
+
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -38,6 +45,9 @@ export default function Navbar() {
 
   const isLoggedIn = status === 'authenticated' && !!session?.user;
   const user = session?.user as any;
+  // A pending teacher/manager has no dashboard to land on yet.
+  const dashboardHref =
+    user?.roleStatus === 'PENDENTE' ? undefined : DASHBOARD_BY_ROLE[user?.role];
   const initials = user?.name
     ? user.name
       .split(' ')
@@ -172,6 +182,18 @@ export default function Navbar() {
                     <User className="w-4 h-4 opacity-70" />
                     Meu Perfil
                   </Link>
+
+                  {dashboardHref && (
+                    <Link
+                      href={dashboardHref}
+                      onClick={() => setDropdownOpen(false)}
+                      className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-foreground/80 hover:text-primary hover:bg-beige rounded-xl transition-colors"
+                      role="menuitem"
+                    >
+                      <LayoutDashboard className="w-4 h-4 opacity-70" />
+                      Dashboard
+                    </Link>
+                  )}
 
                   <div className="h-px bg-border-custom my-1.5 mx-2" />
 

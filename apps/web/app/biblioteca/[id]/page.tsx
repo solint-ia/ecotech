@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ArrowLeft, Download, Video, FileText, User, Calendar, ExternalLink } from 'lucide-react';
 import { getImageUrl } from '../../../lib/image-url';
 import FileDownloadBtn from '../../../components/shared/FileDownloadBtn';
+import { AuthorInfo } from '../../../components/shared/AuthorInfo';
 import LibraryItemActions from './LibraryItemActions';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -106,39 +107,23 @@ export default async function LibraryDetailPage({ params }: { params: Promise<{ 
             </p>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-6 border-t border-border-custom">
-              {/* Author */}
+              {/* Author — the person who published it, and what kind of account they hold */}
               <div className="flex items-center gap-3">
-                {content.school ? (
-                  <>
-                    <img 
-                      src={getImageUrl(content.school.coverImage) || '/placeholder-school.png'} 
-                      alt={content.school.name} 
-                      className="w-10 h-10 rounded-full object-cover border border-border-custom shadow-sm"
-                    />
-                    <div className="flex flex-col">
-                      <span className="text-xs text-foreground/50 font-medium">Publicado por</span>
-                      <span className="text-sm font-semibold text-primary">{content.school.name}</span>
-                    </div>
-                  </>
+                {content.user.profileImage ? (
+                  <img
+                    src={getImageUrl(content.user.profileImage)}
+                    alt={content.user.name}
+                    className="w-10 h-10 rounded-full object-cover border border-border-custom shadow-sm"
+                  />
                 ) : (
-                  <>
-                    {content.user.profileImage ? (
-                      <img 
-                        src={getImageUrl(content.user.profileImage)} 
-                        alt={content.user.name} 
-                        className="w-10 h-10 rounded-full object-cover border border-border-custom shadow-sm"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center shadow-sm">
-                        <User className="w-5 h-5 text-secondary" />
-                      </div>
-                    )}
-                    <div className="flex flex-col">
-                      <span className="text-xs text-foreground/50 font-medium">Publicado por</span>
-                      <span className="text-sm font-semibold text-primary">{content.user.name}</span>
-                    </div>
-                  </>
+                  <div className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center shadow-sm shrink-0">
+                    <User className="w-5 h-5 text-secondary" />
+                  </div>
                 )}
+                <div className="flex flex-col">
+                  <span className="text-xs text-foreground/50 font-medium">Publicado por</span>
+                  <AuthorInfo author={content.user} school={content.school} />
+                </div>
               </div>
 
               {/* Date */}

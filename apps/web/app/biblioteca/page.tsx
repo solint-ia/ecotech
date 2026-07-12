@@ -7,6 +7,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Search, Plus, BookOpen } from 'lucide-react';
 import LibraryCard, { LibraryContent } from '../../components/library/LibraryCard';
 import { Pagination } from '../../components/shared/Pagination';
+import { canCreateContent } from '../../lib/permissions';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -29,8 +30,7 @@ function BibliotecaPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const isApproved = user?.roleStatus === 'APROVADO';
-  const canSubmit = user?.role === 'ADMIN' || (['SCHOOL_MANAGER', 'TEACHER'].includes(user?.role) && isApproved);
+  const canSubmit = canCreateContent(user);
   const isAdmin = user?.role === 'ADMIN';
 
   const page = parseInt(searchParams.get('page') || '1', 10);

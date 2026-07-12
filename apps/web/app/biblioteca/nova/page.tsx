@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { BookOpen, UploadCloud, AlertCircle, Loader2, CheckCircle2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { canCreateContent } from '../../../lib/permissions';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -42,10 +43,8 @@ export default function NovaBibliotecaPage() {
   const isVideo = contentType === 'VIDEO';
 
   // Redirect if not authorized
-  const isApproved = user?.roleStatus === 'APROVADO';
-  const isAllowedRole = user?.role === 'ADMIN' || (['SCHOOL_MANAGER', 'TEACHER'].includes(user?.role) && isApproved);
   if (status === 'loading') return null;
-  if (!user || !isAllowedRole) {
+  if (!canCreateContent(user)) {
     router.push('/biblioteca');
     return null;
   }

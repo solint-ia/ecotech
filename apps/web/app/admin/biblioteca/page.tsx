@@ -9,6 +9,7 @@ import { getImageUrl } from '../../../lib/image-url';
 import ConfirmDeleteModal from '../../../components/feed/ConfirmDeleteModal';
 import { Pagination } from '../../../components/shared/Pagination';
 import ApprovalStatusFilter from '../../../components/shared/ApprovalStatusFilter';
+import { AuthorInfo, Author } from '../../../components/shared/AuthorInfo';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -19,7 +20,7 @@ interface Submission {
   approvalStatus: 'PENDENTE' | 'APROVADO' | 'REPROVADO';
   createdAt: string;
   coverImage: string;
-  user: { id: string; name: string };
+  user: Author;
   school?: { id: string; name: string } | null;
 }
 
@@ -176,12 +177,11 @@ function AdminBibliotecaPageContent() {
                     </td>
                     <td className="flex flex-col sm:flex-row sm:items-center justify-between md:table-cell p-5 md:p-4 border-b border-border-custom/50 md:border-0 gap-1 sm:gap-0">
                       <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Enviado por</span>
-                      <div className="text-right md:text-left">
-                        <p className="text-sm font-medium text-foreground/80">{sub.user.name}</p>
-                        {sub.school && (
-                          <p className="text-xs text-foreground/50">{sub.school.name}</p>
-                        )}
-                      </div>
+                      <AuthorInfo
+                        author={sub.user}
+                        school={sub.school}
+                        className="text-right md:text-left"
+                      />
                     </td>
                     <td className="flex flex-col sm:flex-row sm:items-center justify-between md:table-cell p-5 md:p-4 text-sm text-foreground/70 border-b border-border-custom/50 md:border-0 gap-1 sm:gap-0">
                       <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Data</span>

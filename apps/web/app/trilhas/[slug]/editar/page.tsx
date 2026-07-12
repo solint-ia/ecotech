@@ -9,6 +9,7 @@ import { StateCitySelect } from '../../../../components/shared/StateCitySelect';
 import SafetyTipsField from '../../../../components/trilhas/SafetyTipsField';
 import { safetyTipsToString, safetyTipsFromString } from '../../../../lib/trail-safety-tips';
 import { durationToTimeInput, timeInputToDuration } from '../../../../lib/trail-duration';
+import { canManageTrail, isApprovedContributor } from '../../../../lib/permissions';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -41,11 +42,18 @@ export default function EditarTrilhaPage() {
   const [schools, setSchools] = useState<any[]>([]);
 
   useEffect(() => {
-    if (slug) {
+    // Wait for the session — the ownership check below needs the logged-in user.
+    if (slug && status === 'authenticated') {
       fetch(`${API_URL}/trails/${slug}`)
         .then((res) => res.json())
         .then((data) => {
           if (data && data.id) {
+            // Only the trail's owners may edit it. The API rejects the save too;
+            // this just avoids handing over a form that cannot be submitted.
+            if (!canManageTrail(user, data)) {
+              router.push(`/trilhas/${slug}`);
+              return;
+            }
             setTrailId(data.id);
             setTitle(data.title);
             setState(data.state || '');
@@ -64,7 +72,7 @@ export default function EditarTrilhaPage() {
         })
         .catch(() => setError('Erro ao carregar os dados da trilha.'));
     }
-  }, [slug]);
+  }, [slug, status, user, router]);
 
   // Fetch schools if admin
   useEffect(() => {
@@ -82,7 +90,7 @@ export default function EditarTrilhaPage() {
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login');
-    } else if (status === 'authenticated' && user?.role !== 'ADMIN' && user?.role !== 'SCHOOL_MANAGER') {
+    } else if (status === 'authenticated' && !isApprovedContributor(user)) {
       router.push('/trilhas');
     }
   }, [status, user, router]);

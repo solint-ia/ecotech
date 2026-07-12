@@ -189,9 +189,9 @@ export class TrailsController {
     return this.trailsService.updateApprovalStatus(id, status);
   }
 
-  /** DELETE /trails/:id - Delete trail (ADMIN or owning SCHOOL_MANAGER) */
+  /** DELETE /trails/:id - Delete trail (ADMIN, owning SCHOOL_MANAGER or authoring TEACHER) */
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'SCHOOL_MANAGER')
+  @Roles('ADMIN', 'SCHOOL_MANAGER', 'TEACHER')
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: string, @CurrentUser() user: any) {
@@ -225,7 +225,7 @@ export class TrailsController {
 
   /** POST /trails/:id/photos - Add a photo to a trail */
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'SCHOOL_MANAGER')
+  @Roles('ADMIN', 'SCHOOL_MANAGER', 'TEACHER')
   @Post(':id/photos')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @UseInterceptors(FileInterceptor('image', { storage }))
@@ -247,7 +247,7 @@ export class TrailsController {
 
   /** DELETE /trails/photos/:photoId - Delete a photo from a trail */
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'SCHOOL_MANAGER')
+  @Roles('ADMIN', 'SCHOOL_MANAGER', 'TEACHER')
   @Delete('photos/:photoId')
   @HttpCode(HttpStatus.NO_CONTENT)
   async removePhoto(@Param('photoId') photoId: string, @CurrentUser() user: any) {

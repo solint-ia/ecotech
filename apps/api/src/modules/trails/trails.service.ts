@@ -5,6 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { AnalyticsCacheService } from '../../common/cache/analytics-cache.service';
+import { assertCanManageTrail } from '../../common/authorization/content-ownership';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTrailDto } from './dto/create-trail.dto';
 import { UpdateTrailDto } from './dto/update-trail.dto';
@@ -110,7 +111,14 @@ export class TrailsService {
       where: { slug },
       include: {
         school: { select: { id: true, name: true, city: true } },
-        createdBy: { select: { id: true, name: true } },
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+            school: { select: { id: true, name: true } },
+          },
+        },
         biodiversity: true,
         photos: { orderBy: { createdAt: 'desc' } },
         points: {
@@ -388,7 +396,14 @@ export class TrailsService {
           approvalStatus: true,
           createdAt: true,
           school: { select: { id: true, name: true } },
-          createdBy: { select: { id: true, name: true } },
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              role: true,
+              school: { select: { id: true, name: true } },
+            },
+          },
         },
       }),
       this.prisma.trail.count({ where }),
@@ -508,11 +523,7 @@ export class TrailsService {
     const trail = await this.prisma.trail.findUnique({ where: { id } });
     if (!trail) throw new NotFoundException('Trilha não encontrada.');
 
-    if (requestingUser.role === 'SCHOOL_MANAGER') {
-      if (trail.schoolId !== requestingUser.schoolId) {
-        throw new ForbiddenException('Você não tem permissão para editar esta trilha.');
-      }
-    }
+    assertCanManageTrail(requestingUser, trail, 'Você não tem permissão para editar esta trilha.');
 
     const updatedTrail = await this.prisma.trail.update({
       where: { id },
@@ -549,9 +560,7 @@ export class TrailsService {
     const trail = await this.prisma.trail.findUnique({ where: { id } });
     if (!trail) throw new NotFoundException('Trilha não encontrada.');
 
-    if (requestingUser.role === 'SCHOOL_MANAGER' && trail.schoolId !== requestingUser.schoolId) {
-      throw new ForbiddenException('Você não tem permissão para excluir esta trilha.');
-    }
+    assertCanManageTrail(requestingUser, trail, 'Você não tem permissão para excluir esta trilha.');
 
     await this.prisma.trail.delete({ where: { id } });
     await this.analyticsCache.invalidate({ schoolId: trail.schoolId });
@@ -626,10 +635,7 @@ export class TrailsService {
     const trail = await this.prisma.trail.findUnique({ where: { id: trailId } });
     if (!trail) throw new NotFoundException('Trilha não encontrada.');
 
-    // Authorize: Admin or owning School Manager
-    if (user.role !== 'ADMIN' && trail.schoolId !== user.schoolId) {
-      throw new ForbiddenException('Não autorizado a adicionar fotos nesta trilha.');
-    }
+    assertCanManageTrail(user, trail, 'Não autorizado a adicionar fotos nesta trilha.');
 
     return this.prisma.trailPhoto.create({
       data: {
@@ -647,10 +653,7 @@ export class TrailsService {
 
     if (!photo) throw new NotFoundException('Foto não encontrada.');
 
-    // Authorize: Admin or owning School Manager
-    if (user.role !== 'ADMIN' && photo.trail.schoolId !== user.schoolId) {
-      throw new ForbiddenException('Não autorizado a remover esta foto.');
-    }
+    assertCanManageTrail(user, photo.trail, 'Não autorizado a remover esta foto.');
 
     return this.prisma.trailPhoto.delete({ where: { id: photoId } });
   }

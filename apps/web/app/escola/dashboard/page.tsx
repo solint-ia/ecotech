@@ -167,7 +167,7 @@ export default function EscolaDashboardPage() {
           icon={Cake}
           info="Média das idades dos professores vinculados à sua escola. Calculada pela data de nascimento e arredondada."
         />
-        <MetricCard title="Pontos Educ." value={metrics.totalPoints} icon={MapPin} />
+        <MetricCard title="Pontos Interp." value={metrics.totalPoints} icon={MapPin} />
         <MetricCard title="Publicações" value={metrics.totalPosts} icon={MessageSquare} />
         <MetricCard title="Biblioteca" value={metrics.totalLibrary} icon={Library} />
       </div>

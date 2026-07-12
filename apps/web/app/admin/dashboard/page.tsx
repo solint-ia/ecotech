@@ -4,12 +4,20 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import {
-  Users, School, Compass, MapPin, MessageSquare, Library, Clock, Trophy, Heart, Eye, LayoutDashboard, User as UserIcon, AlertTriangle, Cake
+  Users, School, Compass, MapPin, MessageSquare, Library, Clock, Trophy, Heart, Eye, LayoutDashboard, User as UserIcon, AlertTriangle, Cake, Share2
 } from 'lucide-react';
 import Link from 'next/link';
 import { InfoTooltip } from '../../../components/shared/InfoTooltip';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+/** Every queue the admin has to clear, and where each one is reviewed. */
+const PENDING_CATEGORIES = [
+  { key: 'users', singular: 'usuário', plural: 'usuários', href: '/escolas/aprovacoes', icon: Users },
+  { key: 'library', singular: 'material', plural: 'materiais', href: '/admin/biblioteca', icon: Library },
+  { key: 'trails', singular: 'trilha', plural: 'trilhas', href: '/admin/trilhas', icon: Compass },
+  { key: 'partners', singular: 'parceiro', plural: 'parceiros', href: '/rede/gerenciar', icon: Share2 },
+] as const;
 
 function getTimelineIcon(type: string) {
   switch (type) {
@@ -41,7 +49,6 @@ export default function AdminDashboardPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isActivitiesOpen, setIsActivitiesOpen] = useState(false);
-  const [pendingSchools, setPendingSchools] = useState(0);
 
   const fetchData = useCallback(async () => {
     if (!user?.accessToken) return;
@@ -59,35 +66,21 @@ export default function AdminDashboardPage() {
     }
   }, [user?.accessToken]);
 
-  const fetchPendingSchools = useCallback(async () => {
-    if (!user?.accessToken) return;
-    try {
-      const res = await fetch(`${API_URL}/users/pending`, {
-        headers: { Authorization: `Bearer ${user.accessToken}` }
-      });
-      if (!res.ok) throw new Error();
-      const json = await res.json();
-      setPendingSchools(Array.isArray(json) ? json.length : 0);
-    } catch {
-      console.error('Failed to load pending schools count');
-    }
-  }, [user?.accessToken]);
-
   useEffect(() => {
     if (status === 'unauthenticated' || (status === 'authenticated' && user?.role !== 'ADMIN')) {
       router.push('/');
     }
     if (status === 'authenticated' && user?.role === 'ADMIN') {
       fetchData();
-      fetchPendingSchools();
     }
-  }, [status, user, router, fetchData, fetchPendingSchools]);
+  }, [status, user, router, fetchData]);
 
   if (status === 'loading' || loading || !data) {
     return <div className="p-12 text-center text-foreground/50">Carregando dashboard...</div>;
   }
 
-  const { metrics, rankings, activities } = data;
+  const { metrics, rankings, activities, pending } = data;
+  const pendingTotal = pending?.total ?? 0;
 
   return (
     <div className="max-w-7xl mx-auto pb-12 space-y-8">
@@ -155,34 +148,62 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Pending Approvals Card */}
-      <Link
-        href="/escolas/aprovacoes"
-        className={`flex items-center justify-between gap-4 rounded-2xl p-5 border shadow-sm transition-colors ${
-          pendingSchools > 0
-            ? 'bg-amber-50 border-amber-200 hover:bg-amber-100'
-            : 'bg-white border-border-custom hover:border-forest/30'
+      {/* Pending Approvals — consolidated across every admin queue */}
+      <div
+        className={`rounded-2xl p-5 border shadow-sm ${
+          pendingTotal > 0
+            ? 'bg-amber-50 border-amber-200'
+            : 'bg-white border-border-custom'
         }`}
       >
         <div className="flex items-center gap-4">
-          <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${pendingSchools > 0 ? 'bg-amber-100 text-amber-700' : 'bg-beige text-forest'}`}>
+          <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${pendingTotal > 0 ? 'bg-amber-100 text-amber-700' : 'bg-beige text-forest'}`}>
             <AlertTriangle className="w-5 h-5" />
           </div>
           <div>
-            <p className={`text-sm font-bold ${pendingSchools > 0 ? 'text-amber-900' : 'text-emerald-950'}`}>
-              {pendingSchools > 0
-                ? `${pendingSchools} ${pendingSchools === 1 ? 'pendência aguardando aprovação' : 'pendências aguardando aprovação'}`
+            <p className={`text-sm font-bold ${pendingTotal > 0 ? 'text-amber-900' : 'text-emerald-950'}`}>
+              {pendingTotal > 0
+                ? `${pendingTotal} ${pendingTotal === 1 ? 'pendência aguardando aprovação' : 'pendências aguardando aprovação'}`
                 : 'Nenhuma pendência de aprovação'}
             </p>
-            <p className={`text-xs mt-0.5 ${pendingSchools > 0 ? 'text-amber-700/80' : 'text-foreground/50'}`}>
-              Cadastros de escolas aguardando revisão
+            <p className={`text-xs mt-0.5 ${pendingTotal > 0 ? 'text-amber-700/80' : 'text-foreground/50'}`}>
+              {pendingTotal > 0
+                ? 'Escolha uma categoria para revisar'
+                : 'Usuários, materiais, trilhas e parceiros estão em dia'}
             </p>
           </div>
         </div>
-        <span className={`text-xs font-semibold shrink-0 ${pendingSchools > 0 ? 'text-amber-800' : 'text-forest'}`}>
-          Ver solicitações
-        </span>
-      </Link>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mt-5">
+          {PENDING_CATEGORIES.map(({ key, singular, plural, href, icon: Icon }) => {
+            const count = pending?.[key] ?? 0;
+            const isPending = count > 0;
+            return (
+              <Link
+                key={key}
+                href={href}
+                className={`flex items-center gap-3 rounded-xl border px-3.5 py-3 transition-colors ${
+                  isPending
+                    ? 'bg-white border-amber-200 hover:border-amber-400 hover:bg-amber-50/60'
+                    : 'bg-white/60 border-border-custom hover:border-forest/30'
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isPending ? 'bg-amber-100 text-amber-700' : 'bg-beige text-forest/60'}`}>
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className={`text-base font-bold leading-none ${isPending ? 'text-amber-900' : 'text-emerald-950/50'}`}>
+                    {count}
+                  </p>
+                  <p className={`text-xs mt-1 truncate ${isPending ? 'text-amber-700/90' : 'text-foreground/40'}`}>
+                    {count === 1 ? `${singular} pendente` : `${plural} pendentes`}
+                  </p>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -205,7 +226,7 @@ export default function AdminDashboardPage() {
           icon={Cake}
           info="Média das idades de todos os professores cadastrados na plataforma. Calculada pela data de nascimento e arredondada."
         />
-        <MetricCard title="Pontos Educ." value={metrics.totalPoints} icon={MapPin} />
+        <MetricCard title="Pontos Interp." value={metrics.totalPoints} icon={MapPin} />
         <MetricCard title="Publicações" value={metrics.totalPosts} icon={MessageSquare} />
         <MetricCard title="Biblioteca" value={metrics.totalLibrary} icon={Library} link="/admin/biblioteca" linkText="Aprovar" />
       </div>

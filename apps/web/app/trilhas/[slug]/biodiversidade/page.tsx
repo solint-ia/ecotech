@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { ArrowLeft, Plus, Trash2, Save, Edit2, X } from 'lucide-react';
 import { getImageUrl } from '../../../../lib/image-url';
+import { canManageTrail, isApprovedContributor } from '../../../../lib/permissions';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -54,7 +55,7 @@ export default function BiodiversidadePage({ params }: { params: Promise<{ slug:
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login');
-    } else if (status === 'authenticated' && user?.role !== 'ADMIN' && user?.role !== 'SCHOOL_MANAGER') {
+    } else if (status === 'authenticated' && !isApprovedContributor(user)) {
       router.push(`/trilhas/${slug}`);
     }
   }, [status, user, router, slug]);
@@ -65,8 +66,9 @@ export default function BiodiversidadePage({ params }: { params: Promise<{ slug:
         const resTrail = await fetch(`${API_URL}/trails/${slug}`, { cache: 'no-store' });
         if (!resTrail.ok) throw new Error('Trilha não encontrada.');
         const trailData = await resTrail.json();
-        
-        if (user?.role === 'SCHOOL_MANAGER' && trailData.schoolId !== user.schoolId) {
+
+        // Biodiversity belongs to the trail: only its owners may manage it.
+        if (!canManageTrail(user, trailData)) {
           router.push(`/trilhas/${slug}`);
           return;
         }

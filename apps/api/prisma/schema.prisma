@@ -101,6 +101,7 @@ model User {
   libraryContents LibraryContent[]
   teacherSchools  TeacherSchool[]
   trailsCreated   Trail[]          @relation("trailsCreated")
+  partnersCreated Partner[]        @relation("partnersCreated")
 }
 
 model TeacherSchool {
@@ -409,8 +410,14 @@ model Partner {
   website      String?
   openingHours Json           @default("[]")
   status       Boolean        @default(true)
+  // Defaults to APROVADO so that partners created before this column existed
+  // stay publicly visible after the column is added. PartnersService always
+  // sets this explicitly: APROVADO for admins, PENDENTE for schools/teachers.
+  approvalStatus ApprovalStatus @default(APROVADO)
+  createdById  String?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
+  createdBy    User?          @relation("partnersCreated", fields: [createdById], references: [id])
   photos       PartnerPhoto[]
 }
 

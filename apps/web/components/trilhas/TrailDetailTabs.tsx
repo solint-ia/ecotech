@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { MapPin, Plus, Download, QrCode, ChevronRight } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { getImageUrl } from '../../lib/image-url';
+import { canManageTrail } from '../../lib/permissions';
 
 const TABS = [
   { id: 'sobre', label: 'Sobre' },
@@ -30,7 +31,8 @@ export default function TrailDetailTabs({ trail }: TrailDetailTabsProps) {
   const [activeTab, setActiveTab] = useState('sobre');
   const { data: session } = useSession();
   const user = session?.user as any;
-  const isAdminOrManager = user?.role === 'ADMIN' || (user?.role === 'SCHOOL_MANAGER' && user?.schoolId === trail.schoolId);
+  // Admin, the owning school, or the teacher who created the trail.
+  const isAdminOrManager = canManageTrail(user, trail);
 
   const biodiversity: any[] = useMemo(
     () => trail.biodiversity ?? trail.biodiversityItems ?? [],
@@ -263,13 +265,13 @@ export default function TrailDetailTabs({ trail }: TrailDetailTabsProps) {
           </div>
         )}
 
-        {/* ── PONTOS DE INTERESSE (Roadmap) ── */}
+        {/* ── PONTOS INTERPRETATIVOS (Roadmap) ── */}
         {activeTab === 'pontos' && (
           <div>
             {/* Header / Actions */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 w-full">
               <h2 className="text-xl sm:text-2xl font-extrabold text-primary text-left">
-                Pontos de Interesse
+                Pontos Interpretativos
               </h2>
               {isAdminOrManager && (
                 <Link
@@ -285,7 +287,7 @@ export default function TrailDetailTabs({ trail }: TrailDetailTabsProps) {
 
             {!trail.educationalPoints || trail.educationalPoints.length === 0 ? (
               <p className="text-sm text-foreground/60 text-center py-8">
-                Nenhum ponto educativo cadastrado ainda.
+                Nenhum ponto interpretativo cadastrado ainda.
               </p>
             ) : (
               <div className="relative">
@@ -354,8 +356,9 @@ export default function TrailDetailTabs({ trail }: TrailDetailTabsProps) {
                             Ver ponto completo <ChevronRight className="w-4 h-4" />
                           </Link>
                           
-                          {/* QR Code link */}
-                          {point.qrCodes?.[0]?.qrImage && (
+                          {/* QR Code link — an on-site asset, restricted to the trail's owners.
+                              The API also strips qrCodes from the payload for anyone else. */}
+                          {isAdminOrManager && point.qrCodes?.[0]?.qrImage && (
                             <a
                               href={getImageUrl(point.qrCodes[0].qrImage)}
                               target="_blank"

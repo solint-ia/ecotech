@@ -95,7 +95,7 @@ export default function QrCodeDownloadBtn({
     doc.setFontSize(8.5);
     doc.setTextColor(...MUTED);
     doc.text(
-      'Aponte a câmera do seu celular para acessar o ponto educativo',
+      'Aponte a câmera do seu celular para acessar o ponto interpretativo',
       cx,
       35,
       { align: 'center', maxWidth: 120 },

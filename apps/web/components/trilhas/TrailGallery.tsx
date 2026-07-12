@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { getImageUrl } from '../../lib/image-url';
+import { canManageTrail } from '../../lib/permissions';
 import ConfirmDeleteModal from '../feed/ConfirmDeleteModal';
 
 interface TrailPhoto {
@@ -24,13 +25,22 @@ interface TrailPhoto {
 interface TrailGalleryProps {
   trailId: string;
   trailSchoolId?: string;
+  trailCreatedById?: string | null;
   photos: TrailPhoto[];
 }
 
-export function TrailGallery({ trailId, trailSchoolId, photos: initialPhotos }: TrailGalleryProps) {
+export function TrailGallery({
+  trailId,
+  trailSchoolId,
+  trailCreatedById,
+  photos: initialPhotos,
+}: TrailGalleryProps) {
   const { data: session } = useSession();
   const user = session?.user as any;
-  const canManage = user?.role === 'ADMIN' || (user?.role === 'SCHOOL_MANAGER' && user?.schoolId === trailSchoolId);
+  const canManage = canManageTrail(user, {
+    schoolId: trailSchoolId,
+    createdById: trailCreatedById,
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 

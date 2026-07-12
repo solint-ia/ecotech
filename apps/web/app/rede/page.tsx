@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Store, MapPin, Search, Plus, SlidersHorizontal, X, ChevronDown, Loader2 } from 'lucide-react';
 import { PartnerCard, Partner } from '../../components/rede/PartnerCard';
 import { StateCitySelect } from '@/components/shared/StateCitySelect';
+import { canCreateContent } from '../../lib/permissions';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -22,6 +23,8 @@ export default function RedePage() {
   const { data: session } = useSession();
   const user = session?.user as any;
   const isAdmin = user?.role === 'ADMIN';
+  // Approved schools and teachers may submit a partner for admin approval.
+  const canCreate = canCreateContent(user);
 
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,13 +100,13 @@ export default function RedePage() {
           Apoie a economia local! Conheça os serviços, guias e comércios da nossa região.
         </p>
         
-        {isAdmin && (
+        {canCreate && (
           <div className="w-full flex gap-3 mb-4">
             <Link
-              href="/rede/gerenciar"
+              href={isAdmin ? '/rede/gerenciar' : '/rede/meus-parceiros'}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-primary border border-border-custom rounded-xl text-xs md:text-sm font-medium hover:bg-beige transition-colors shadow-sm"
             >
-              Gerenciar Parceiros
+              {isAdmin ? 'Gerenciar Parceiros' : 'Meus Parceiros'}
             </Link>
             <Link
               href="/rede/criar"

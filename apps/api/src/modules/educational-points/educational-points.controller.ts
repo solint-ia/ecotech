@@ -20,6 +20,7 @@ import { EducationalPointsService } from './educational-points.service';
 import { CreateEducationalPointDto } from './dto/create-educational-point.dto';
 import { UpdateEducationalPointDto } from './dto/update-educational-point.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../../common/guards/optional-jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -34,24 +35,32 @@ export class EducationalPointsController {
     private readonly supabaseService: SupabaseService,
   ) {}
 
-  /** GET /educational-points/trail/:trailId - All points for a trail */
+  /**
+   * GET /educational-points/trail/:trailId - All published points for a trail.
+   * Optional auth: the QR code is only attached for the trail's owners.
+   */
+  @UseGuards(OptionalJwtAuthGuard)
   @Get('trail/:trailId')
-  findByTrail(@Param('trailId') trailId: string) {
-    return this.educationalPointsService.findByTrail(trailId, false);
+  findByTrail(@Param('trailId') trailId: string, @CurrentUser() user?: any) {
+    return this.educationalPointsService.findByTrail(trailId, false, user);
   }
 
-  /** GET /educational-points/trail/:trailId/all - All points incl. unpublished (admin) */
+  /** GET /educational-points/trail/:trailId/all - All points incl. unpublished (owners) */
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'SCHOOL_MANAGER')
+  @Roles('ADMIN', 'SCHOOL_MANAGER', 'TEACHER')
   @Get('trail/:trailId/all')
-  findByTrailAdmin(@Param('trailId') trailId: string) {
-    return this.educationalPointsService.findByTrail(trailId, true);
+  findByTrailAdmin(@Param('trailId') trailId: string, @CurrentUser() user: any) {
+    return this.educationalPointsService.findByTrail(trailId, true, user);
   }
 
-  /** GET /educational-points/:slug - Public detail view of a specific point */
+  /**
+   * GET /educational-points/:slug - Public detail view of a specific point.
+   * Optional auth: the QR code is only attached for the trail's owners.
+   */
+  @UseGuards(OptionalJwtAuthGuard)
   @Get(':slug')
-  findOne(@Param('slug') slug: string) {
-    return this.educationalPointsService.findBySlug(slug);
+  findOne(@Param('slug') slug: string, @CurrentUser() user?: any) {
+    return this.educationalPointsService.findBySlug(slug, user);
   }
 
   /** POST /educational-points - Create a new educational point */

@@ -18,10 +18,13 @@ const POINT_TYPE_LABELS: Record<string, string> = {
   OUTRO: 'Outro',
 };
 
-async function getPoint(slug: string) {
+async function getPoint(slug: string, accessToken?: string) {
   try {
     const res = await fetch(`${API_URL}/educational-points/${slug}`, {
-      next: { revalidate: 3600 },
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      // Only the public (token-less) response may be cached — a personalised
+      // response carries the QR code and must never be shared between viewers.
+      ...(accessToken ? { cache: 'no-store' as const } : { next: { revalidate: 3600 } }),
     });
     if (!res.ok) return null;
     return res.json();
@@ -33,7 +36,7 @@ async function getPoint(slug: string) {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const point = await getPoint(slug);
-  if (!point) return { title: 'Ponto educativo não encontrado — EcoTech' };
+  if (!point) return { title: 'Ponto interpretativo não encontrado — EcoTech' };
   return {
     title: `${point.title} — EcoTech`,
     description: point.shortDescription || point.fullDescription,
@@ -42,16 +45,17 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function PointDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const point = await getPoint(slug);
+
+  // The session has to be resolved first: the QR code is only attached to the
+  // response when the request carries the token of someone allowed to see it.
+  const session = await auth();
+  const user = session?.user as any;
+  const point = await getPoint(slug, user?.accessToken);
 
   if (!point) notFound();
 
-  const session = await auth();
-  const user = session?.user as any;
-  
-  const isAdminOrOwner = user?.role === 'ADMIN' || 
-    ((user?.role === 'SCHOOL_MANAGER' || user?.role === 'TEACHER') && user?.schoolId === point.trail?.schoolId);
-
+  // The API decides who may see the QR code; the UI just follows its answer.
+  const canSeeQrCode = point.canSeeQrCode === true;
   const qrCode = point.qrCodes?.[0];
   const trailSlug = point.trail?.slug;
   const pdfUrl = point.pdfUrl ? getImageUrl(point.pdfUrl) : null;
@@ -184,7 +188,7 @@ export default async function PointDetailPage({ params }: { params: Promise<{ sl
         )}
 
         {/* QR Code section (Only visible to Admins or the Trail's School Manager) */}
-        {qrCode && isAdminOrOwner && (
+        {qrCode && canSeeQrCode && (
           <section>
             <h2 className="text-xl font-bold text-foreground mb-4">QR Code Híbrido</h2>
             <div className="flex flex-col md:flex-row gap-6 items-center md:items-start bg-white rounded-2xl p-6 shadow-sm border border-border-custom/40">
@@ -194,7 +198,7 @@ export default async function PointDetailPage({ params }: { params: Promise<{ sl
                   <div className="bg-white p-3 rounded-xl border border-border-custom/50 inline-block mb-4 shadow-sm">
                     <img
                       src={qrCode.qrImage.startsWith('http') ? qrCode.qrImage : `${API_URL}${qrCode.qrImage}`}
-                      alt="QR Code do ponto educativo"
+                      alt="QR Code do ponto interpretativo"
                       id="qrcode-image"
                       className="w-40 h-40 object-contain rounded"
                     />

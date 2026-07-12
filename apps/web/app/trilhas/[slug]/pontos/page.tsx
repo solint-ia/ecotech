@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { ArrowLeft, Plus, Trash2, Save, ChevronDown, ChevronUp, Edit2, FileUp, Sparkles, FileText } from 'lucide-react';
 import { getImageUrl } from '../../../../lib/image-url';
 import ConfirmDeleteModal from '../../../../components/feed/ConfirmDeleteModal';
+import { canManageTrail, isApprovedContributor } from '../../../../lib/permissions';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -78,7 +79,7 @@ export default function PontosPage() {
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login');
-    } else if (status === 'authenticated' && user?.role !== 'ADMIN' && user?.role !== 'SCHOOL_MANAGER') {
+    } else if (status === 'authenticated' && !isApprovedContributor(user)) {
       router.push('/trilhas');
     }
   }, [status, user, router]);
@@ -93,9 +94,17 @@ export default function PontosPage() {
         const trailRes = await fetch(`${API_URL}/trails/${trailSlug}`);
         if (!trailRes.ok) throw new Error('Trilha não encontrada.');
         const trailData = await trailRes.json();
+
+        // Points belong to the trail: only its owners may manage them. The API
+        // enforces this too — this just avoids showing an unusable editor.
+        if (!canManageTrail(user, trailData)) {
+          router.push(`/trilhas/${trailSlug}`);
+          return;
+        }
+
         setTrail(trailData);
 
-        // Fetch all points (incl. unpublished) for admin/manager using trail.id
+        // Fetch all points (incl. unpublished) for the trail's owners
         const pointsRes = await fetch(`${API_URL}/educational-points/trail/${trailData.id}/all`, {
           headers: user?.accessToken ? { Authorization: `Bearer ${user.accessToken}` } : {},
         });
@@ -255,7 +264,7 @@ export default function PontosPage() {
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-xl font-bold text-primary">Pontos Educativos</h1>
+          <h1 className="text-xl font-bold text-primary">Pontos Interpretativos</h1>
           {trail && (
             <p className="text-xs text-foreground/60 mt-0.5">{trail.title}</p>
           )}
@@ -272,7 +281,7 @@ export default function PontosPage() {
       <div className="space-y-3 mb-4">
         {points.length === 0 && !showForm && (
           <div className="text-center py-10 text-foreground/50 text-sm bg-white rounded-xl border border-border-custom">
-            Nenhum ponto educativo ainda. Clique em "Novo Ponto" para adicionar.
+            Nenhum ponto interpretativo ainda. Clique em "Novo Ponto" para adicionar.
           </div>
         )}
         {points.map((point, idx) => (
@@ -372,7 +381,7 @@ export default function PontosPage() {
           className="bg-white rounded-2xl border border-border-custom p-5 space-y-4"
         >
           <h2 className="text-base font-bold text-primary">
-            {editingPointId ? 'Editar Ponto Educativo' : 'Novo Ponto Educativo'}
+            {editingPointId ? 'Editar Ponto Interpretativo' : 'Novo Ponto Interpretativo'}
           </h2>
 
           <div className="grid grid-cols-2 gap-4">
@@ -626,8 +635,8 @@ export default function PontosPage() {
       {/* Confirm Delete Modal */}
       {deletingPointId && (
         <ConfirmDeleteModal
-          title="Excluir Ponto Educativo"
-          description="Tem certeza que deseja excluir este ponto educativo? Esta ação não poderá ser desfeita e todos os arquivos gerados (QR Code, PDF) serão removidos."
+          title="Excluir Ponto Interpretativo"
+          description="Tem certeza que deseja excluir este ponto interpretativo? Esta ação não poderá ser desfeita e todos os arquivos gerados (QR Code, PDF) serão removidos."
           loading={isDeleting}
           onClose={() => setDeletingPointId(null)}
           onConfirm={handleDeletePoint}

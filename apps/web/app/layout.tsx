@@ -10,7 +10,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: 'EcoTech — Plataforma Educacional e Socioambiental',
-  description: 'Trilhas ecológicas, biodiversidade local e conexão para escolas e comunidades.',
+  description: 'Trilhas interpretativas, biodiversidade local e conexão para escolas e comunidades.',
 };
 
 export default function RootLayout({

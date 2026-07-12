@@ -3,8 +3,7 @@
 import { useEffect, useState, useRef, use } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Camera, User, Mail, Phone, Calendar, School, Save, Edit2, Loader2, Image as ImageIcon, Lock, GraduationCap } from 'lucide-react';
+import { Camera, User, Mail, Phone, Calendar, School, Save, Edit2, Loader2, Image as ImageIcon, Lock } from 'lucide-react';
 import { getImageUrl } from '../../../lib/image-url';
 import { validatePhone, validateFullName, formatPhone } from '../../../lib/validation';
 import FeedPostCard, { FeedPost } from '../../../components/feed/FeedPostCard';
@@ -320,7 +319,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
       const formData = new FormData();
       formData.append('name', name);
       formData.append('phone', phone);
-      if (birthDate) {
+      if (birthDate && profileData?.role !== 'SCHOOL_MANAGER') {
         formData.append('birthDate', birthDate);
       }
       // Teacher school links are managed live via /users/me/schools, so we must
@@ -572,26 +571,16 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
               </div>
             </div>
 
-            {!isEditing && (canEdit || (isOwner && profileData.role === 'TEACHER' && profileData.roleStatus === 'APROVADO')) && (
+            {/* The teacher reaches their dashboard from the profile dropdown in the navbar. */}
+            {!isEditing && canEdit && (
               <div className="mt-6 md:mt-0 md:pb-2 w-full md:w-auto flex flex-col sm:flex-row gap-2">
-                {isOwner && profileData.role === 'TEACHER' && profileData.roleStatus === 'APROVADO' && (
-                  <Link
-                    href="/professor/dashboard"
-                    className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-forest text-white font-semibold rounded-xl hover:bg-forest/90 transition-colors shadow-sm"
-                  >
-                    <GraduationCap className="w-4 h-4" />
-                    Gerenciar Alunos
-                  </Link>
-                )}
-                {canEdit && (
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors shadow-sm"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                    Editar Perfil
-                  </button>
-                )}
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors shadow-sm"
+                >
+                  <Edit2 className="w-4 h-4" />
+                  Editar Perfil
+                </button>
               </div>
             )}
           </div>
@@ -669,15 +658,18 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
-                <input
-                  type="date"
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  value={birthDate}
-                  onChange={(e) => setBirthDate(e.target.value)}
-                />
-              </div>
+              {/* A school is an institution — a birth date is only asked of people. */}
+              {profileData.role !== 'SCHOOL_MANAGER' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
+                  <input
+                    type="date"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    value={birthDate}
+                    onChange={(e) => setBirthDate(e.target.value)}
+                  />
+                </div>
+              )}
 
               {profileData.role === 'SCHOOL_MANAGER' && (
                 <div>
@@ -910,7 +902,7 @@ export default function PerfilPage({ params }: { params: Promise<{ id: string }>
                   </div>
                 )}
 
-                {profileData.birthDate && (
+                {profileData.birthDate && profileData.role !== 'SCHOOL_MANAGER' && (
                   <div>
                     <div className="flex items-center gap-2 text-gray-500 mb-1">
                       <Calendar className="w-4 h-4" />

@@ -65,6 +65,11 @@ export class AnalyticsService {
       totalLibrary,
       pendingLibrary,
       totalPartners,
+      pendingPartners,
+      pendingTrails,
+      pendingStudents,
+      pendingManagers,
+      pendingTeacherLinks,
       avgStudentAge,
       avgTeacherAge,
       topTrailsLiked,
@@ -86,6 +91,16 @@ export class AnalyticsService {
       this.prisma.libraryContent.count(),
       this.prisma.libraryContent.count({ where: { approvalStatus: 'PENDENTE' } }),
       this.prisma.partner.count(),
+      this.prisma.partner.count({ where: { approvalStatus: 'PENDENTE' } }),
+      // Drafts never reach the approval queue, so they are not pending on anyone.
+      this.prisma.trail.count({ where: { approvalStatus: 'PENDENTE', isDraft: false } }),
+      // Mirrors UsersService.getPendingUsers for the ADMIN branch: pending
+      // students, pending school managers and pending teacher-school links.
+      this.prisma.user.count({
+        where: { role: 'STUDENT', roleStatus: 'PENDENTE', schoolId: { not: null } },
+      }),
+      this.prisma.user.count({ where: { role: 'SCHOOL_MANAGER', roleStatus: 'PENDENTE' } }),
+      this.prisma.teacherSchool.count({ where: { status: 'PENDENTE' } }),
       this.averageAge(this.isStudent),
       this.averageAge(this.isTeacher),
       this.prisma.trail.findMany({
@@ -114,6 +129,17 @@ export class AnalyticsService {
       this.prisma.libraryContent.findMany({ orderBy: { createdAt: 'desc' }, take: 3, select: { id: true, title: true, createdAt: true } }),
     ]);
 
+    // Everything sitting in an admin approval queue, so the dashboard can point
+    // at each one instead of only counting users.
+    const pendingUsers = pendingStudents + pendingManagers + pendingTeacherLinks;
+    const pending = {
+      users: pendingUsers,
+      library: pendingLibrary,
+      trails: pendingTrails,
+      partners: pendingPartners,
+      total: pendingUsers + pendingLibrary + pendingTrails + pendingPartners,
+    };
+
     const activities = [
       ...recentUsers.map(u => ({ type: 'USER', label: `Novo usuário: ${u.name}`, date: u.createdAt })),
       ...recentSchools.map(s => ({ type: 'SCHOOL', label: `Nova escola: ${s.name}`, date: s.createdAt })),
@@ -136,6 +162,7 @@ export class AnalyticsService {
         avgStudentAge,
         avgTeacherAge
       },
+      pending,
       rankings: {
         topTrailsLiked,
         topTrailsViewed,

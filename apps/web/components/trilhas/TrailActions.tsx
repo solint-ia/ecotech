@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import ShareModal from './ShareModal';
 import ConfirmDeleteModal from '../feed/ConfirmDeleteModal';
+import { canManageTrail } from '../../lib/permissions';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -15,6 +16,7 @@ interface TrailActionsProps {
     title: string;
     slug?: string;
     schoolId?: string;
+    createdById?: string | null;
     coverImage?: string;
     wikilocUrl?: string;
     likesCount?: number;
@@ -196,7 +198,7 @@ export default function TrailActions({ trail }: TrailActionsProps) {
             </a>
           )}
           
-          {(user?.role === 'ADMIN' || (user?.role === 'SCHOOL_MANAGER' && user?.schoolId === trail.schoolId)) && trail.slug && (
+          {canManageTrail(user, trail) && trail.slug && (
             <div className="flex items-center gap-2 border-l border-border-custom pl-3 ml-1">
               <Link
                 href={`/trilhas/${trail.slug}/editar`}

@@ -9,6 +9,7 @@ import { StateCitySelect } from '../../../components/shared/StateCitySelect';
 import SafetyTipsField from '../../../components/trilhas/SafetyTipsField';
 import { DEFAULT_SAFETY_TIPS, safetyTipsToString } from '../../../lib/trail-safety-tips';
 import { durationToTimeInput, timeInputToDuration } from '../../../lib/trail-duration';
+import { canCreateContent } from '../../../lib/permissions';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -77,12 +78,8 @@ export default function CriarTrilhaPage() {
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login');
-    } else if (status === 'authenticated') {
-      const isApproved = user?.roleStatus === 'APROVADO';
-      const isAllowedRole = user?.role === 'ADMIN' || (['SCHOOL_MANAGER', 'TEACHER'].includes(user?.role) && isApproved);
-      if (!isAllowedRole) {
-        router.push('/trilhas');
-      }
+    } else if (status === 'authenticated' && !canCreateContent(user)) {
+      router.push('/trilhas');
     }
   }, [status, user, router]);
 

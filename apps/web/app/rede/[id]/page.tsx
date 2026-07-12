@@ -12,6 +12,8 @@ import { getImageUrl } from '../../../lib/image-url';
 import { PartnerGallery } from '../../../components/rede/PartnerGallery';
 import { OpeningHoursDisplay } from '../../../components/rede/OpeningHoursDisplay';
 import { OpeningHours, isOpenNow } from '../../../lib/opening-hours';
+import { AuthorInfo, Author } from '../../../components/shared/AuthorInfo';
+import { canManagePartner } from '../../../lib/permissions';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -29,22 +31,29 @@ interface Partner {
   website?: string;
   openingHours: OpeningHours;
   photos: { id: string; image: string }[];
+  approvalStatus?: 'PENDENTE' | 'APROVADO' | 'REPROVADO';
+  createdById?: string | null;
+  createdBy?: Author | null;
 }
 
 export default function PartnerDetailPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const user = session?.user as any;
   const [partner, setPartner] = useState<Partner | null>(null);
   const [loading, setLoading] = useState(true);
 
-
-
   useEffect(() => {
+    // Wait for the session: a partner still awaiting approval is only readable
+    // by its author and by the admin, so the request has to carry the token.
+    if (sessionStatus === 'loading') return;
+
     async function fetchPartner() {
       try {
-        const res = await fetch(`${API_URL}/partners/${id}`);
+        const res = await fetch(`${API_URL}/partners/${id}`, {
+          headers: user?.accessToken ? { Authorization: `Bearer ${user.accessToken}` } : {},
+        });
         if (!res.ok) {
           if (res.status === 404) router.push('/rede');
           return;
@@ -58,7 +67,7 @@ export default function PartnerDetailPage() {
       }
     }
     fetchPartner();
-  }, [id, router]);
+  }, [id, router, sessionStatus, user?.accessToken]);
 
   if (loading) {
     return (
@@ -69,6 +78,8 @@ export default function PartnerDetailPage() {
   }
 
   if (!partner) return null;
+
+  const canEdit = canManagePartner(user, partner);
 
   return (
     <div className="max-w-4xl mx-auto pb-12">
@@ -81,7 +92,7 @@ export default function PartnerDetailPage() {
           <ArrowLeft className="w-4 h-4" />
           Voltar para Rede
         </Link>
-        {user?.role === 'ADMIN' && (
+        {canEdit && (
           <Link
             href={`/rede/${partner.id}/editar`}
             className="inline-flex items-center gap-2 px-4 py-2 bg-secondary text-white text-sm font-semibold rounded-lg hover:bg-secondary/90 transition-colors shadow-sm"
@@ -90,6 +101,20 @@ export default function PartnerDetailPage() {
           </Link>
         )}
       </div>
+
+      {/* Only the author and the admin ever reach this page while unapproved. */}
+      {partner.approvalStatus === 'PENDENTE' && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-xl p-4 mb-6">
+          Este parceiro está <strong>aguardando aprovação</strong> do administrador e ainda não
+          aparece na rede pública.
+        </div>
+      )}
+      {partner.approvalStatus === 'REPROVADO' && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4 mb-6">
+          Este parceiro foi <strong>reprovado</strong> pelo administrador e não aparece na rede
+          pública.
+        </div>
+      )}
 
       {/* Hero Section */}
       <div className="bg-white rounded-2xl overflow-hidden border border-border-custom shadow-sm mb-8">
@@ -131,6 +156,16 @@ export default function PartnerDetailPage() {
               )
             )}
           </div>
+
+          {/* Accountability, not public attribution: only the admin and the author see it. */}
+          {canEdit && partner.createdBy && (
+            <div className="flex items-center gap-2 mb-6 pb-6 border-b border-border-custom">
+              <span className="text-xs font-bold text-foreground/50 uppercase tracking-wider shrink-0">
+                Cadastrado por
+              </span>
+              <AuthorInfo author={partner.createdBy} />
+            </div>
+          )}
 
           <div className="flex flex-wrap gap-3">
             {partner.whatsapp && (

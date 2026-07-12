@@ -4,12 +4,20 @@ import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Store, ArrowLeft, Edit2, Trash2, CheckCircle2, XCircle, Search } from 'lucide-react';
+import { Store, ArrowLeft, Edit2, Trash2, CheckCircle2, XCircle, Clock, Search } from 'lucide-react';
 import { Partner } from '../../../components/rede/PartnerCard';
 import ConfirmDeleteModal from '../../../components/feed/ConfirmDeleteModal';
 import { Pagination } from '../../../components/shared/Pagination';
+import ApprovalStatusFilter from '../../../components/shared/ApprovalStatusFilter';
+import { AuthorInfo, Author } from '../../../components/shared/AuthorInfo';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+interface PartnerSubmission extends Partner {
+  approvalStatus: 'PENDENTE' | 'APROVADO' | 'REPROVADO';
+  createdAt: string;
+  createdBy?: Author | null;
+}
 
 function GerenciarParceirosPageContent() {
   const { data: session, status } = useSession();
@@ -19,11 +27,12 @@ function GerenciarParceirosPageContent() {
   const searchParams = useSearchParams();
 
   const page = parseInt(searchParams.get('page') || '1', 10);
+  const statusFilter = searchParams.get('status') || 'ALL';
 
-  const [partners, setPartners] = useState<Partner[]>([]);
+  const [partners, setPartners] = useState<PartnerSubmission[]>([]);
   const [meta, setMeta] = useState({ totalPages: 1, currentPage: 1 });
   const [loading, setLoading] = useState(true);
-  
+
   // Live search by name (debounced) — no need to press Enter.
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
@@ -40,11 +49,16 @@ function GerenciarParceirosPageContent() {
   }, [status, isAdmin, router]);
 
   const fetchPartners = useCallback(async () => {
-    if (!isAdmin) return;
+    if (!isAdmin || !user?.accessToken) return;
     setLoading(true);
     try {
+      // The moderation queue, not the public directory: it carries pending and
+      // rejected partners plus who submitted each one.
       const searchParam = debouncedQuery ? `&search=${encodeURIComponent(debouncedQuery)}` : '';
-      const res = await fetch(`${API_URL}/partners?includeInactive=true&page=${page}&limit=20${searchParam}`);
+      const res = await fetch(
+        `${API_URL}/partners/admin/submissions?page=${page}&limit=20&status=${statusFilter}${searchParam}`,
+        { headers: { Authorization: `Bearer ${user.accessToken}` } },
+      );
       if (!res.ok) throw new Error('Falha ao carregar parceiros.');
       const json = await res.json();
       setPartners(json.data);
@@ -54,7 +68,7 @@ function GerenciarParceirosPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, page, debouncedQuery]);
+  }, [isAdmin, user?.accessToken, page, statusFilter, debouncedQuery]);
 
   // Debounce the typed query so we don't fetch on every keystroke.
   useEffect(() => {
@@ -67,6 +81,34 @@ function GerenciarParceirosPageContent() {
       fetchPartners();
     }
   }, [isAdmin, fetchPartners]);
+
+  const handleStatusFilter = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', '1');
+    if (value === 'ALL') params.delete('status');
+    else params.set('status', value);
+    router.push(`/rede/gerenciar?${params.toString()}`);
+  };
+
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    if (!user?.accessToken) return;
+    try {
+      const res = await fetch(`${API_URL}/partners/${id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${user.accessToken}`,
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) throw new Error('Falha ao atualizar o status do parceiro.');
+      setPartners(prev =>
+        prev.map(p => (p.id === id ? { ...p, approvalStatus: newStatus as any } : p)),
+      );
+    } catch (err: any) {
+      setError(err.message || 'Erro ao atualizar o status.');
+    }
+  };
 
   const confirmDelete = async () => {
     if (!partnerToDelete) return;
@@ -123,7 +165,7 @@ function GerenciarParceirosPageContent() {
             Gerenciar Parceiros
           </h1>
           <p className="text-sm text-foreground/60 mt-1">
-            Administre os parceiros da rede (ativos e inativos).
+            Aprove, reprove e administre os parceiros enviados por escolas e professores.
           </p>
         </div>
       </div>
@@ -135,7 +177,7 @@ function GerenciarParceirosPageContent() {
       )}
 
       {/* Search Bar */}
-      <div className="relative mb-6">
+      <div className="relative mb-4">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/40" />
         <input
           type="text"
@@ -146,6 +188,10 @@ function GerenciarParceirosPageContent() {
         />
       </div>
 
+      <div className="mb-6">
+        <ApprovalStatusFilter value={statusFilter} onChange={handleStatusFilter} />
+      </div>
+
       <div className="md:bg-white md:rounded-2xl md:border border-border-custom overflow-hidden md:shadow-sm">
         <div className="overflow-x-auto md:overflow-visible">
           <table className="w-full text-left text-sm whitespace-nowrap block md:table">
@@ -153,6 +199,7 @@ function GerenciarParceirosPageContent() {
               <tr>
                 <th className="px-6 py-4">Nome</th>
                 <th className="px-6 py-4">Categoria</th>
+                <th className="px-6 py-4">Enviado por</th>
                 <th className="px-6 py-4">Localização</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4 text-right">Ações</th>
@@ -161,13 +208,13 @@ function GerenciarParceirosPageContent() {
             <tbody className="block md:table-row-group divide-y-0 md:divide-y divide-border-custom px-4 md:px-0 space-y-4 md:space-y-0">
               {loading ? (
                 <tr className="block md:table-row">
-                  <td colSpan={5} className="block md:table-cell px-6 py-8 text-center text-foreground/50">
+                  <td colSpan={6} className="block md:table-cell px-6 py-8 text-center text-foreground/50">
                     Carregando parceiros...
                   </td>
                 </tr>
               ) : partners.length === 0 ? (
                 <tr className="block md:table-row">
-                  <td colSpan={5} className="block md:table-cell px-6 py-8 text-center text-foreground/50">
+                  <td colSpan={6} className="block md:table-cell px-6 py-8 text-center text-foreground/50">
                     Nenhum parceiro encontrado.
                   </td>
                 </tr>
@@ -184,6 +231,10 @@ function GerenciarParceirosPageContent() {
                         {partner.category}
                       </span>
                     </td>
+                    <td className="flex flex-col sm:flex-row sm:items-center justify-between md:table-cell px-5 py-4 md:px-6 border-b border-border-custom/50 md:border-0 gap-1 sm:gap-0">
+                      <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Enviado por</span>
+                      <AuthorInfo author={partner.createdBy} className="text-right md:text-left" />
+                    </td>
                     <td className="flex flex-col sm:flex-row sm:items-center justify-between md:table-cell px-5 py-4 md:px-6 text-foreground/70 border-b border-border-custom/50 md:border-0 gap-1 sm:gap-0">
                       <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Localização</span>
                       <span>{partner.city}, {partner.state}</span>
@@ -191,15 +242,19 @@ function GerenciarParceirosPageContent() {
                     <td className="flex flex-col sm:flex-row sm:items-center justify-between md:table-cell px-5 py-4 md:px-6 border-b border-border-custom/50 md:border-0 gap-1 sm:gap-0">
                       <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Status</span>
                       <span>
-                        {partner.status ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-green-50 text-green-700 border border-green-200">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            Ativo
+                        {partner.approvalStatus === 'APROVADO' && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> APROVADO
                           </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-red-50 text-red-700 border border-red-200">
-                            <XCircle className="w-3.5 h-3.5" />
-                            Inativo
+                        )}
+                        {partner.approvalStatus === 'REPROVADO' && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-100 text-red-700 text-xs font-bold">
+                            <XCircle className="w-3.5 h-3.5" /> REPROVADO
+                          </span>
+                        )}
+                        {partner.approvalStatus === 'PENDENTE' && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">
+                            <Clock className="w-3.5 h-3.5" /> PENDENTE
                           </span>
                         )}
                       </span>
@@ -207,6 +262,24 @@ function GerenciarParceirosPageContent() {
                     <td className="flex items-center justify-between md:justify-end md:table-cell px-5 py-4 md:px-6 bg-gray-50/50 md:bg-transparent rounded-b-2xl md:rounded-none">
                       <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Ações</span>
                       <div className="flex items-center justify-end gap-2">
+                        {partner.approvalStatus !== 'APROVADO' && (
+                          <button
+                            onClick={() => handleStatusChange(partner.id, 'APROVADO')}
+                            className="p-2 text-emerald-600 hover:text-emerald-700 transition-colors rounded-lg hover:bg-emerald-50 border border-emerald-100 md:border-transparent bg-white md:bg-transparent shadow-sm md:shadow-none"
+                            title="Aprovar"
+                          >
+                            <CheckCircle2 className="w-5 h-5" />
+                          </button>
+                        )}
+                        {partner.approvalStatus !== 'REPROVADO' && (
+                          <button
+                            onClick={() => handleStatusChange(partner.id, 'REPROVADO')}
+                            className="p-2 text-red-600 hover:text-red-700 transition-colors rounded-lg hover:bg-red-50 border border-red-100 md:border-transparent bg-white md:bg-transparent shadow-sm md:shadow-none"
+                            title="Reprovar"
+                          >
+                            <XCircle className="w-5 h-5" />
+                          </button>
+                        )}
                         <Link
                           href={`/rede/${partner.id}/editar`}
                           className="p-2 text-primary hover:bg-beige rounded-lg transition-colors border border-border-custom md:border-transparent bg-white md:bg-transparent shadow-sm md:shadow-none"

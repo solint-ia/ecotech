@@ -60,7 +60,15 @@ export class LibraryService {
     const content = await this.prisma.libraryContent.findUnique({
       where: { id },
       include: {
-        user: { select: { id: true, name: true, profileImage: true } },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            profileImage: true,
+            role: true,
+            school: { select: { id: true, name: true } },
+          },
+        },
         school: { select: { id: true, name: true, coverImage: true } },
       }
     });
@@ -227,7 +235,14 @@ export class LibraryService {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          user: { select: { id: true, name: true } },
+          user: {
+            select: {
+              id: true,
+              name: true,
+              role: true,
+              school: { select: { id: true, name: true } },
+            },
+          },
           school: { select: { id: true, name: true } },
         }
       }),

@@ -8,6 +8,11 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PdfSource } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import {
+  assertCanManageTrail,
+  canManageTrail,
+  RequestingUser,
+} from '../../common/authorization/content-ownership';
 import { CreateEducationalPointDto, PdfModeEnum } from './dto/create-educational-point.dto';
 import { UpdateEducationalPointDto } from './dto/update-educational-point.dto';
 import * as fs from 'fs';
@@ -486,7 +491,7 @@ async function generatePdf(point: {
       doc.switchToPage(i);
       doc.rect(0, pageHeight - FOOTER_H, pageWidth, FOOTER_H).fill(PDF_FLORESTA);
       doc.fillOpacity(0.6).fill(PDF_CREME).font('Courier').fontSize(8);
-      doc.text('EDUCACAO AMBIENTAL - TRILHAS EDUCATIVAS', MX, pageHeight - FOOTER_H + 13, { lineBreak: false });
+      doc.text('EDUCACAO AMBIENTAL - TRILHAS INTERPRETATIVAS', MX, pageHeight - FOOTER_H + 13, { lineBreak: false });
       const rightTxt = '(c) 2026 ECOTECH';
       const rightW = doc.widthOfString(rightTxt);
       doc.text(rightTxt, pageWidth - MX - rightW, pageHeight - FOOTER_H + 13, { lineBreak: false });
@@ -507,7 +512,14 @@ export class EducationalPointsService {
     private analyticsCache: AnalyticsCacheService,
   ) { }
 
-  async findBySlug(slug: string) {
+  /**
+   * The QR code is an operational asset (it is printed and installed on site),
+   * not public content: only the admin, the owning school and the authoring
+   * teacher may see it. Stripping it here rather than in the UI is what actually
+   * protects it — these endpoints are public, so anything left in the payload is
+   * readable with a plain GET.
+   */
+  async findBySlug(slug: string, requestingUser?: RequestingUser) {
     const point = await this.prisma.educationalPoint.findFirst({
       where: { slug, status: true, trail: { status: true } },
       include: {
@@ -516,6 +528,8 @@ export class EducationalPointsService {
             title: true,
             slug: true,
             wikilocUrl: true,
+            schoolId: true,
+            createdById: true,
             school: { select: { name: true } },
           },
         },
@@ -524,14 +538,35 @@ export class EducationalPointsService {
     });
 
     if (!point) {
-      throw new NotFoundException('Ponto educativo não encontrado.');
+      throw new NotFoundException('Ponto interpretativo não encontrado.');
     }
 
-    return point;
+    const canSeeQrCode = !!requestingUser && canManageTrail(requestingUser, point.trail);
+    return { ...point, qrCodes: canSeeQrCode ? point.qrCodes : [], canSeeQrCode };
   }
 
-  async findByTrail(trailId: string, includeUnpublished = false) {
-    return this.prisma.educationalPoint.findMany({
+  async findByTrail(
+    trailId: string,
+    includeUnpublished = false,
+    requestingUser?: RequestingUser,
+  ) {
+    const trail = await this.prisma.trail.findUnique({
+      where: { id: trailId },
+      select: { schoolId: true, createdById: true },
+    });
+
+    if (!trail) throw new NotFoundException('Trilha não encontrada.');
+
+    const canManage = !!requestingUser && canManageTrail(requestingUser, trail);
+
+    // Unpublished points are drafts — only the trail's owners may list them.
+    if (includeUnpublished && !canManage) {
+      throw new ForbiddenException('Você não tem permissão para ver os pontos desta trilha.');
+    }
+
+    const canSeeQrCode = canManage;
+
+    const points = await this.prisma.educationalPoint.findMany({
       where: {
         trailId,
         ...(includeUnpublished ? {} : { status: true }),
@@ -541,6 +576,8 @@ export class EducationalPointsService {
         qrCodes: { orderBy: { createdAt: 'desc' }, take: 1, select: { qrImage: true } },
       },
     });
+
+    return points.map((point) => ({ ...point, qrCodes: canSeeQrCode ? point.qrCodes : [] }));
   }
 
   async create(
@@ -551,14 +588,23 @@ export class EducationalPointsService {
     // Validate trail access
     const trail = await this.prisma.trail.findUnique({
       where: { id: dto.trailId },
-      select: { id: true, title: true, slug: true, schoolId: true, school: { select: { name: true } } },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        schoolId: true,
+        createdById: true,
+        school: { select: { name: true } },
+      },
     });
 
     if (!trail) throw new NotFoundException('Trilha não encontrada.');
 
-    if (requestingUser.role === 'SCHOOL_MANAGER' && trail.schoolId !== requestingUser.schoolId) {
-      throw new ForbiddenException('Você não tem permissão para adicionar pontos a esta trilha.');
-    }
+    assertCanManageTrail(
+      requestingUser,
+      trail,
+      'Você não tem permissão para adicionar pontos a esta trilha.',
+    );
 
     // Validate if the sequence order is already taken in this trail
     const existingPointWithOrder = await this.prisma.educationalPoint.findFirst({
@@ -630,17 +676,26 @@ export class EducationalPointsService {
   ) {
     const point = await this.prisma.educationalPoint.findUnique({
       where: { id },
-      include: { trail: { select: { schoolId: true, title: true, slug: true, school: { select: { name: true } } } } },
+      include: {
+        trail: {
+          select: {
+            schoolId: true,
+            createdById: true,
+            title: true,
+            slug: true,
+            school: { select: { name: true } },
+          },
+        },
+      },
     });
 
-    if (!point) throw new NotFoundException('Ponto educativo não encontrado.');
+    if (!point) throw new NotFoundException('Ponto interpretativo não encontrado.');
 
-    if (
-      requestingUser.role === 'SCHOOL_MANAGER' &&
-      point.trail.schoolId !== requestingUser.schoolId
-    ) {
-      throw new ForbiddenException('Você não tem permissão para editar este ponto.');
-    }
+    assertCanManageTrail(
+      requestingUser,
+      point.trail,
+      'Você não tem permissão para editar este ponto.',
+    );
 
     // Validate if the new sequence order is already taken in this trail
     if (dto.order !== undefined && dto.order !== point.order) {
@@ -809,17 +864,16 @@ export class EducationalPointsService {
   ) {
     const point = await this.prisma.educationalPoint.findUnique({
       where: { id },
-      include: { trail: { select: { schoolId: true } } },
+      include: { trail: { select: { schoolId: true, createdById: true } } },
     });
 
-    if (!point) throw new NotFoundException('Ponto educativo não encontrado.');
+    if (!point) throw new NotFoundException('Ponto interpretativo não encontrado.');
 
-    if (
-      requestingUser.role === 'SCHOOL_MANAGER' &&
-      point.trail.schoolId !== requestingUser.schoolId
-    ) {
-      throw new ForbiddenException('Você não tem permissão para excluir este ponto.');
-    }
+    assertCanManageTrail(
+      requestingUser,
+      point.trail,
+      'Você não tem permissão para excluir este ponto.',
+    );
 
     // Clean up files in Supabase if needed (optional)
     if (point.pdfUrl && point.pdfUrl.includes('supabase')) {

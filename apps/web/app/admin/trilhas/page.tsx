@@ -9,6 +9,7 @@ import { getImageUrl } from '../../../lib/image-url';
 import { Pagination } from '../../../components/shared/Pagination';
 import ConfirmDeleteModal from '../../../components/feed/ConfirmDeleteModal';
 import ApprovalStatusFilter from '../../../components/shared/ApprovalStatusFilter';
+import { AuthorInfo, Author } from '../../../components/shared/AuthorInfo';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -23,7 +24,7 @@ interface TrailSubmission {
   createdAt: string;
   coverImage: string;
   school?: { id: string; name: string } | null;
-  createdBy?: { id: string; name: string } | null;
+  createdBy?: Author | null;
 }
 
 function AdminTrilhasPageContent() {
@@ -181,9 +182,7 @@ function AdminTrilhasPageContent() {
                       <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Escola / Criador</span>
                       <div className="text-right md:text-left">
                         <p className="text-sm font-medium text-foreground/80">{sub.school?.name || '—'}</p>
-                        <p className="text-xs text-foreground/50 mt-0.5">
-                          Criado por: {sub.createdBy?.name || '—'}
-                        </p>
+                        <AuthorInfo author={sub.createdBy} className="mt-0.5" />
                       </div>
                     </td>
                     <td className="flex flex-col sm:flex-row sm:items-center justify-between md:table-cell p-5 md:p-4 text-sm text-foreground/70 border-b border-border-custom/50 md:border-0 gap-1 sm:gap-0">

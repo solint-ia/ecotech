@@ -29,10 +29,10 @@ export function AuthFooter() {
               <span className="font-bold text-[#0B5D3B] text-xl tracking-tight">Ecotech</span>
             </div>
             <h3 className="text-[#4F8A4C] font-semibold text-sm tracking-wide">
-              Educação Ambiental e Trilhas Educativas
+              Educação Ambiental e Trilhas Interpretativas
             </h3>
             <p className="text-primary/60 text-sm leading-relaxed">
-              Conectamos pessoas, escolas e comunidades através da educação ambiental, das trilhas educativas e da tecnologia.
+              Conectamos pessoas, escolas e comunidades através da educação ambiental, das trilhas interpretativas e da tecnologia.
             </p>
           </div>
 

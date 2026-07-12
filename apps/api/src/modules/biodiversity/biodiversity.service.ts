@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { assertCanManageTrail } from '../../common/authorization/content-ownership';
 import { CreateBiodiversityDto } from './dto/create-biodiversity.dto';
 import { UpdateBiodiversityDto } from './dto/update-biodiversity.dto';
 import * as path from 'path';
@@ -23,14 +24,16 @@ export class BiodiversityService {
     // Validate trail access
     const trail = await this.prisma.trail.findUnique({
       where: { id: dto.trailId },
-      select: { id: true, schoolId: true },
+      select: { id: true, schoolId: true, createdById: true },
     });
 
     if (!trail) throw new NotFoundException('Trilha não encontrada.');
 
-    if (requestingUser.role === 'SCHOOL_MANAGER' && trail.schoolId !== requestingUser.schoolId) {
-      throw new ForbiddenException('Você não tem permissão para adicionar itens a esta trilha.');
-    }
+    assertCanManageTrail(
+      requestingUser,
+      trail,
+      'Você não tem permissão para adicionar itens a esta trilha.',
+    );
 
     return this.prisma.biodiversityItem.create({
       data: {
@@ -53,14 +56,16 @@ export class BiodiversityService {
   ) {
     const item = await this.prisma.biodiversityItem.findUnique({
       where: { id },
-      include: { trail: { select: { schoolId: true } } },
+      include: { trail: { select: { schoolId: true, createdById: true } } },
     });
 
     if (!item) throw new NotFoundException('Item de biodiversidade não encontrado.');
 
-    if (requestingUser.role === 'SCHOOL_MANAGER' && item.trail.schoolId !== requestingUser.schoolId) {
-      throw new ForbiddenException('Você não tem permissão para editar este item.');
-    }
+    assertCanManageTrail(
+      requestingUser,
+      item.trail,
+      'Você não tem permissão para editar este item.',
+    );
 
     return this.prisma.biodiversityItem.update({
       where: { id },
@@ -76,14 +81,16 @@ export class BiodiversityService {
   ) {
     const item = await this.prisma.biodiversityItem.findUnique({
       where: { id },
-      include: { trail: { select: { schoolId: true } } },
+      include: { trail: { select: { schoolId: true, createdById: true } } },
     });
 
     if (!item) throw new NotFoundException('Item de biodiversidade não encontrado.');
 
-    if (requestingUser.role === 'SCHOOL_MANAGER' && item.trail.schoolId !== requestingUser.schoolId) {
-      throw new ForbiddenException('Você não tem permissão para excluir este item.');
-    }
+    assertCanManageTrail(
+      requestingUser,
+      item.trail,
+      'Você não tem permissão para excluir este item.',
+    );
 
     // Clean up file if it exists
     if (item.image) {

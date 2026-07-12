@@ -6,6 +6,7 @@ import TrailDetailTabs from '../../../components/trilhas/TrailDetailTabs';
 import TrailActions from '../../../components/trilhas/TrailActions';
 import { TrailGallery } from '../../../components/trilhas/TrailGallery';
 import { CommunityGallery } from '../../../components/trilhas/CommunityGallery';
+import { AuthorInfo } from '../../../components/shared/AuthorInfo';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -117,16 +118,31 @@ export default async function TrailDetailPage({ params }: { params: Promise<{ sl
         )}
         {trail.educationalPoints && (
           <span className="inline-flex items-center gap-1.5 text-xs bg-white text-foreground/70 font-semibold px-3.5 py-2 rounded-full border border-border-custom shadow-sm">
-            📍 {trail.educationalPoints.length} pontos educativos
+            📍 {trail.educationalPoints.length} pontos interpretativos
           </span>
         )}
       </div>
+
+      {/* Who published the trail */}
+      {trail.createdBy && (
+        <div className="flex items-center gap-2 mb-8 bg-white rounded-xl border border-border-custom px-4 py-3">
+          <span className="text-xs font-bold text-foreground/50 uppercase tracking-wider shrink-0">
+            Criado por
+          </span>
+          <AuthorInfo author={trail.createdBy} school={trail.school} />
+        </div>
+      )}
 
       {/* Tabs (Client Component) */}
       <TrailDetailTabs trail={trail} />
 
       {/* Official Gallery Section */}
-      <TrailGallery trailId={trail.id} trailSchoolId={trail.schoolId} photos={trail.photos || []} />
+      <TrailGallery
+        trailId={trail.id}
+        trailSchoolId={trail.schoolId}
+        trailCreatedById={trail.createdById}
+        photos={trail.photos || []}
+      />
 
       {/* Community Gallery Section */}
       <CommunityGallery trailId={trail.id} />

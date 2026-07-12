@@ -12,6 +12,7 @@ import { Pagination } from '../../components/shared/Pagination';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 import TrailCard, { Trail } from '../../components/trilhas/TrailCard';
+import { canCreateContent } from '../../lib/permissions';
 
 // const DIFFICULTY_LABELS and interface Trail were extracted to TrailCard.tsx
 
@@ -20,8 +21,7 @@ import TrailCard, { Trail } from '../../components/trilhas/TrailCard';
 function TrilhasPageContent() {
   const { data: session } = useSession();
   const user = session?.user as any;
-  const isApproved = user?.roleStatus === 'APROVADO';
-  const canManageTrails = user?.role === 'ADMIN' || (['SCHOOL_MANAGER', 'TEACHER'].includes(user?.role) && isApproved);
+  const canManageTrails = canCreateContent(user);
 
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -138,9 +138,9 @@ function TrilhasPageContent() {
       {/* Page Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-primary mb-1">Trilhas Ecológicas</h1>
+          <h1 className="text-2xl font-bold text-primary mb-1">Trilhas Interpretativas</h1>
           <p className="text-sm text-foreground/70">
-            Explore trilhas educativas e conheça a biodiversidade local
+            Explore trilhas interpretativas e conheça a biodiversidade local
           </p>
         </div>
         <div className="flex items-center gap-3">

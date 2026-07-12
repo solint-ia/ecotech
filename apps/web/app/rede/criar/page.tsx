@@ -10,6 +10,7 @@ import { OpeningHoursEditor } from '../../../components/rede/OpeningHoursEditor'
 
 import { formatPhone, validatePhone } from '../../../lib/validation';
 import { OpeningHours, createEmptySchedule, validateSchedule } from '../../../lib/opening-hours';
+import { canCreateContent } from '../../../lib/permissions';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -43,11 +44,12 @@ export default function CriarParceiroPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Redirect if not authorized
+  // Redirect if not authorized. Approved schools and teachers may submit a
+  // partner; it reaches the public directory only after the admin approves it.
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login');
-    } else if (status === 'authenticated' && user?.role !== 'ADMIN') {
+    } else if (status === 'authenticated' && !canCreateContent(user)) {
       router.push('/rede');
     }
   }, [status, user, router]);

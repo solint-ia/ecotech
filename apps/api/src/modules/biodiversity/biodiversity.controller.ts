@@ -38,7 +38,7 @@ export class BiodiversityController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'SCHOOL_MANAGER')
+  @Roles('ADMIN', 'SCHOOL_MANAGER', 'TEACHER')
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(AnyFilesInterceptor({ storage }))
@@ -59,7 +59,7 @@ export class BiodiversityController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'SCHOOL_MANAGER')
+  @Roles('ADMIN', 'SCHOOL_MANAGER', 'TEACHER')
   @Patch(':id')
   @UseInterceptors(AnyFilesInterceptor({ storage }))
   async update(
@@ -80,7 +80,7 @@ export class BiodiversityController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'SCHOOL_MANAGER')
+  @Roles('ADMIN', 'SCHOOL_MANAGER', 'TEACHER')
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: string, @CurrentUser() user: any) {
