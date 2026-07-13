@@ -39,37 +39,47 @@ export class DayScheduleDto {
   shifts: ShiftDto[];
 }
 
+/** Espaços em branco não valem como preenchimento. */
+const trim = () =>
+  Transform(({ value }) => (typeof value === 'string' ? value.trim() : value));
+
 export class CreatePartnerDto {
-  @IsString()
-  @IsNotEmpty()
+  @trim()
+  @IsString({ message: 'O nome do parceiro é obrigatório.' })
+  @IsNotEmpty({ message: 'O nome do parceiro é obrigatório.' })
   name: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @trim()
+  @IsString({ message: 'A categoria é obrigatória.' })
+  @IsNotEmpty({ message: 'A categoria é obrigatória.' })
   category: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @trim()
+  @IsString({ message: 'A descrição é obrigatória.' })
+  @IsNotEmpty({ message: 'A descrição é obrigatória.' })
   description: string;
 
   @IsOptional()
   @IsString()
   coverImage?: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @trim()
+  @IsString({ message: 'O endereço é obrigatório.' })
+  @IsNotEmpty({ message: 'O endereço é obrigatório.' })
   address: string;
 
   @IsString()
   @IsOptional()
   state?: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @trim()
+  @IsString({ message: 'A cidade é obrigatória.' })
+  @IsNotEmpty({ message: 'A cidade é obrigatória.' })
   city: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @trim()
+  @IsString({ message: 'O telefone é obrigatório.' })
+  @IsNotEmpty({ message: 'O telefone é obrigatório.' })
   phone: string;
 
   @IsOptional()
@@ -82,10 +92,10 @@ export class CreatePartnerDto {
 
   @IsOptional()
   @IsString()
-  @IsUrl()
+  @IsUrl({}, { message: 'Informe um site válido (ex.: https://exemplo.com).' })
   website?: string;
 
-  @IsArray()
+  @IsArray({ message: 'Informe o horário de funcionamento.' })
   @ValidateNested({ each: true })
   @Transform(({ value }): DayScheduleDto[] => {
     const parsed = (

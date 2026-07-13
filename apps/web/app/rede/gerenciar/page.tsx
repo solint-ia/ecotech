@@ -194,15 +194,19 @@ function GerenciarParceirosPageContent() {
 
       <div className="md:bg-white md:rounded-2xl md:border border-border-custom overflow-hidden md:shadow-sm">
         <div className="overflow-x-auto md:overflow-visible">
-          <table className="w-full text-left text-sm whitespace-nowrap block md:table">
+          {/* Sem `whitespace-nowrap` no table: com nowrap global, um nome ou
+              endereço longo estica a tabela e empurra a coluna de Ações para
+              fora da área visível no desktop (que não tem rolagem lateral). */}
+          <table className="w-full text-left text-sm block md:table">
             <thead className="hidden md:table-header-group bg-[#FAFCFA] border-b border-border-custom text-foreground/60 font-medium">
               <tr>
                 <th className="px-6 py-4">Nome</th>
                 <th className="px-6 py-4">Categoria</th>
                 <th className="px-6 py-4">Enviado por</th>
                 <th className="px-6 py-4">Localização</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 text-right">Ações</th>
+                <th className="px-6 py-4 whitespace-nowrap">Status</th>
+                {/* w-0 + nowrap: a coluna encolhe até o tamanho dos botões e nunca é espremida. */}
+                <th className="px-6 py-4 text-right w-0 whitespace-nowrap">Ações</th>
               </tr>
             </thead>
             <tbody className="block md:table-row-group divide-y-0 md:divide-y divide-border-custom px-4 md:px-0 space-y-4 md:space-y-0">
@@ -223,7 +227,7 @@ function GerenciarParceirosPageContent() {
                   <tr key={partner.id} className="block md:table-row bg-white border border-border-custom md:border-0 rounded-2xl md:rounded-none shadow-sm md:shadow-none hover:bg-[#FAFCFA] transition-colors">
                     <td className="flex flex-col sm:flex-row sm:items-center justify-between md:table-cell px-5 py-4 md:px-6 border-b border-border-custom/50 md:border-0 gap-1 sm:gap-0">
                       <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Nome</span>
-                      <span className="font-semibold text-primary">{partner.name}</span>
+                      <span className="font-semibold text-primary break-words">{partner.name}</span>
                     </td>
                     <td className="flex flex-col sm:flex-row sm:items-center justify-between md:table-cell px-5 py-4 md:px-6 border-b border-border-custom/50 md:border-0 gap-1 sm:gap-0">
                       <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Categoria</span>
@@ -239,7 +243,7 @@ function GerenciarParceirosPageContent() {
                       <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Localização</span>
                       <span>{partner.city}, {partner.state}</span>
                     </td>
-                    <td className="flex flex-col sm:flex-row sm:items-center justify-between md:table-cell px-5 py-4 md:px-6 border-b border-border-custom/50 md:border-0 gap-1 sm:gap-0">
+                    <td className="flex flex-col sm:flex-row sm:items-center justify-between md:table-cell px-5 py-4 md:px-6 border-b border-border-custom/50 md:border-0 gap-1 sm:gap-0 md:whitespace-nowrap">
                       <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Status</span>
                       <span>
                         {partner.approvalStatus === 'APROVADO' && (
@@ -259,7 +263,7 @@ function GerenciarParceirosPageContent() {
                         )}
                       </span>
                     </td>
-                    <td className="flex items-center justify-between md:justify-end md:table-cell px-5 py-4 md:px-6 bg-gray-50/50 md:bg-transparent rounded-b-2xl md:rounded-none">
+                    <td className="flex items-center justify-between md:justify-end md:table-cell px-5 py-4 md:px-6 bg-gray-50/50 md:bg-transparent rounded-b-2xl md:rounded-none md:w-0 md:whitespace-nowrap">
                       <span className="md:hidden text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Ações</span>
                       <div className="flex items-center justify-end gap-2">
                         {partner.approvalStatus !== 'APROVADO' && (

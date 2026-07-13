@@ -102,6 +102,21 @@ export default function EditarParceiroPage() {
     setSaving(true);
     setError('');
 
+    // Campos obrigatórios: avisa aqui em vez de deixar a API responder.
+    const required: [string, string][] = [
+      [name, 'O nome do parceiro é obrigatório.'],
+      [category, 'A categoria é obrigatória.'],
+      [description, 'A descrição é obrigatória.'],
+      [address, 'O endereço é obrigatório.'],
+      [city, 'A cidade é obrigatória.'],
+    ];
+    const missing = required.find(([value]) => !value?.trim());
+    if (missing) {
+      setError(missing[1]);
+      setSaving(false);
+      return;
+    }
+
     const scheduleError = validateSchedule(schedule);
     if (scheduleError) {
       setError(scheduleError);
