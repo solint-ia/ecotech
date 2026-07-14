@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Fragment } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle2, XCircle, Clock, BookOpen, ExternalLink, ArrowLeft, Trash2, Edit2, Plus } from 'lucide-react';
 import { getImageUrl } from '../../../lib/image-url';
 import ConfirmDeleteModal from '../../../components/feed/ConfirmDeleteModal';
+import RejectionNotice from '../../../components/shared/RejectionNotice';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -15,6 +16,7 @@ interface MyMaterial {
   title: string;
   contentType: string;
   approvalStatus: 'PENDENTE' | 'APROVADO' | 'REPROVADO';
+  rejectionReason?: string | null;
   createdAt: string;
   coverImage: string;
   versionOfId: string | null;
@@ -195,6 +197,10 @@ export default function MyMaterialsPage() {
                       </button>
                     </div>
                   </div>
+
+                  {sub.approvalStatus === 'REPROVADO' && (
+                    <RejectionNotice reason={sub.rejectionReason} />
+                  )}
                 </div>
               ))}
             </div>
@@ -211,8 +217,14 @@ export default function MyMaterialsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {materials.map((sub) => (
-                    <tr key={sub.id} className="border-b border-border-custom/50 hover:bg-beige/30 transition-colors">
+                  {materials.map((sub) => {
+                    // The reason gets its own full-width row right under the material's,
+                    // so the bottom border moves down to keep the two visually joined.
+                    const showReason =
+                      sub.approvalStatus === 'REPROVADO' && !!sub.rejectionReason;
+                    return (
+                    <Fragment key={sub.id}>
+                    <tr className={`hover:bg-beige/30 transition-colors ${showReason ? '' : 'border-b border-border-custom/50'}`}>
                       <td className="p-4">
                         <div className="flex items-center gap-3">
                           <img 
@@ -272,7 +284,16 @@ export default function MyMaterialsPage() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    {showReason && (
+                      <tr className="border-b border-border-custom/50">
+                        <td colSpan={4} className="px-4 pb-4 pt-0">
+                          <RejectionNotice reason={sub.rejectionReason} />
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

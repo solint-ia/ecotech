@@ -188,6 +188,9 @@ model Trail {
   // queue until it is submitted for publication.
   isDraft          Boolean            @default(false)
   approvalStatus   ApprovalStatus     @default(PENDENTE)
+  // Why an admin rejected this. Surfaced back to the author; cleared whenever
+  // the trail leaves the REPROVADO state.
+  rejectionReason  String?
   viewsCount       Int                @default(0)
   likesCount       Int                @default(0)
   createdAt        DateTime           @default(now())
@@ -385,6 +388,9 @@ model LibraryContent {
   userId         String
   schoolId       String?
   approvalStatus ApprovalStatus @default(PENDENTE)
+  // Why an admin rejected this. Shown back to the author on "Meus Materiais";
+  // cleared whenever the item leaves the REPROVADO state.
+  rejectionReason String?
   publishedAt    DateTime?
   versionOfId    String?
   createdAt      DateTime       @default(now())
@@ -414,6 +420,9 @@ model Partner {
   // stay publicly visible after the column is added. PartnersService always
   // sets this explicitly: APROVADO for admins, PENDENTE for schools/teachers.
   approvalStatus ApprovalStatus @default(APROVADO)
+  // Why an admin rejected this. Shown back to the author on "Meus Parceiros";
+  // cleared whenever the item leaves the REPROVADO state.
+  rejectionReason String?
   createdById  String?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt

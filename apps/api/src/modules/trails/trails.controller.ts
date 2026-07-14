@@ -25,7 +25,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { SupabaseService } from '../supabase/supabase.service';
-import { ApprovalStatus } from '@prisma/client';
+import { UpdateApprovalDto } from '../../common/dto/update-approval.dto';
 
 const storage = memoryStorage();
 
@@ -181,12 +181,9 @@ export class TrailsController {
   @Patch(':id/approval')
   updateApproval(
     @Param('id') id: string,
-    @Body('status') status: ApprovalStatus,
+    @Body() dto: UpdateApprovalDto,
   ) {
-    if (!Object.values(ApprovalStatus).includes(status)) {
-      throw new BadRequestException('Status inválido.');
-    }
-    return this.trailsService.updateApprovalStatus(id, status);
+    return this.trailsService.updateApprovalStatus(id, dto.status, dto.reason);
   }
 
   /** DELETE /trails/:id - Delete trail (ADMIN, owning SCHOOL_MANAGER or authoring TEACHER) */

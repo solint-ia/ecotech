@@ -22,7 +22,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { ApprovalStatus } from '@prisma/client';
+import { UpdateApprovalDto } from '../../common/dto/update-approval.dto';
 import { OptionalJwtAuthGuard } from '../../common/guards/optional-jwt-auth.guard';
 import { SupabaseService } from '../supabase/supabase.service';
 
@@ -166,12 +166,9 @@ export class LibraryController {
   @Patch(':id/status')
   updateStatus(
     @Param('id') id: string,
-    @Body('status') status: ApprovalStatus,
+    @Body() dto: UpdateApprovalDto,
   ) {
-    if (!Object.values(ApprovalStatus).includes(status)) {
-      throw new BadRequestException('Status inválido.');
-    }
-    return this.libraryService.updateStatus(id, status);
+    return this.libraryService.updateStatus(id, dto.status, dto.reason);
   }
 
   @UseGuards(JwtAuthGuard)

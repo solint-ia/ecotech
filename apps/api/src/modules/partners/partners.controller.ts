@@ -17,10 +17,10 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import { ApprovalStatus } from '@prisma/client';
 import { PartnersService } from './partners.service';
 import { CreatePartnerDto } from './dto/create-partner.dto';
 import { UpdatePartnerDto } from './dto/update-partner.dto';
+import { UpdateApprovalDto } from '../../common/dto/update-approval.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../../common/guards/optional-jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -163,11 +163,8 @@ export class PartnersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Patch(':id/status')
-  updateStatus(@Param('id') id: string, @Body('status') status: ApprovalStatus) {
-    if (!Object.values(ApprovalStatus).includes(status)) {
-      throw new BadRequestException('Status inválido.');
-    }
-    return this.partnersService.updateStatus(id, status);
+  updateStatus(@Param('id') id: string, @Body() dto: UpdateApprovalDto) {
+    return this.partnersService.updateStatus(id, dto.status, dto.reason);
   }
 
   /** DELETE /partners/:id - Delete partner (ADMIN or the user who registered it) */

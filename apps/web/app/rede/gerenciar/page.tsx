@@ -7,14 +7,17 @@ import Link from 'next/link';
 import { Store, ArrowLeft, Edit2, Trash2, CheckCircle2, XCircle, Clock, Search } from 'lucide-react';
 import { Partner } from '../../../components/rede/PartnerCard';
 import ConfirmDeleteModal from '../../../components/feed/ConfirmDeleteModal';
+import RejectModal from '../../../components/shared/RejectModal';
 import { Pagination } from '../../../components/shared/Pagination';
 import ApprovalStatusFilter from '../../../components/shared/ApprovalStatusFilter';
 import { AuthorInfo, Author } from '../../../components/shared/AuthorInfo';
+import { extractApiError } from '../../../lib/api-error';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 interface PartnerSubmission extends Partner {
   approvalStatus: 'PENDENTE' | 'APROVADO' | 'REPROVADO';
+  rejectionReason?: string | null;
   createdAt: string;
   createdBy?: Author | null;
 }
@@ -39,6 +42,9 @@ function GerenciarParceirosPageContent() {
   const [error, setError] = useState('');
   const [partnerToDelete, setPartnerToDelete] = useState<{ id: string, name: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [partnerToReject, setPartnerToReject] = useState<{ id: string, name: string } | null>(null);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [rejectError, setRejectError] = useState('');
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -103,10 +109,47 @@ function GerenciarParceirosPageContent() {
       });
       if (!res.ok) throw new Error('Falha ao atualizar o status do parceiro.');
       setPartners(prev =>
-        prev.map(p => (p.id === id ? { ...p, approvalStatus: newStatus as any } : p)),
+        prev.map(p =>
+          // Approving clears any previous rejection, mirroring what the API stores.
+          p.id === id ? { ...p, approvalStatus: newStatus as any, rejectionReason: null } : p,
+        ),
       );
     } catch (err: any) {
       setError(err.message || 'Erro ao atualizar o status.');
+    }
+  };
+
+  // Rejection is the one transition that needs a justification, so it goes through
+  // a modal. Errors stay inside it — closing would throw away the typed reason.
+  const confirmReject = async (reason: string) => {
+    if (!partnerToReject || !user?.accessToken) return;
+    setIsRejecting(true);
+    setRejectError('');
+    try {
+      const res = await fetch(`${API_URL}/partners/${partnerToReject.id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${user.accessToken}`,
+        },
+        body: JSON.stringify({ status: 'REPROVADO', reason }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(extractApiError(body, 'Falha ao reprovar o parceiro.'));
+      }
+      setPartners(prev =>
+        prev.map(p =>
+          p.id === partnerToReject.id
+            ? { ...p, approvalStatus: 'REPROVADO' as const, rejectionReason: reason }
+            : p,
+        ),
+      );
+      setPartnerToReject(null);
+    } catch (err: any) {
+      setRejectError(err.message || 'Erro ao reprovar o parceiro.');
+    } finally {
+      setIsRejecting(false);
     }
   };
 
@@ -277,7 +320,10 @@ function GerenciarParceirosPageContent() {
                         )}
                         {partner.approvalStatus !== 'REPROVADO' && (
                           <button
-                            onClick={() => handleStatusChange(partner.id, 'REPROVADO')}
+                            onClick={() => {
+                              setRejectError('');
+                              setPartnerToReject({ id: partner.id, name: partner.name });
+                            }}
                             className="p-2 text-red-600 hover:text-red-700 transition-colors rounded-lg hover:bg-red-50 border border-red-100 md:border-transparent bg-white md:bg-transparent shadow-sm md:shadow-none"
                             title="Reprovar"
                           >
@@ -318,6 +364,17 @@ function GerenciarParceirosPageContent() {
           loading={isDeleting}
           onConfirm={confirmDelete}
           onClose={() => !isDeleting && setPartnerToDelete(null)}
+        />
+      )}
+
+      {partnerToReject && (
+        <RejectModal
+          title="Reprovar Parceiro"
+          itemName={partnerToReject.name}
+          isLoading={isRejecting}
+          error={rejectError}
+          onConfirm={confirmReject}
+          onCancel={() => !isRejecting && setPartnerToReject(null)}
         />
       )}
     </div>

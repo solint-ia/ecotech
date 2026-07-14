@@ -421,7 +421,7 @@ export class TrailsService {
   }
 
   /** Admin-only: approve or reject a trail. Approving also publishes it. */
-  async updateApprovalStatus(id: string, status: ApprovalStatus) {
+  async updateApprovalStatus(id: string, status: ApprovalStatus, reason?: string) {
     const trail = await this.prisma.trail.findUnique({ where: { id } });
     if (!trail) throw new NotFoundException('Trilha não encontrada.');
 
@@ -431,6 +431,9 @@ export class TrailsService {
         approvalStatus: status,
         // Publish on approval; unpublish on rejection.
         status: status === ApprovalStatus.APROVADO,
+        // Only a rejection carries a justification; any other outcome clears the
+        // previous one so a re-approved trail keeps no stale rejection note.
+        rejectionReason: status === ApprovalStatus.REPROVADO ? reason ?? null : null,
       },
     });
 

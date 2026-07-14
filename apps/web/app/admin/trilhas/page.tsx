@@ -8,8 +8,10 @@ import { CheckCircle2, XCircle, Clock, Compass, ExternalLink, ArrowLeft, Trash2 
 import { getImageUrl } from '../../../lib/image-url';
 import { Pagination } from '../../../components/shared/Pagination';
 import ConfirmDeleteModal from '../../../components/feed/ConfirmDeleteModal';
+import RejectModal from '../../../components/shared/RejectModal';
 import ApprovalStatusFilter from '../../../components/shared/ApprovalStatusFilter';
 import { AuthorInfo, Author } from '../../../components/shared/AuthorInfo';
+import { extractApiError } from '../../../lib/api-error';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -21,6 +23,7 @@ interface TrailSubmission {
   state?: string | null;
   biome: string;
   approvalStatus: 'PENDENTE' | 'APROVADO' | 'REPROVADO';
+  rejectionReason?: string | null;
   createdAt: string;
   coverImage: string;
   school?: { id: string; name: string } | null;
@@ -41,6 +44,9 @@ function AdminTrilhasPageContent() {
   const [loading, setLoading] = useState(true);
   const [deletingTrailId, setDeletingTrailId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [trailToReject, setTrailToReject] = useState<{ id: string; title: string } | null>(null);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [rejectError, setRejectError] = useState('');
 
   const fetchSubmissions = useCallback(async () => {
     if (!user?.accessToken) return;
@@ -108,11 +114,48 @@ function AdminTrilhasPageContent() {
       });
       if (res.ok) {
         setSubmissions(prev =>
-          prev.map(sub => sub.id === id ? { ...sub, approvalStatus: newStatus as any } : sub)
+          prev.map(sub =>
+            // Approving clears any previous rejection, mirroring what the API stores.
+            sub.id === id ? { ...sub, approvalStatus: newStatus as any, rejectionReason: null } : sub
+          )
         );
       }
     } catch {
       console.error('Failed to change trail status');
+    }
+  };
+
+  // Rejection is the one transition that needs a justification, so it goes through
+  // a modal. Errors stay inside it — closing would throw away the typed reason.
+  const confirmReject = async (reason: string) => {
+    if (!trailToReject || !user?.accessToken) return;
+    setIsRejecting(true);
+    setRejectError('');
+    try {
+      const res = await fetch(`${API_URL}/trails/${trailToReject.id}/approval`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${user.accessToken}`
+        },
+        body: JSON.stringify({ status: 'REPROVADO', reason })
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(extractApiError(body, 'Falha ao reprovar a trilha.'));
+      }
+      setSubmissions(prev =>
+        prev.map(sub =>
+          sub.id === trailToReject.id
+            ? { ...sub, approvalStatus: 'REPROVADO' as const, rejectionReason: reason }
+            : sub
+        )
+      );
+      setTrailToReject(null);
+    } catch (err: any) {
+      setRejectError(err.message || 'Erro ao reprovar a trilha.');
+    } finally {
+      setIsRejecting(false);
     }
   };
 
@@ -231,7 +274,10 @@ function AdminTrilhasPageContent() {
                         )}
                         {sub.approvalStatus !== 'REPROVADO' && (
                           <button
-                            onClick={() => handleStatusChange(sub.id, 'REPROVADO')}
+                            onClick={() => {
+                              setRejectError('');
+                              setTrailToReject({ id: sub.id, title: sub.title });
+                            }}
                             className="p-2 text-red-600 hover:text-red-700 transition-colors rounded-lg hover:bg-red-50 border border-red-100 md:border-transparent bg-white md:bg-transparent shadow-sm md:shadow-none"
                             title="Reprovar"
                           >
@@ -264,6 +310,17 @@ function AdminTrilhasPageContent() {
           loading={isDeleting}
           onClose={() => setDeletingTrailId(null)}
           onConfirm={handleDelete}
+        />
+      )}
+
+      {trailToReject && (
+        <RejectModal
+          title="Reprovar Trilha"
+          itemName={trailToReject.title}
+          isLoading={isRejecting}
+          error={rejectError}
+          onConfirm={confirmReject}
+          onCancel={() => !isRejecting && setTrailToReject(null)}
         />
       )}
     </div>

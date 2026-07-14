@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Fragment } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -8,6 +8,7 @@ import { CheckCircle2, XCircle, Clock, Store, ExternalLink, ArrowLeft, Trash2, E
 import { getImageUrl } from '../../../lib/image-url';
 import ConfirmDeleteModal from '../../../components/feed/ConfirmDeleteModal';
 import ApprovalStatusFilter from '../../../components/shared/ApprovalStatusFilter';
+import RejectionNotice from '../../../components/shared/RejectionNotice';
 import { canCreateContent } from '../../../lib/permissions';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -20,6 +21,7 @@ interface MyPartner {
   state?: string;
   coverImage: string;
   approvalStatus: 'PENDENTE' | 'APROVADO' | 'REPROVADO';
+  rejectionReason?: string | null;
   createdAt: string;
 }
 
@@ -194,6 +196,10 @@ export default function MyPartnersPage() {
                       </button>
                     </div>
                   </div>
+
+                  {partner.approvalStatus === 'REPROVADO' && (
+                    <RejectionNotice reason={partner.rejectionReason} />
+                  )}
                 </div>
               ))}
             </div>
@@ -211,8 +217,14 @@ export default function MyPartnersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {partners.map((partner) => (
-                    <tr key={partner.id} className="border-b border-border-custom/50 hover:bg-beige/30 transition-colors">
+                  {partners.map((partner) => {
+                    // The reason gets its own full-width row right under the partner's,
+                    // so the bottom border moves down to keep the two visually joined.
+                    const showReason =
+                      partner.approvalStatus === 'REPROVADO' && !!partner.rejectionReason;
+                    return (
+                    <Fragment key={partner.id}>
+                    <tr className={`hover:bg-beige/30 transition-colors ${showReason ? '' : 'border-b border-border-custom/50'}`}>
                       <td className="p-4">
                         <div className="flex items-center gap-3">
                           <img
@@ -261,7 +273,16 @@ export default function MyPartnersPage() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    {showReason && (
+                      <tr className="border-b border-border-custom/50">
+                        <td colSpan={5} className="px-4 pb-4 pt-0">
+                          <RejectionNotice reason={partner.rejectionReason} />
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

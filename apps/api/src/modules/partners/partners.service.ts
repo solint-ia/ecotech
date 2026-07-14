@@ -220,7 +220,7 @@ export class PartnersService {
   }
 
   /** Admin-only: approve or reject a submitted partner. */
-  async updateStatus(id: string, status: ApprovalStatus) {
+  async updateStatus(id: string, status: ApprovalStatus, reason?: string) {
     const partner = await this.prisma.partner.findUnique({
       where: { id },
       select: { id: true },
@@ -229,7 +229,13 @@ export class PartnersService {
 
     const updated = await this.prisma.partner.update({
       where: { id },
-      data: { approvalStatus: status },
+      data: {
+        approvalStatus: status,
+        // Only a rejection carries a justification. Any other outcome clears the
+        // previous one, so a partner that gets approved on a second pass never
+        // keeps showing its old rejection note to the author.
+        rejectionReason: status === ApprovalStatus.REPROVADO ? reason ?? null : null,
+      },
     });
 
     await this.analyticsCache.invalidate();

@@ -182,7 +182,7 @@ export class LibraryService {
     });
   }
 
-  async updateStatus(id: string, status: ApprovalStatus) {
+  async updateStatus(id: string, status: ApprovalStatus, reason?: string) {
     const content = await this.prisma.libraryContent.findUnique({ where: { id } });
     if (!content) throw new NotFoundException('Conteúdo não encontrado.');
 
@@ -209,6 +209,9 @@ export class LibraryService {
       where: { id },
       data: {
         approvalStatus: status,
+        // Only a rejection carries a justification; any other outcome clears the
+        // previous one so a re-approved material keeps no stale rejection note.
+        rejectionReason: status === ApprovalStatus.REPROVADO ? reason ?? null : null,
         publishedAt: status === ApprovalStatus.APROVADO && !content.publishedAt ? new Date() : content.publishedAt,
       },
     });
