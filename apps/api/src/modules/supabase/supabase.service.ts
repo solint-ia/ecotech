@@ -56,8 +56,17 @@ export class SupabaseService {
       throw new Error('Falha ao enviar o arquivo.');
     }
 
-    const { data: publicUrlData } = this.supabase.storage.from('uploads').getPublicUrl(storagePath);
-    return publicUrlData.publicUrl;
+    return this.getPublicUrl(storagePath);
+  }
+
+  /**
+   * Resolves the public URL of a storage path without uploading anything. Lets a
+   * caller reference an asset that lives at a deterministic path (e.g. a point's
+   * generated PDF) before the file itself has been written.
+   */
+  getPublicUrl(storagePath: string): string {
+    const { data } = this.supabase.storage.from('uploads').getPublicUrl(storagePath);
+    return data.publicUrl;
   }
 
   async uploadBuffer(buffer: Buffer, mimetype: string, originalname: string, folder: string): Promise<string> {

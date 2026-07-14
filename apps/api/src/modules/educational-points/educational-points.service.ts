@@ -46,18 +46,24 @@ function slugify(text: string): string {
     .replace(/-+/g, '-');
 }
 
-function buildQrText(point: {
-  title: string;
-  offlineSummary: string;
-  environmentalImportance: string;
-  slug: string;
-  trail: { title: string };
-  preservationCare?: string;
-}): string {
+function buildQrText(
+  point: {
+    title: string;
+    offlineSummary: string;
+    environmentalImportance: string;
+    slug: string;
+    trail: { title: string };
+    preservationCare?: string;
+  },
+  pdfUrl?: string | null,
+): string {
   const baseUrl = 'https://www.projetoecotech.online';
   return [
     `Acesse a versão interativa:`,
     `${baseUrl}/pontos/${point.slug}`,
+    // Direct storage link, so whoever scans the code can open the material even
+    // without an account on the platform.
+    ...(pdfUrl ? ['', 'PDF do ponto:', pdfUrl] : []),
     '',
     '--- MODO OFFLINE ---',
     `Ponto: ${removeAccents(point.title)}`,
@@ -84,8 +90,9 @@ async function generateQrCode(
     trail: { title: string };
     preservationCare?: string;
   },
+  pdfUrl?: string | null,
 ): Promise<{ textContent: string; buffer: Buffer }> {
-  const textContent = buildQrText(point);
+  const textContent = buildQrText(point, pdfUrl);
 
   const qrWidth = 600;
   const baseQr = await QRCode.toBuffer(textContent, {
@@ -800,8 +807,17 @@ export class EducationalPointsService {
   ) {
     const pointForGen = { ...point, trail };
 
+    // The QR carries a link to the point's PDF. It has to be resolved *before* the
+    // QR is built, and the PDF below is only written afterwards — so we can't just
+    // read point.pdfUrl, which is still null on a point being created. For a
+    // generated PDF the storage path is deterministic, so the public URL is known
+    // ahead of the upload; an uploaded PDF was already persisted by the caller.
+    const pdfLinkForQr = skipPdfGeneration
+      ? point.pdfUrl ?? null
+      : this.supabaseService.getPublicUrl(getPdfStoragePath(point.slug));
+
     // Generate QR Code
-    const { textContent, buffer: qrBuffer } = await generateQrCode(pointForGen);
+    const { textContent, buffer: qrBuffer } = await generateQrCode(pointForGen, pdfLinkForQr);
 
     // Upload QR Code to Supabase
     const qrFilename = `qr-${point.slug}.png`;

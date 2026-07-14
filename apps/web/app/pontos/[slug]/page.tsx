@@ -1,9 +1,8 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, ExternalLink, Download, Leaf, TreePine } from 'lucide-react';
+import { ArrowLeft, ExternalLink, FileText, Leaf, TreePine } from 'lucide-react';
 import QrCodeDownloadBtn from '../../../components/pontos/QrCodeDownloadBtn';
 import { getImageUrl } from '../../../lib/image-url';
-import FileDownloadBtn from '../../../components/shared/FileDownloadBtn';
 import { auth } from '../../../lib/auth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -121,11 +120,19 @@ export default async function PointDetailPage({ params }: { params: Promise<{ sl
           </Link>
         )}
         {pdfUrl && (
-          <FileDownloadBtn 
-            fileUrl={pdfUrl} 
-            fileName={`ecotech-${point.slug}.pdf`} 
-            label="Baixar PDF" 
-          />
+          // Links straight to the file in storage instead of forcing a download, so
+          // the PDF stays reachable to anyone with the URL — including people who
+          // reach it from the QR code without an account on the platform.
+          <a
+            href={pdfUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            id="btn-ver-pdf"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-forest text-white text-sm font-semibold hover:bg-forest/90 transition-all active:scale-95 shadow-md hover:shadow-lg"
+          >
+            <FileText className="w-4 h-4" />
+            Ver PDF
+          </a>
         )}
         {point.trail?.wikilocUrl && (
           <a
