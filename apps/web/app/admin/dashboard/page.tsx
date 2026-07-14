@@ -196,7 +196,7 @@ export default function AdminDashboardPage() {
                     {count}
                   </p>
                   <p className={`text-xs mt-1 truncate ${isPending ? 'text-amber-700/90' : 'text-foreground/40'}`}>
-                    {count === 1 ? `${singular} pendente` : `${plural} pendentes`}
+                    {count === 1 ? singular : plural}
                   </p>
                 </div>
               </Link>
